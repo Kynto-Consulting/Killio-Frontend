@@ -11,11 +11,14 @@ import {
   COVER_H, COVER_PALETTE, COVER_W, CoverShape, coverBgVar, coverFamily, generateCover, isKnownCategory, prettifyCategory,
 } from "@/lib/marketplace/presentation";
 
-/* Corporate Memphis building blocks: flat shapes, thick ink strokes, hard offset shadows. No gradients. */
+/* Soft building blocks shared with the document dialogs: thin borders, rounded corners, theme primary colour, no offset shadows. */
 
-export const HARD_SHADOW_HOVER =
-  "transition-[transform,box-shadow] duration-150 motion-reduce:transition-none hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--memphis-shadow)] motion-reduce:hover:translate-x-0 motion-reduce:hover:translate-y-0 focus-visible:-translate-x-0.5 focus-visible:-translate-y-0.5 focus-visible:shadow-[5px_5px_0_0_var(--memphis-shadow)] motion-reduce:focus-visible:translate-x-0 motion-reduce:focus-visible:translate-y-0";
-export const FOCUS_RING = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+export const FOCUS_RING = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
+export const SOFT_HOVER = "transition-colors motion-reduce:transition-none";
+export const SOFT_PRIMARY = `inline-flex items-center justify-center gap-2 rounded-lg bg-primary font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`;
+export const SOFT_SECONDARY = `inline-flex items-center justify-center gap-2 rounded-lg border border-input bg-background font-medium text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`;
+export const SOFT_FIELD = `w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm placeholder:text-muted-foreground/60 focus-visible:border-primary ${FOCUS_RING}`;
+export const SOFT_ICON_BTN = `flex h-8 w-8 items-center justify-center rounded-lg border border-input bg-background text-foreground transition-colors hover:bg-accent disabled:opacity-40 ${FOCUS_RING}`;
 
 const ICONS: Record<string, React.ElementType> = { Wallet, Users, LayoutGrid, Code, Building2, Sparkles };
 
@@ -84,7 +87,7 @@ export function PackCover({ pack, className = "", showIcon = true }: {
         {spec.shapes.map((shape, i) => <Shape key={i} shape={shape} ink={spec.stroke} />)}
       </svg>
       {showIcon ? (
-        <div className="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl border-2 shadow-[3px_3px_0_0_var(--memphis-shadow)] sm:h-16 sm:w-16" style={{ background: COVER_PALETTE.cream, borderColor: spec.stroke, color: spec.stroke }}>
+        <div className="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl border-2 sm:h-16 sm:w-16" style={{ background: COVER_PALETTE.cream, borderColor: spec.stroke, color: spec.stroke }}>
           <Icon className="h-7 w-7 sm:h-8 sm:w-8" strokeWidth={2.4} />
         </div>
       ) : null}
@@ -99,8 +102,8 @@ export function PriceBadge({ pack, className = "" }: { pack: Pick<MarketplacePac
   const price = formatPackPrice(pack, locale);
   return (
     <span
-      className={`inline-flex items-center rounded-full border-2 px-2.5 py-0.5 text-[12px] font-extrabold ${className}`}
-      style={{ background: price.kind === "free" ? "var(--cover-badge-free)" : "var(--cover-badge-paid)", color: "var(--cover-ink)", borderColor: "var(--memphis-line)" }}
+      className={`inline-flex items-center rounded-full border border-black/10 px-2.5 py-0.5 text-[12px] font-bold dark:border-white/10 ${className}`}
+      style={{ background: price.kind === "free" ? "var(--cover-badge-free)" : "var(--cover-badge-paid)", color: "var(--cover-ink)" }}
     >
       {price.kind === "free" ? t("hub.free") : price.label}
     </span>
@@ -110,7 +113,7 @@ export function PriceBadge({ pack, className = "" }: { pack: Pick<MarketplacePac
 export function CategoryChip({ slug, className = "" }: { slug: string; className?: string }) {
   const label = useCategoryLabel();
   return (
-    <span className={`inline-flex items-center rounded-full border-2 px-2.5 py-0.5 text-[11px] font-bold ${className}`} style={{ background: coverBgVar(coverFamily(slug)), color: "var(--cover-ink)", borderColor: "var(--memphis-line)" }}>
+    <span className={`inline-flex items-center rounded-full border border-black/10 px-2.5 py-0.5 text-[11px] font-semibold dark:border-white/10 ${className}`} style={{ background: coverBgVar(coverFamily(slug)), color: "var(--cover-ink)" }}>
       {label(slug)}
     </span>
   );
@@ -120,18 +123,18 @@ export function PackCard({ pack, footer }: { pack: MarketplacePack; footer?: Rea
   const t = useTranslations("marketplace");
   const tags = (pack.tags ?? []).slice(0, 3);
   return (
-    <article className={`group relative flex flex-col overflow-hidden rounded-3xl border-2 border-[var(--memphis-line)] bg-background ${HARD_SHADOW_HOVER} focus-within:ring-2 focus-within:ring-[hsl(var(--accent-ink))]`}>
+    <article className={`group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md focus-within:ring-2 focus-within:ring-primary/40`}>
       <Link
         href={`/marketplace/${encodeURIComponent(pack.id)}`}
         aria-label={t("gallery.openPack", { title: pack.title })}
         className="flex flex-1 flex-col focus-visible:outline-none after:absolute after:inset-0 after:content-['']"
       >
-        <div className="relative border-b-2 border-[var(--memphis-line)]">
+        <div className="relative border-b border-border/60">
           <PackCover pack={pack} />
-          <PriceBadge pack={pack} className="absolute right-3 top-3 shadow-[2px_2px_0_0_var(--memphis-shadow)]" />
+          <PriceBadge pack={pack} className="absolute right-3 top-3" />
         </div>
         <div className="flex flex-1 flex-col gap-2 p-4">
-          <h3 className="line-clamp-2 text-[17px] font-black leading-tight tracking-tight text-foreground">{pack.title}</h3>
+          <h3 className="line-clamp-2 text-base font-semibold leading-tight text-foreground">{pack.title}</h3>
           <p className="line-clamp-2 min-h-[2.6em] text-[13px] leading-snug text-foreground/70">{pack.summary ?? t("empty.noSummary")}</p>
           <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-1 text-[12px] font-semibold text-foreground/70">
             {pack.category ? <CategoryChip slug={pack.category} /> : null}
@@ -145,7 +148,7 @@ export function PackCard({ pack, footer }: { pack: MarketplacePack; footer?: Rea
           ) : null}
         </div>
       </Link>
-      {footer ? <div className="relative z-10 border-t-2 border-[var(--memphis-line)] p-3">{footer}</div> : null}
+      {footer ? <div className="relative z-10 border-t border-border/60 p-3">{footer}</div> : null}
     </article>
   );
 }
@@ -153,7 +156,7 @@ export function PackCard({ pack, footer }: { pack: MarketplacePack; footer?: Rea
 /** Same silhouette as PackCard, so the grid does not jump when data arrives. */
 export function PackCardSkeleton() {
   return (
-    <div className="flex flex-col overflow-hidden rounded-3xl border-2 border-foreground/25 bg-background" aria-hidden="true">
+    <div className="flex flex-col overflow-hidden rounded-2xl border border-border bg-background" aria-hidden="true">
       <div className="aspect-[16/10] w-full animate-pulse border-b-2 border-foreground/25 bg-foreground/10 motion-reduce:animate-none" />
       <div className="space-y-3 p-4">
         <div className="h-4 w-2/3 animate-pulse rounded-full bg-foreground/15 motion-reduce:animate-none" />

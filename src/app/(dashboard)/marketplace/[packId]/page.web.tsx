@@ -10,7 +10,7 @@ import { useSession } from "@/components/providers/session-provider";
 import { useTenant } from "@/components/providers/tenant-provider";
 import { PackGallery } from "@/components/marketplace/pack-gallery";
 import { PackDocument } from "@/components/marketplace/pack-document";
-import { CategoryChip, FOCUS_RING, HARD_SHADOW_HOVER, MemphisIllustration, PackCard, PackCover, PriceBadge } from "@/components/marketplace/pack-ui";
+import { CategoryChip, FOCUS_RING, SOFT_PRIMARY, SOFT_SECONDARY, MemphisIllustration, PackCard, PackCover, PriceBadge } from "@/components/marketplace/pack-ui";
 import { formatPackPrice, nextHubAction } from "@/lib/marketplace/pricing";
 import { groupAssets, humanizeFieldKey, relatedPacks, resolvePlaceholderText } from "@/lib/marketplace/presentation";
 import {
@@ -26,8 +26,8 @@ import {
 } from "@/lib/api/marketplace";
 
 const ASSET_ICONS: Record<string, React.ElementType> = { document: FileText, board: Layout, mesh: GitBranch, script: Zap, card_template: LayoutTemplate, tag_group: Tag, group: Users };
-const PRIMARY_BTN = `inline-flex items-center justify-center gap-2 rounded-xl border-2 border-[var(--memphis-line)] bg-[hsl(var(--accent-ink))] px-5 py-3 text-sm font-extrabold text-[hsl(var(--accent-ink-fg))] ${HARD_SHADOW_HOVER} ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-40`;
-const SECONDARY_BTN = `inline-flex items-center justify-center gap-2 rounded-xl border-2 border-[var(--memphis-line)] bg-background px-3 py-2 text-[13px] font-bold text-foreground ${HARD_SHADOW_HOVER} ${FOCUS_RING}`;
+const PRIMARY_BTN = `${SOFT_PRIMARY} h-10 px-5 text-sm`;
+const SECONDARY_BTN = `${SOFT_SECONDARY} h-9 px-3 text-[13px]`;
 
 function placeholderLabel(p: { placeholderKey: string; validation?: Record<string, unknown> }): string {
   const leaf = p.validation?.leafKey;
@@ -36,7 +36,7 @@ function placeholderLabel(p: { placeholderKey: string; validation?: Record<strin
 
 function Section({ title, icon: Icon, children }: { title: string; icon?: React.ElementType; children: React.ReactNode }) {
   return (
-    <section className="rounded-3xl border-2 border-[var(--memphis-line)] bg-background p-5 sm:p-6">
+    <section className="rounded-2xl border border-border bg-background p-5 sm:p-6">
       <h2 className="mb-4 flex items-center gap-2 text-lg font-black tracking-tight text-foreground">
         {Icon ? <Icon className="h-5 w-5" aria-hidden="true" /> : null}
         {title}
@@ -146,7 +146,7 @@ export function MarketplaceDetailView({ packId, compact = false }: { packId: str
       <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6" aria-busy="true">
         {breadcrumb}
         <div className="grid gap-6 lg:grid-cols-5">
-          <div className="aspect-[16/10] animate-pulse rounded-3xl border-2 border-foreground/25 bg-foreground/10 motion-reduce:animate-none lg:col-span-3" />
+          <div className="aspect-[16/10] animate-pulse rounded-2xl border border-border bg-foreground/10 motion-reduce:animate-none lg:col-span-3" />
           <div className="space-y-3 lg:col-span-2">
             <div className="h-8 w-3/4 animate-pulse rounded-full bg-foreground/15 motion-reduce:animate-none" />
             <div className="h-4 w-1/2 animate-pulse rounded-full bg-foreground/10 motion-reduce:animate-none" />
@@ -161,7 +161,7 @@ export function MarketplaceDetailView({ packId, compact = false }: { packId: str
     return (
       <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
         {breadcrumb}
-        <div role="alert" className="flex flex-col items-center rounded-3xl border-2 border-dashed border-foreground/40 px-6 py-12 text-center">
+        <div role="alert" className="flex flex-col items-center rounded-2xl border border-dashed border-border px-6 py-12 text-center">
           <MemphisIllustration className="h-24 w-40" />
           <p className="mt-4 text-lg font-black text-foreground">{t("detail.notFound")}</p>
           <p className="mt-1 flex items-center gap-1.5 text-sm text-foreground/70"><AlertCircle className="h-4 w-4" aria-hidden="true" />{error ?? t("errors.loadPackDetail")}</p>
@@ -184,7 +184,7 @@ export function MarketplaceDetailView({ packId, compact = false }: { packId: str
 
       {/* ── HERO ── */}
       <div className="grid gap-6 lg:grid-cols-5">
-        <div className="self-start overflow-hidden rounded-3xl border-2 border-[var(--memphis-line)] shadow-[6px_6px_0_0_var(--memphis-shadow)] lg:col-span-3">
+        <div className="self-start overflow-hidden rounded-2xl border border-border lg:col-span-3">
           <PackCover pack={pack} />
         </div>
         <div className="flex flex-col gap-4 lg:col-span-2">
@@ -238,7 +238,7 @@ export function MarketplaceDetailView({ packId, compact = false }: { packId: str
                   {groups.map((g) => {
                     const Icon = ASSET_ICONS[g.type] ?? FileText;
                     return (
-                      <li key={g.type} className="inline-flex items-center gap-1.5 rounded-full border-2 border-[var(--memphis-line)] px-3 py-1 text-[13px] font-bold text-foreground">
+                      <li key={g.type} className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-[13px] font-bold text-foreground">
                         <Icon className="h-3.5 w-3.5" aria-hidden="true" />
                         {g.count} · {t(`assetTypes.${g.type}`)}
                       </li>
@@ -270,7 +270,7 @@ export function MarketplaceDetailView({ packId, compact = false }: { packId: str
               <p className="mb-3 text-sm text-foreground/70">{t("detail.customizeHint")}</p>
               <ul className="space-y-2">
                 {placeholders.map((p) => (
-                  <li key={p.placeholderKey} className="rounded-2xl border-2 border-foreground/30 px-3 py-2">
+                  <li key={p.placeholderKey} className="rounded-2xl border border-border px-3 py-2">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-sm font-bold text-foreground">{placeholderLabel(p)}</span>
                       <span className="shrink-0 rounded-full border border-foreground/40 px-2 py-0.5 text-[11px] font-bold text-foreground/70">{p.isRequired ? t("detail.required") : t("detail.optional")}</span>

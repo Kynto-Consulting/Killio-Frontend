@@ -7,7 +7,7 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import type { MarketplaceGalleryImage } from "@/lib/api/marketplace";
 import { FOCUS_RING } from "@/components/marketplace/pack-ui";
 
-const NAV_BTN = `flex h-10 w-10 items-center justify-center rounded-full border-2 border-[var(--memphis-line)] bg-background text-foreground shadow-[2px_2px_0_0_var(--memphis-shadow)] ${FOCUS_RING}`;
+const NAV_BTN = `flex h-10 w-10 items-center justify-center rounded-full border border-input bg-background text-foreground shadow-sm transition-colors hover:bg-accent ${FOCUS_RING}`;
 
 /** Preview gallery: large image + thumbnails, arrow keys, and a lightbox on click. */
 export function PackGallery({ images, title }: { images: MarketplaceGalleryImage[]; title: string }) {
@@ -55,12 +55,12 @@ export function PackGallery({ images, title }: { images: MarketplaceGalleryImage
           if (e.key === "ArrowLeft") { e.preventDefault(); go(-1); }
           if (e.key === "ArrowRight") { e.preventDefault(); go(1); }
         }}
-        className={`relative overflow-hidden rounded-3xl border-2 border-[var(--memphis-line)] bg-foreground/5 ${FOCUS_RING}`}
+        className={`relative overflow-hidden rounded-2xl border border-border bg-foreground/5 ${FOCUS_RING}`}
       >
         <button ref={openerRef} type="button" onClick={() => setOpen(true)} aria-label={t("detail.galleryEnlarge")} className="group block aspect-[16/10] w-full cursor-zoom-in focus-visible:outline-none">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={current.url} alt={current.caption || label(index)} className="h-full w-full object-contain" />
-          <span className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full border-2 border-[var(--memphis-line)] bg-background text-foreground" aria-hidden="true"><Maximize2 className="h-4 w-4" /></span>
+          <span className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-foreground" aria-hidden="true"><Maximize2 className="h-4 w-4" /></span>
         </button>
         {count > 1 ? (
           <>
@@ -79,7 +79,7 @@ export function PackGallery({ images, title }: { images: MarketplaceGalleryImage
                 onClick={() => setIndex(i)}
                 aria-label={label(i)}
                 aria-current={i === index}
-                className={`block h-16 w-24 overflow-hidden rounded-xl border-2 bg-foreground/5 ${i === index ? "border-[hsl(var(--accent-ink))] shadow-[3px_3px_0_0_var(--memphis-shadow)]" : "border-foreground/40 hover:border-[var(--memphis-line)]"} ${FOCUS_RING}`}
+                className={`block h-16 w-24 overflow-hidden rounded-xl border bg-foreground/5 ${i === index ? "border-primary ring-2 ring-primary/30" : "border-border hover:border-primary/50"} ${FOCUS_RING}`}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={img.url} alt="" loading="lazy" className="h-full w-full object-cover" />
@@ -99,7 +99,7 @@ export function PackGallery({ images, title }: { images: MarketplaceGalleryImage
         >
           <div className="flex items-center justify-between gap-3 text-white">
             <p className="text-sm font-bold" aria-live="polite">{index + 1} / {count}</p>
-            <button ref={closeRef} type="button" onClick={() => setOpen(false)} aria-label={t("detail.galleryClose")} className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black"><X className="h-5 w-5" /></button>
+            <button ref={closeRef} type="button" onClick={() => setOpen(false)} aria-label={t("detail.galleryClose")} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-white/10 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black"><X className="h-5 w-5" /></button>
           </div>
           <div className="relative flex min-h-0 flex-1 items-center justify-center" onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
