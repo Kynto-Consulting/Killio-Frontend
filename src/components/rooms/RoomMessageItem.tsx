@@ -479,7 +479,7 @@ export function RoomMessageItem({
       <div
         id={`msg-${message.id}`}
         onClick={isMobile ? (e) => { if (!(e.target as HTMLElement).closest("a,button,textarea,input,[role=toolbar]")) setToolsOpen((v) => !v); } : undefined}
-        className={`group relative flex gap-2.5 rounded-lg px-2 py-0.5 transition-colors hover:bg-muted/30 motion-reduce:transition-none ${showAvatar ? "mt-2.5" : ""} ${mentionsMe ? "bg-amber-500/10 hover:bg-amber-500/15 shadow-[inset_2px_0_0_0_rgb(245_158_11)]" : ""} ${message.pinnedAt ? "shadow-[inset_2px_0_0_0_hsl(var(--primary))]" : ""}`}
+        className={`group relative flex gap-2.5 rounded-lg px-2 py-0.5 transition-colors hover:bg-muted/30 motion-reduce:transition-none ${showAvatar ? "mt-2.5" : ""} ${mentionsMe ? "bg-amber-500/10 hover:bg-amber-500/15 shadow-[inset_2px_0_0_0_rgb(245_158_11)]" : ""} ${message.pinnedAt ? "shadow-[inset_2px_0_0_0_hsl(var(--primary)/0.3)]" : ""}`}
       >
         {/* Avatar */}
         {showAvatar ? (
