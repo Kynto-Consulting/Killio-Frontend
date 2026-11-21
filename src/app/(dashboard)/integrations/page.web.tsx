@@ -912,7 +912,7 @@ export function IntegrationsPageView({
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
                 <div>
                   <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.03em", color: "hsl(var(--ink))" }}>{t("title")}</div>
-                  <div style={{ fontSize: 13, color: "hsl(var(--ink) / 0.45)", marginTop: 3 }}>
+                  <div style={{ fontSize: 13, color: "hsl(var(--ink) / 0.65)", marginTop: 3 }}>
                     {t("tabs.integrations")} · {t("stats.syncSubtitle")}
                   </div>
                 </div>
@@ -922,17 +922,17 @@ export function IntegrationsPageView({
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
                 <div style={{ background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)", borderRadius: 14, padding: "18px 20px" }}>
                   <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: "hsl(var(--ink))", lineHeight: 1 }}>{availableCount}</div>
-                  <div style={{ fontSize: 11, color: "hsl(var(--ink) / 0.45)", marginTop: 4 }}>{t("stats.available")}</div>
+                  <div style={{ fontSize: 11, color: "hsl(var(--ink) / 0.65)", marginTop: 4 }}>{t("stats.available")}</div>
                 </div>
                 <div style={{ background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)", borderRadius: 14, padding: "18px 20px" }}>
-                  <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: "hsl(var(--ink) / 0.42)", lineHeight: 1 }}>{comingSoonCount}</div>
-                  <div style={{ fontSize: 11, color: "hsl(var(--ink) / 0.45)", marginTop: 4 }}>{t("stats.comingSoon")}</div>
+                  <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: "hsl(var(--ink) / 0.7)", lineHeight: 1 }}>{comingSoonCount}</div>
+                  <div style={{ fontSize: 11, color: "hsl(var(--ink) / 0.65)", marginTop: 4 }}>{t("stats.comingSoon")}</div>
                 </div>
                 <div style={{ background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)", borderRadius: 14, padding: "18px 20px" }}>
-                  <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: usageLoading ? "hsl(var(--ink) / 0.3)" : "#fff", lineHeight: 1 }}>
+                  <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: usageLoading ? "hsl(var(--ink) / 0.5)" : "hsl(var(--ink))", lineHeight: 1 }}>
                     {usageLoading ? "—" : usage ? (usage.limit === null ? String(usage.executed) : `${usage.executed}/${usage.limit}`) : "—"}
                   </div>
-                  <div style={{ fontSize: 11, color: "hsl(var(--ink) / 0.45)", marginTop: 4 }}>{t("stats.scriptRuns")}</div>
+                  <div style={{ fontSize: 11, color: "hsl(var(--ink) / 0.65)", marginTop: 4 }}>{t("stats.scriptRuns")}</div>
                 </div>
               </div>
 

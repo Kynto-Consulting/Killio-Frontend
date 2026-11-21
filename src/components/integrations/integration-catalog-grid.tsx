@@ -125,7 +125,7 @@ function ComingSoonCard({
             borderRadius: 999,
             letterSpacing: "0.06em",
             textTransform: "uppercase",
-            color: "hsl(var(--ink) / 0.45)",
+            color: "hsl(var(--ink) / 0.65)",
             background: "hsl(var(--ink) / 0.035)",
             border: "1px solid hsl(var(--ink) / 0.08)",
           }}
@@ -133,7 +133,7 @@ function ComingSoonCard({
           {badge}
         </span>
       </div>
-      <p style={{ fontSize: 12, color: "hsl(var(--ink) / 0.45)", lineHeight: 1.55, marginBottom: 14, flex: 1 }}>
+      <p style={{ fontSize: 12, color: "hsl(var(--ink) / 0.65)", lineHeight: 1.55, marginBottom: 14, flex: 1 }}>
         {description}
       </p>
       <button
@@ -151,7 +151,7 @@ function ComingSoonCard({
           cursor: "not-allowed",
           border: "1px solid hsl(var(--ink) / 0.08)",
           background: "hsl(var(--ink) / 0.035)",
-          color: "hsl(var(--ink) / 0.4)",
+          color: "hsl(var(--ink) / 0.6)",
           alignSelf: "flex-start",
         }}
       >
@@ -212,7 +212,7 @@ export function IntegrationCatalogGrid({
   if (!loaded) {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 48 }}>
-        <Loader2 className="h-6 w-6 animate-spin" style={{ color: "hsl(var(--ink) / 0.4)" }} />
+        <Loader2 className="h-6 w-6 animate-spin" style={{ color: "hsl(var(--ink) / 0.6)" }} />
       </div>
     );
   }
