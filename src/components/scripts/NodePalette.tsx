@@ -6,10 +6,10 @@ import { NodeKind } from "@/lib/api/scripts";
 import {
   GitBranch, Filter, PlusSquare, Pencil, ArrowRight, UserPlus, Play,
   Scale, ArrowRightLeft, FileText, Split, Clock3, Webhook, Database,
-  HardDriveUpload, Hash, SlidersHorizontal, Layers, GitFork, Globe, Code2, Repeat, Scissors, Braces, FilePlus2, MessageCircle, Send, Sparkles,
+  HardDriveUpload, Hash, SlidersHorizontal, Layers, GitFork, Globe, Code2, Repeat, Scissors, Braces, FilePlus2, MessageCircle, Send, Sparkles, MessageSquareText, SmilePlus,
 } from "lucide-react";
 
-export type PaletteIntegrationKey = "core" | "github" | "whatsapp" | "slack";
+export type PaletteIntegrationKey = "core" | "github" | "whatsapp" | "slack" | "rooms";
 
 interface PaletteTemplatePayload {
   label?: string;
@@ -21,6 +21,7 @@ interface IntegrationAvailability {
   github?: boolean;
   whatsapp?: boolean;
   slack?: boolean;
+  rooms?: boolean;
 }
 
 interface NodePaletteProps {
@@ -485,9 +486,43 @@ const PALETTE_ITEMS: PaletteItem[] = [
     category: "actions",
     integration: "core",
   },
+  // Rooms and bots
+  {
+    id: "rooms.message.trigger",
+    kind: "killio.trigger.room_message",
+    labelKey: "roomMessageTrigger",
+    icon: MessageSquareText,
+    color: "bg-sky-700 text-white",
+    category: "triggers",
+    integration: "rooms",
+    searchTerms: ["room", "sala", "bot", "chat", "mensaje", "comando", "command"],
+    template: { label: "Room message", config: { commandPrefix: "", matchMode: "all" } },
+  },
+  {
+    id: "rooms.send.message",
+    kind: "killio.room.send_message",
+    labelKey: "roomSendMessage",
+    icon: Send,
+    color: "bg-sky-600 text-white",
+    category: "actions",
+    integration: "rooms",
+    searchTerms: ["room", "sala", "bot", "chat", "reply", "responder", "enviar"],
+    template: { label: "Reply", config: { text: "" } },
+  },
+  {
+    id: "rooms.react",
+    kind: "killio.room.react",
+    labelKey: "roomReact",
+    icon: SmilePlus,
+    color: "bg-sky-600 text-white",
+    category: "actions",
+    integration: "rooms",
+    searchTerms: ["room", "sala", "bot", "emoji", "reaction", "reaccion"],
+    template: { label: "React", config: { emoji: "\ud83d\udc4d" } },
+  },
 ];
 
-const INTEGRATION_ORDER: PaletteIntegrationKey[] = ["core", "github", "whatsapp", "slack"];
+const INTEGRATION_ORDER: PaletteIntegrationKey[] = ["core", "github", "whatsapp", "slack", "rooms"];
 
 export function NodePalette({ integrationAvailability }: NodePaletteProps) {
   const t = useTranslations("integrations");
@@ -499,6 +534,7 @@ export function NodePalette({ integrationAvailability }: NodePaletteProps) {
     github: false,
     whatsapp: true,
     slack: true,
+    rooms: true,
     ...integrationAvailability,
   };
 

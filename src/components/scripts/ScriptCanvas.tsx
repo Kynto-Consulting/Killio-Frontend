@@ -22,6 +22,7 @@ import "@xyflow/react/dist/style.css";
 import { GithubTriggerNode } from "./nodes/GithubTriggerNode";
 import { ManualTriggerNode } from "./nodes/ManualTriggerNode";
 import { WebhookTriggerNode } from "./nodes/WebhookTriggerNode";
+import { RoomMessageTriggerNode, RoomSendMessageNode, RoomReactNode } from "./nodes/RoomNodes";
 import { WhatsappIncomingTriggerNode } from "./nodes/WhatsappIncomingTriggerNode";
 import { AiResponseNode } from "./nodes/AiResponseNode";
 import { WhatsappPersonalSendNode } from "./nodes/WhatsappPersonalSendNode";
@@ -116,6 +117,9 @@ const nodeTypes: NodeTypes = {
   "core.action.whatsapp_personal_send": WhatsappPersonalSendNode,
   "core.action.ai_response": AiResponseNode,
   "core.action.js_code": JsCodeNode,
+  "killio.trigger.room_message": RoomMessageTriggerNode,
+  "killio.room.send_message": RoomSendMessageNode,
+  "killio.room.react": RoomReactNode,
 };
 
 type ConfigFieldType = "text" | "textarea" | "code" | "number" | "boolean" | "select";
@@ -819,6 +823,29 @@ const NODE_CONFIG_FIELDS: Partial<Record<NodeKind, ConfigField[]>> = {
     { key: "sourcePath", type: "text", labelKey: "canvas.fields.sourcePath", placeholderKey: "canvas.placeholders.aiSourcePath" },
     { key: "outputPath", type: "text", labelKey: "canvas.fields.outputPath", placeholderKey: "canvas.placeholders.aiOutputPath" },
   ],
+  "killio.trigger.room_message": [
+    { key: "commandPrefix", type: "text", labelKey: "canvas.fields.roomCommandPrefix", placeholderKey: "canvas.placeholders.roomCommandPrefix" },
+    { key: "requireMention", type: "boolean", labelKey: "canvas.fields.roomRequireMention" },
+    {
+      key: "matchMode",
+      type: "select",
+      labelKey: "canvas.fields.roomMatchMode",
+      options: [
+        { value: "all", labelKey: "canvas.fields.roomMatchAll" },
+        { value: "any", labelKey: "canvas.fields.roomMatchAny" },
+      ],
+    },
+    { key: "roomId", type: "text", labelKey: "canvas.fields.roomFilterRoomId" },
+  ],
+  "killio.room.send_message": [
+    { key: "text", type: "textarea", labelKey: "canvas.fields.roomText", placeholderKey: "canvas.placeholders.roomText" },
+    { key: "roomId", type: "text", labelKey: "canvas.fields.roomId", placeholderKey: "canvas.placeholders.roomId" },
+  ],
+  "killio.room.react": [
+    { key: "emoji", type: "text", labelKey: "canvas.fields.roomEmoji", placeholderKey: "canvas.placeholders.roomEmoji" },
+    { key: "messageId", type: "text", labelKey: "canvas.fields.roomMessageId", placeholderKey: "canvas.placeholders.roomMessageId" },
+    { key: "roomId", type: "text", labelKey: "canvas.fields.roomId", placeholderKey: "canvas.placeholders.roomId" },
+  ],
   "core.action.whatsapp_personal_send": [
     { key: "toNumber", type: "text", labelKey: "canvas.fields.toNumber", placeholderKey: "canvas.placeholders.toNumber" },
     { key: "text", type: "textarea", labelKey: "canvas.fields.messageText", placeholderKey: "canvas.placeholders.whatsappPersonalText" },
@@ -1043,6 +1070,21 @@ function buildNodePayloadPreview(node: Node | null): Record<string, unknown> | n
         query: {
           token: "abc",
         },
+      },
+    };
+  }
+
+  if (node.type === "killio.trigger.room_message") {
+    return {
+      externalKey: "00000000-0000-4000-8000-000000000001",
+      data: {
+        roomId: "00000000-0000-4000-8000-000000000002",
+        messageId: "00000000-0000-4000-8000-000000000001",
+        text: "/hola mundo",
+        command: "hola",
+        args: "mundo",
+        authorName: "Ana",
+        mentionsBot: false,
       },
     };
   }

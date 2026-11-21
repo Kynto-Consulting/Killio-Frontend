@@ -113,3 +113,27 @@ test("example script: one room_message trigger wired to one send_message, only a
   assert.ok(g.nodes.every((x) => x.scriptId === "s1"));
   assert.equal(scriptEditorHref("a b"), "/scripts?script=a%20b");
 });
+
+test("example script: edge uses the backend handles and no node is left orphan", () => {
+  // Handles as declared by the backend node definitions (scripts/node-definitions.ts).
+  const defs: Record<string, { inputHandles: string[]; outputHandles: string[] }> = {
+    "killio.trigger.room_message": { inputHandles: [], outputHandles: ["output"] },
+    "killio.room.send_message": { inputHandles: ["input"], outputHandles: ["output"] },
+  };
+  let n = 0;
+  const g = buildHelloScriptGraph("s1", () => `00000000-0000-4000-8000-${String(++n).padStart(12, "0")}`, "Hola");
+  const [edge] = g.edges;
+  const source = g.nodes.find((x) => x.id === edge.sourceNodeId)!;
+  const target = g.nodes.find((x) => x.id === edge.targetNodeId)!;
+  assert.equal(source.nodeKind, "killio.trigger.room_message");
+  assert.equal(target.nodeKind, "killio.room.send_message");
+  assert.ok(defs[source.nodeKind].outputHandles.includes(edge.sourceHandle as string));
+  assert.ok(defs[target.nodeKind].inputHandles.includes(edge.targetHandle as string));
+  assert.equal(edge.scriptId, "s1");
+  const touched = new Set(g.edges.flatMap((e) => [e.sourceNodeId, e.targetNodeId]));
+  assert.ok(g.nodes.every((x) => touched.has(x.id)), "orphan node");
+  assert.equal(new Set(g.nodes.map((x) => x.id).concat(g.edges.map((e) => e.id))).size, 3, "ids must be unique");
+  // /hola is answered because the trigger filters by prefix (BotDispatchService applies commandPrefix).
+  assert.equal(g.nodes[0].config.commandPrefix, "/hola");
+  assert.equal(g.nodes[1].config.text, "Hola");
+});
