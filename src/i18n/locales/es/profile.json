@@ -3,7 +3,8 @@
   "subtitle": "Administra tu información pública.",
   "tabs": {
     "profile": "Perfil",
-    "security": "Seguridad"
+    "security": "Seguridad",
+    "notifications": "Notificaciones"
   },
   "avatar": "Imagen de perfil",
   "avatarHint": "JPG, PNG o GIF. Máximo 5 MB.",
@@ -30,5 +31,35 @@
     "description": "Cuando esté activo, podrás usar OTP / enlace mágico para iniciar sesión con una capa extra de seguridad."
   },
   "saveChanges": "Guardar cambios",
-  "updateError": "Ocurrió un error al actualizar tu perfil."
+  "updateError": "Ocurrió un error al actualizar tu perfil.",
+  "notifications": {
+    "tab": "Notificaciones",
+    "installTitle": "Instalar la app",
+    "installBody": "Agrega {{app}} a tu dispositivo para abrirla como cualquier otra app y recibir notificaciones.",
+    "installButton": "Instalar app",
+    "installed": "{{app}} está instalada en este dispositivo.",
+    "installIos": "En iPhone o iPad: toca Compartir y luego «Agregar a pantalla de inicio». Las notificaciones funcionan una vez instalada la app.",
+    "installUnavailable": "Tu navegador ofrecerá instalar la app desde su menú (Instalar app / Agregar a pantalla de inicio) cuando esté disponible.",
+    "pushTitle": "Notificaciones push",
+    "pushBody": "Recibe un aviso en este dispositivo cuando te asignen algo, te mencionen o venza una tarjeta.",
+    "enable": "Activar notificaciones",
+    "disable": "Desactivar en este dispositivo",
+    "stateOn": "Las notificaciones están activas en este dispositivo.",
+    "stateDenied": "Las notificaciones están bloqueadas. Permítelas en la configuración del sitio de tu navegador y vuelve aquí.",
+    "stateNeedsInstall": "En iOS las notificaciones solo funcionan desde la app instalada. Instálala primero (ver arriba).",
+    "stateUnsupported": "Este navegador no admite notificaciones push.",
+    "stateNotConfigured": "Las notificaciones push aún no están habilitadas en este servidor.",
+    "failed": "No se pudieron activar las notificaciones. Inténtalo de nuevo.",
+    "kindsTitle": "Avisarme de",
+    "kinds": {
+      "assignment": "Asignaciones",
+      "mention": "Menciones",
+      "comment": "Comentarios",
+      "due": "Fechas de vencimiento",
+      "invite": "Invitaciones",
+      "digest": "Resúmenes de actividad",
+      "message": "Salas y llamadas",
+      "other": "Otros"
+    }
+  }
 }

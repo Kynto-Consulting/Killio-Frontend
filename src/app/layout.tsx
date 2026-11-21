@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { getTenantConfig } from '@/lib/tenant/server';
 import { buildTenantThemeCss, initialHtmlClass, SYSTEM_THEME_SCRIPT, tenantFontPreloads } from '@/lib/tenant/theme';
+import { iconVersion, tenantIconSource } from '@/lib/pwa/manifest';
 import { TENANT_RESTORE_SCRIPT } from '@/lib/tenant/persist';
 import { TenantProvider } from '@/components/providers/tenant-provider';
 import { PoweredByBadge } from '@/components/marketing/powered-by-badge';
@@ -9,7 +10,7 @@ import { PoweredByBadge } from '@/components/marketing/powered-by-badge';
 const baseMetadata: Metadata = {
   title: 'Killio',
   description: 'Restriction-free productivity execution platform.',
-  manifest: '/manifest.json',
+  manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -20,6 +21,18 @@ const baseMetadata: Metadata = {
   },
 };
 
+function tenantIcons(tenant: Awaited<ReturnType<typeof getTenantConfig>>): Pick<Metadata, 'icons'> {
+  const source = tenantIconSource(tenant);
+  if (!source && !tenant.brand.faviconUrl) return {};
+  return {
+    icons: {
+      ...(tenant.brand.faviconUrl ? { icon: tenant.brand.faviconUrl } : {}),
+      // iOS ignores the manifest icons for the home-screen icon and reads this one.
+      ...(source ? { apple: `/pwa-icon/192?v=${iconVersion(source)}` } : {}),
+    },
+  };
+}
+
 // Public mode keeps the Killio metadata; tenant mode uses the customer's name, tagline and favicon.
 export async function generateMetadata(): Promise<Metadata> {
   const tenant = await getTenantConfig();
@@ -29,7 +42,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: tenant.brand.name,
     description: tenant.brand.tagline || baseMetadata.description,
     appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: tenant.brand.shortName },
-    ...(tenant.brand.faviconUrl ? { icons: { icon: tenant.brand.faviconUrl } } : {}),
+    ...tenantIcons(tenant),
   };
 }
 

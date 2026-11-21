@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { X, Loader2, Upload, User, Shield, Camera, Check, Globe, Clock, Sparkles } from "lucide-react";
+import { X, Loader2, Upload, User, Shield, Camera, Check, Globe, Clock, Sparkles, Bell } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { getUserAvatarUrl } from "@/lib/gravatar";
@@ -9,8 +9,9 @@ import { getOtpLoginPreference, setOtpLoginPreference, updateProfile } from "@/l
 import { uploadFile } from "@/lib/api/uploads";
 import { useAsyncAction } from "@/hooks/ui";
 import { ModelSelector } from "@/components/agent/model-selector";
+import { NotificationSettings } from "@/components/ui/notification-settings";
 
-type Tab = "profile" | "security";
+type Tab = "profile" | "notifications" | "security";
 
 interface ProfileSettingsModalProps {
   isOpen: boolean;
@@ -168,6 +169,7 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
 
   const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
     { id: "profile", label: t("tabs.profile") || "Profile", icon: User },
+    { id: "notifications", label: t("tabs.notifications") || "Notifications", icon: Bell },
     { id: "security", label: t("tabs.security") || "Security", icon: Shield },
   ];
 
@@ -444,6 +446,8 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
                   )}
                 </>
               )}
+
+              {activeTab === "notifications" && <NotificationSettings />}
 
               {activeTab === "security" && (
                 <section>
