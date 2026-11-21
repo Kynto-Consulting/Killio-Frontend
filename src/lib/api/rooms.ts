@@ -674,6 +674,67 @@ export async function endCallRecord(roomId: string, callId: string, accessToken:
   if (!res.ok) throw new Error('Failed to end call record');
 }
 
+// ── Call presence and screen sharing ─────────────────────────────────────────
+
+export interface CallPresence {
+  callId: string;
+  max: number;
+  screenSharePolicy: 'single' | 'multiple';
+  participants: Array<{ peerId: string; userId: string; displayName: string }>;
+  screenShares: Array<{ peerId: string; userId: string; withAudio: boolean; startedAt: string }>;
+}
+
+/** Error of the call presence / screen share API. `body` is the parsed JSON (`{ code, message, ... }`) when there is one. */
+export class CallApiError extends Error {
+  readonly status: number;
+  readonly body: unknown;
+  constructor(message: string, status: number, body: unknown) {
+    super(message);
+    this.name = 'CallApiError';
+    this.status = status;
+    this.body = body;
+  }
+  get isUnavailable() { return this.status === 404 || this.status === 405 || this.status === 501; }
+}
+
+async function callApi<T>(path: string, method: string, accessToken: string, body?: unknown, keepalive = false): Promise<T> {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method,
+    headers: authHeader(accessToken),
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    ...(keepalive ? { keepalive: true } : {}),
+  });
+  if (!res.ok) {
+    let parsed: unknown = null;
+    try { parsed = await res.clone().json(); } catch { /* not JSON */ }
+    const message = parsed && typeof (parsed as { message?: unknown }).message === 'string' ? (parsed as { message: string }).message : `Call request failed (${res.status})`;
+    throw new CallApiError(message, res.status, parsed);
+  }
+  return (await res.json().catch(() => ({}))) as T;
+}
+
+/** Join and heartbeat (same call, every ~15 s). 409 `call_full` when the call is at its limit. */
+export function joinCallPresence(roomId: string, callId: string, peerId: string, displayName: string, accessToken: string): Promise<CallPresence> {
+  return callApi(`/rooms/${roomId}/calls/${callId}/participants`, 'POST', accessToken, { peerId, displayName });
+}
+
+export function leaveCallPresence(roomId: string, callId: string, peerId: string, accessToken: string, keepalive = false): Promise<{ ended: boolean }> {
+  return callApi(`/rooms/${roomId}/calls/${callId}/participants/${encodeURIComponent(peerId)}`, 'DELETE', accessToken, undefined, keepalive);
+}
+
+export function getCallState(roomId: string, callId: string, accessToken: string): Promise<CallPresence> {
+  return callApi(`/rooms/${roomId}/calls/${callId}/state`, 'GET', accessToken);
+}
+
+/** Claims the screen. 409 `screenshare_busy` (with the sharer) under the "single" policy. */
+export function claimScreenShare(roomId: string, callId: string, peerId: string, audio: boolean, accessToken: string): Promise<CallPresence> {
+  return callApi(`/rooms/${roomId}/calls/${callId}/screenshare`, 'POST', accessToken, { peerId, audio });
+}
+
+export function releaseScreenShare(roomId: string, callId: string, peerId: string, accessToken: string, keepalive = false): Promise<CallPresence> {
+  return callApi(`/rooms/${roomId}/calls/${callId}/screenshare/${encodeURIComponent(peerId)}`, 'DELETE', accessToken, undefined, keepalive);
+}
+
 export async function submitCallTranscript(
   roomId: string,
   callId: string,

@@ -20,6 +20,7 @@ import { CardTimerWidget } from "@/components/ui/card-timer-widget";
 import { RoomVideoCall } from "@/components/rooms/RoomVideoCall";
 import { RoomCallControls } from "@/components/rooms/RoomCallControls";
 import { useCallRestrictions } from "@/hooks/use-call-restrictions";
+import { RoomCallNotice } from "@/components/rooms/RoomCallNotice";
 import { PushPermissionBanner } from "@/components/rooms/PushPermissionBanner";
 import { useSession } from "@/components/providers/session-provider";
 import { useLocalWorkspace, LocalWorkspaceProvider } from "@/components/providers/local-workspace-provider";
@@ -1168,6 +1169,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
             onSetSettingsModalOpen={setSettingsModalOpen}
             captionSettings={call.captionSettings}
             onSetCaptionSettings={call.setCaptionSettings}
+            onStopScreenShare={call.toggleScreenShare}
             bottomOffset={hasTimers ? 240 : 0}
             callControls={
               <RoomCallControls
@@ -1180,6 +1182,9 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
                 recordingElapsed={call.recordingElapsed}
                 canRecord={true}
                 restrictions={callRestrictions}
+                canRecord={true} // Simplified for global
+                screenShareSupported={call.screenShareSupported}
+                screenShareBusyBy={call.screenShareBusyBy}
                 onOpenSettings={() => setSettingsModalOpen(true)}
                 onToggleAudio={call.toggleAudio}
                 onToggleVideo={call.toggleVideo}
@@ -1192,6 +1197,10 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
             }
             t={tRooms}
           />
+        )}
+
+        {call.notice && (
+          <RoomCallNotice notice={call.notice} onDismiss={call.dismissNotice} bottomOffset={call.isInCall ? 0 : hasTimers ? 240 : 0} t={tRooms} />
         )}
       </div>
     </div>

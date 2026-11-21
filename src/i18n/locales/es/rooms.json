@@ -148,7 +148,36 @@
       "grayscale": "Escala de grises",
       "warm": "Tono cálido"
     },
+    "notice": {
+      "callFull": "La llamada está llena (máximo {{max}} participantes). Inténtalo de nuevo cuando alguien salga.",
+      "callEnded": "Esa llamada ya terminó.",
+      "screenshareBusy": "{{name}} ya está compartiendo su pantalla. Solo una persona puede compartir a la vez.",
+      "notInCall": "Únete a la llamada antes de compartir tu pantalla.",
+      "forbidden": "No tienes permiso para hacer eso en esta llamada.",
+      "screenDenied": "Se canceló o se bloqueó el uso compartido de pantalla. Si no viste el selector, permite la captura de pantalla para este sitio en los ajustes del navegador.",
+      "screenSystem": "El navegador no pudo capturar la pantalla. En macOS, permite la grabación de pantalla para tu navegador en Ajustes del Sistema y vuelve a intentarlo.",
+      "screenNoSource": "No hay ninguna pantalla ni ventana para compartir.",
+      "screenUnsupported": "Este navegador o dispositivo no puede compartir pantalla (la mayoría de los navegadores de móvil no pueden).",
+      "screenInsecure": "Compartir pantalla solo funciona con una conexión segura (HTTPS).",
+      "screenFailed": "No se pudo iniciar el uso compartido de pantalla. Inténtalo de nuevo.",
+      "mediaDenied": "Killio no puede usar tu micrófono o cámara. Permite el acceso en los ajustes del sitio de tu navegador y vuelve a intentarlo.",
+      "mediaNotFound": "No se encontró ningún micrófono ni cámara.",
+      "audioOnly": "No se encontró cámara: entraste solo con audio.",
+      "someone": "Alguien",
+      "dismiss": "Cerrar"
+    },
+    "screenshare": {
+      "youSharing": "Estás compartiendo tu pantalla",
+      "youSharingHint": "Todos en esta llamada la ven, incluidas las notificaciones y cualquier ventana que abras.",
+      "stop": "Dejar de compartir",
+      "peerSharing": "{{name}} está compartiendo su pantalla",
+      "connecting": "Conectando con la pantalla compartida...",
+      "withAudio": "Con audio",
+      "stageLabel": "Pantalla compartida de {{name}}",
+      "ownStageLabel": "Tu pantalla compartida"
+    },
     "controls": {
+      "screenBusy": "{{name}} está compartiendo",
       "mic": "Micrófono",
       "camera": "Cámara",
       "effects": "Efectos",

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Minimize2, Maximize2, Expand, Shrink,
-  MicOff, UserX, MonitorOff,
+  MicOff, UserX, MonitorOff, ScreenShare,
 } from "lucide-react";
 import type { CallPeer, VideoFilter } from "@/hooks/use-room-call";
 import { RoomCallParticipant, type CaptionStyle } from "./RoomCallParticipant";
@@ -166,6 +166,8 @@ interface RoomVideoCallProps {
   onMuteParticipant?: (peerId: string) => void;
   onKickParticipant?: (peerId: string) => void;
   onDisableScreen?: (peerId: string) => void;
+  /** Stops OUR screen share (the banner shown while sharing). */
+  onStopScreenShare?: () => void;
   liveCaption?: string;
   transcriptSegments?: { text: string; ts: number; userId?: string }[];
   activeFilter: VideoFilter;
@@ -208,6 +210,7 @@ export function RoomVideoCall({
   onMuteParticipant,
   onKickParticipant,
   onDisableScreen,
+  onStopScreenShare,
   liveCaption = "",
   transcriptSegments = [],
   activeFilter,
@@ -234,8 +237,30 @@ export function RoomVideoCall({
 }: RoomVideoCallProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("panel");
 
+  // The stage shows somebody else's screen. Our own is never mirrored back (sharing the screen this panel sits on would
+  // paint an endless tunnel): a banner says we are sharing instead.
   const sharingPeer = peers.find((p) => p.isScreenSharing);
   const hasScreenShare = isScreenSharing || !!sharingPeer;
+  const showStage = !!sharingPeer;
+
+  const shareBanner = (compact = false) => isScreenSharing ? (
+    <div role="status" className="shrink-0 flex items-center gap-2 border-b border-amber-500/40 bg-amber-500/15 px-3 py-1.5 text-amber-200">
+      <ScreenShare className="h-3.5 w-3.5 shrink-0" aria-hidden />
+      <div className="min-w-0 flex-1 leading-tight">
+        <p className="text-xs font-semibold">{t("call.screenshare.youSharing")}</p>
+        {!compact && <p className="text-[10px] opacity-80">{t("call.screenshare.youSharingHint")}</p>}
+      </div>
+      {onStopScreenShare && (
+        <button
+          type="button"
+          onClick={onStopScreenShare}
+          className="shrink-0 rounded-md bg-amber-500 px-2 py-1 text-[11px] font-semibold text-zinc-950 hover:bg-amber-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+        >
+          {t("call.screenshare.stop")}
+        </button>
+      )}
+    </div>
+  ) : null;
 
   // Sidebar only allowed in fullscreen/max mode as requested
   const showSidebar =
@@ -338,15 +363,25 @@ export function RoomVideoCall({
     <div className={`flex flex-1 overflow-hidden ${compact ? "p-2" : "p-3"} min-h-0`}>
       <div className={`flex flex-1 overflow-hidden ${showSidebar ? "gap-0" : ""}`}>
         <div className="flex-1 overflow-hidden">
-          {hasScreenShare ? (
+          {showStage && sharingPeer ? (
             <div className="flex gap-2 h-full">
-              <div className="flex-1 bg-black rounded-xl overflow-hidden">
-                {isScreenSharing && screenStream ? (
-                  <video autoPlay playsInline muted ref={(v) => { if (v) v.srcObject = screenStream; }} className="w-full h-full object-contain" />
-                ) : sharingPeer?.stream ? (
-                  <video autoPlay playsInline ref={(v) => { if (v) v.srcObject = sharingPeer.stream!; }} className="w-full h-full object-contain" />
-                ) : null}
-              </div>
+              <figure
+                className="relative flex-1 bg-black rounded-xl overflow-hidden"
+                aria-label={t("call.screenshare.stageLabel", { name: sharingPeer.displayName })}
+              >
+                {sharingPeer.screenStream ? (
+                  <video autoPlay playsInline ref={(v) => { if (v && v.srcObject !== sharingPeer.screenStream) v.srcObject = sharingPeer.screenStream!; }} className="w-full h-full object-contain" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center p-4 text-center text-xs text-zinc-400">
+                    {t("call.screenshare.connecting")}
+                  </div>
+                )}
+                <figcaption className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-md bg-black/70 px-2 py-1 text-[11px] text-zinc-100">
+                  <ScreenShare className="h-3 w-3" aria-hidden />
+                  <span>{t("call.screenshare.peerSharing", { name: sharingPeer.displayName })}</span>
+                  {sharingPeer.screenWithAudio && <span className="rounded bg-zinc-700 px-1 text-[10px]">{t("call.screenshare.withAudio")}</span>}
+                </figcaption>
+              </figure>
               <div className="flex flex-col gap-1.5 w-24 overflow-y-auto">
                 {allParticipants.map(participantTile)}
               </div>
@@ -399,6 +434,7 @@ export function RoomVideoCall({
               </button>
             </div>
           </div>
+          {shareBanner(true)}
           <div className="p-1.5">
             <RoomCallParticipant
               stream={localStream ?? undefined}
@@ -424,7 +460,7 @@ export function RoomVideoCall({
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
               <span className="text-sm text-zinc-200 font-medium">
-                {t("call.inCall")} · {t("call.participants").replace("{count}", String(allParticipants.length))}
+                {t("call.inCall")} · {t("call.participants", { count: allParticipants.length })}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -437,6 +473,7 @@ export function RoomVideoCall({
             </div>
           </div>
 
+          {shareBanner()}
           {videoGrid(false)}
 
           {canManageCall && peers.length > 0 && (
@@ -465,7 +502,7 @@ export function RoomVideoCall({
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
             <span className="text-xs text-zinc-200 font-medium">
-              {t("call.inCall")} · {t("call.participants").replace("{count}", String(allParticipants.length))}
+              {t("call.inCall")} · {t("call.participants", { count: allParticipants.length })}
             </span>
           </div>
           <div className="flex items-center gap-1">
@@ -478,6 +515,7 @@ export function RoomVideoCall({
           </div>
         </div>
 
+        {shareBanner()}
         {videoGrid(true)}
 
         {canManageCall && peers.length > 0 && (

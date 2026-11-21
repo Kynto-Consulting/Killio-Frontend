@@ -20,6 +20,10 @@ interface RoomCallControlsProps {
   canRecord: boolean;
   /** Controls the room's permissions take away (disabled, with the reason as tooltip). */
   restrictions?: CallRestrictions;
+  /** getDisplayMedia exists and the page is secure. Most phone browsers have no screen capture: the button is hidden there. */
+  screenShareSupported?: boolean;
+  /** Display name of whoever holds the screen (one sharer at a time); null when it is free or the policy allows several. */
+  screenShareBusyBy?: string | null;
   onOpenSettings: () => void;
   onToggleAudio: () => void;
   onToggleVideo: () => void;
@@ -27,7 +31,7 @@ interface RoomCallControlsProps {
   onSetFilter: (filter: VideoFilter) => void;
   onToggleRecording: () => void;
   onLeave: () => void;
-  t: (key: string) => string;
+  t: (key: string, params?: Record<string, string | number>) => string;
 }
 
 function formatTime(secs: number) {
@@ -46,6 +50,8 @@ export function RoomCallControls({
   recordingElapsed,
   canRecord,
   restrictions = {},
+  screenShareSupported = true,
+  screenShareBusyBy = null,
   onOpenSettings,
   onToggleAudio,
   onToggleVideo,
@@ -57,6 +63,10 @@ export function RoomCallControls({
 }: RoomCallControlsProps) {
   const blocked = (name: keyof CallRestrictions): string | undefined => (restrictions[name] ? t(`call.blocked.${restrictions[name]}`) : undefined);
   const off = "disabled:cursor-not-allowed disabled:opacity-40";
+  const screenBusy = !isScreenSharing && !!screenShareBusyBy;
+  const screenLabel = screenBusy
+    ? t("call.controls.screenBusy", { name: screenShareBusyBy as string })
+    : isScreenSharing ? t("call.controls.stopScreen") : t("call.controls.screen");
   return (
     <div className="relative flex items-center gap-2 bg-zinc-900/95 rounded-xl px-4 py-2 border border-zinc-700 shadow-xl">
       {/* Mic */}
@@ -100,19 +110,24 @@ export function RoomCallControls({
       </button>
 
       {/* Screen share */}
-      <button
-        onClick={onToggleScreenShare}
-        disabled={!!restrictions.screenShare}
-        title={blocked("screenShare") ?? (isScreenSharing ? t("call.controls.stopScreen") : t("call.controls.screen"))}
-        aria-label={isScreenSharing ? "Stop screen share" : "Share screen"}
-        className={`flex items-center justify-center w-9 h-9 rounded-full transition-colors ${off} ${
-          isScreenSharing
-            ? "bg-accent text-accent-foreground"
-            : "bg-zinc-700 text-zinc-100 hover:bg-zinc-600"
-        }`}
-      >
-        {isScreenSharing ? <MonitorOff className="w-4 h-4" /> : <Monitor className="w-4 h-4" />}
-      </button>
+      {screenShareSupported && (
+        <button
+          onClick={onToggleScreenShare}
+          disabled={screenBusy || !!restrictions.screenShare}
+          title={blocked("screenShare") ?? screenLabel}
+          aria-label={screenLabel}
+          aria-pressed={isScreenSharing}
+          className={`flex items-center justify-center w-9 h-9 rounded-full transition-colors ${off} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
+            isScreenSharing
+              ? "bg-accent text-accent-foreground"
+              : screenBusy
+                ? "bg-zinc-800 text-zinc-500 cursor-not-allowed"
+                : "bg-zinc-700 text-zinc-100 hover:bg-zinc-600"
+          }`}
+        >
+          {isScreenSharing ? <MonitorOff className="w-4 h-4" /> : <Monitor className="w-4 h-4" />}
+        </button>
+      )}
 
       {/* Record */}
       {canRecord && (

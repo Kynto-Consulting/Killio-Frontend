@@ -148,7 +148,36 @@
       "grayscale": "Grayscale",
       "warm": "Warm tone"
     },
+    "notice": {
+      "callFull": "The call is full ({{max}} participants maximum). Try again when someone leaves.",
+      "callEnded": "That call has already ended.",
+      "screenshareBusy": "{{name}} is already sharing their screen. Only one person can share at a time.",
+      "notInCall": "Join the call before sharing your screen.",
+      "forbidden": "You do not have permission to do that in this call.",
+      "screenDenied": "Screen sharing was cancelled or blocked. If you did not see the picker, allow screen capture for this site in your browser settings.",
+      "screenSystem": "The browser could not capture the screen. On macOS, allow screen recording for your browser in System Settings, then try again.",
+      "screenNoSource": "There is no screen or window to share.",
+      "screenUnsupported": "This browser or device cannot share its screen (most phone browsers cannot).",
+      "screenInsecure": "Screen sharing only works on a secure (HTTPS) connection.",
+      "screenFailed": "Could not start screen sharing. Try again.",
+      "mediaDenied": "Killio cannot use your microphone or camera. Allow access in your browser's site settings and try again.",
+      "mediaNotFound": "No microphone or camera was found.",
+      "audioOnly": "No camera found: you joined with audio only.",
+      "someone": "Someone",
+      "dismiss": "Dismiss"
+    },
+    "screenshare": {
+      "youSharing": "You are sharing your screen",
+      "youSharingHint": "Everyone in this call can see it, including notifications and any window you open.",
+      "stop": "Stop sharing",
+      "peerSharing": "{{name}} is sharing their screen",
+      "connecting": "Connecting to the shared screen...",
+      "withAudio": "With audio",
+      "stageLabel": "Shared screen of {{name}}",
+      "ownStageLabel": "Your shared screen"
+    },
     "controls": {
+      "screenBusy": "{{name}} is sharing",
       "mic": "Microphone",
       "camera": "Camera",
       "effects": "Effects",
