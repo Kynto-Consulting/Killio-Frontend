@@ -1182,7 +1182,6 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
                 recordingElapsed={call.recordingElapsed}
                 canRecord={true}
                 restrictions={callRestrictions}
-                canRecord={true} // Simplified for global
                 screenShareSupported={call.screenShareSupported}
                 screenShareBusyBy={call.screenShareBusyBy}
                 onOpenSettings={() => setSettingsModalOpen(true)}
