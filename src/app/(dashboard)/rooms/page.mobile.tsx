@@ -70,19 +70,19 @@ export default function RoomsPageMobile() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="flex shrink-0 items-center justify-between border-b-2 border-[var(--memphis-line)] bg-background/70 px-4 py-3 backdrop-blur">
+      <div className="flex shrink-0 items-center justify-between border-b border-border/50 bg-background/70 px-4 py-3 backdrop-blur">
         <div>
           <h1 className="text-sm font-bold">{t("title")}</h1>
           <p className="text-xs text-muted-foreground">{t("roomsCount", { count: rooms.length })}</p>
         </div>
         <div className="flex items-center gap-1.5">
           {capabilities.canManageChannels && (
-            <button type="button" onClick={() => setCategoryOpen(true)} className="rounded-lg p-2 text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]" aria-label={t("sidebar.createGroup")}>
+            <button type="button" onClick={() => setCategoryOpen(true)} className="rounded-lg p-2 text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40" aria-label={t("sidebar.createGroup")}>
               <FolderPlus className="h-4 w-4" aria-hidden />
             </button>
           )}
           {capabilities.canCreateChannels && (
-            <button type="button" onClick={() => { setInitialGroupId(undefined); setIsCreateOpen(true); }} className="rounded-lg border-2 border-[var(--memphis-line)] bg-[hsl(var(--accent-ink))] p-2 text-[hsl(var(--accent-ink-fg))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] focus-visible:ring-offset-2" aria-label={t("sidebar.createChannel")}>
+            <button type="button" onClick={() => { setInitialGroupId(undefined); setIsCreateOpen(true); }} className="rounded-xl bg-primary p-2 text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40" aria-label={t("sidebar.createChannel")}>
               <Plus className="h-4 w-4" aria-hidden />
             </button>
           )}
@@ -97,21 +97,21 @@ export default function RoomsPageMobile() {
         )}
 
         {!directory.isLoading && directory.error && (
-          <div role="alert" className="rounded-xl border-2 border-[var(--memphis-line)] p-4 text-center text-sm">
+          <div role="alert" className="rounded-xl border border-border p-4 text-center text-sm">
             <p className="mb-2 text-muted-foreground">{t("sidebar.loadError")}</p>
-            <button type="button" onClick={directory.refresh} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">{t("errors.retry")}</button>
+            <button type="button" onClick={directory.refresh} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">{t("errors.retry")}</button>
           </div>
         )}
 
         {!directory.isLoading && !directory.error && rooms.length === 0 && (
           <div className="flex flex-col items-center justify-center py-14 text-center">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border-2 border-[var(--memphis-line)]">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-border">
               <MessageSquare className="h-6 w-6" aria-hidden />
             </div>
             <p className="text-sm font-semibold">{t("emptyState.title")}</p>
             <p className="mt-1 max-w-[22rem] text-xs text-muted-foreground">{capabilities.canCreateChannels ? t("emptyState.description") : t("sidebar.emptyNoCreate")}</p>
             {capabilities.canCreateChannels && (
-              <button type="button" onClick={() => setIsCreateOpen(true)} className="mt-4 inline-flex items-center gap-2 rounded-xl border-2 border-[var(--memphis-line)] bg-[hsl(var(--accent-ink))] px-4 py-2 text-sm font-bold text-[hsl(var(--accent-ink-fg))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] focus-visible:ring-offset-2">
+              <button type="button" onClick={() => setIsCreateOpen(true)} className="mt-4 inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
                 <Plus className="h-4 w-4" aria-hidden />
                 {t("emptyState.createButton")}
               </button>
@@ -139,7 +139,7 @@ export default function RoomsPageMobile() {
 
             {entityTotal > 0 && (
               <section className="space-y-1.5">
-                <button type="button" onClick={() => setEntitiesOpen((v) => !v)} aria-expanded={entitiesOpen} className="flex w-full items-center gap-1 px-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">
+                <button type="button" onClick={() => setEntitiesOpen((v) => !v)} aria-expanded={entitiesOpen} className="flex w-full items-center gap-1 px-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
                   {entitiesOpen ? <ChevronDown className="h-3 w-3" aria-hidden /> : <ChevronRight className="h-3 w-3" aria-hidden />}
                   {t("sidebar.entityRooms")}
                   <span className="ml-1 text-[10px] opacity-70">{entityTotal}</span>
@@ -206,7 +206,7 @@ function RoomSection({
       <div className="flex items-center justify-between px-1">
         <h2 className={`font-bold uppercase tracking-wider text-muted-foreground ${nested ? "text-[10px]" : "text-[11px]"}`}>{label}</h2>
         {onCreateRoom && (
-          <button type="button" onClick={onCreateRoom} className="rounded p-1 text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]" aria-label={t("sidebar.createChannelIn", { name: label })}>
+          <button type="button" onClick={onCreateRoom} className="rounded p-1 text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40" aria-label={t("sidebar.createChannelIn", { name: label })}>
             <Plus className="h-3.5 w-3.5" aria-hidden />
           </button>
         )}
@@ -218,7 +218,7 @@ function RoomSection({
             <li key={room.id}>
               <Link
                 href={`/rooms/${room.id}`}
-                className={`flex items-center gap-2.5 rounded-xl border border-border/60 bg-card/40 px-3 py-2.5 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] motion-reduce:transition-none ${room.muted ? "opacity-60" : ""}`}
+                className={`flex items-center gap-2.5 rounded-xl border border-border/60 bg-card/40 px-3 py-2.5 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none ${room.muted ? "opacity-60" : ""}`}
               >
                 {room.emoji && room.type === "channel" ? <span className="shrink-0 text-sm" aria-hidden>{room.emoji}</span> : iconFor(room)}
                 <span className={`min-w-0 flex-1 truncate text-sm ${unread > 0 || room.mentionCount > 0 ? "font-semibold" : ""}`}>{titleOf(room)}</span>

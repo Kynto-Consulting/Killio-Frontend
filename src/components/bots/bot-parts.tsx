@@ -9,7 +9,7 @@ export function BotAvatar({ name, url, size = 32 }: { name: string; url: string 
   const hue = botHue(name);
   return (
     <span
-      className="inline-flex shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[var(--memphis-line)] text-[13px] font-extrabold text-foreground"
+      className="inline-flex shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border text-[13px] font-extrabold text-foreground"
       style={{ width: size, height: size, background: url ? undefined : `hsl(${hue} 70% 55% / 0.28)` }}
     >
       {url ? (

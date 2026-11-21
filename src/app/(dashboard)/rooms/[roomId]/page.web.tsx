@@ -1035,8 +1035,8 @@ Team Context: ${activeTeamId}.`;
   );
 
   const slimBar = (openSidebar: () => void) => (
-    <div className="flex shrink-0 items-center gap-2 border-b-2 border-[var(--memphis-line)] px-3 py-2 md:hidden">
-      <button type="button" onClick={openSidebar} aria-label={t("sidebar.open")} className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">
+    <div className="flex shrink-0 items-center gap-2 border-b border-border/50 px-3 py-2 md:hidden">
+      <button type="button" onClick={openSidebar} aria-label={t("sidebar.open")} className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
         <Menu className="h-4 w-4" aria-hidden />
       </button>
     </div>
@@ -1054,7 +1054,7 @@ Team Context: ${activeTeamId}.`;
                   <div role="alert" className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center text-sm text-muted-foreground">
                     <ShieldOff className="h-8 w-8 opacity-60" aria-hidden />
                     <p className="max-w-xs">{roomLoadError}</p>
-                    <button type="button" className="rounded-lg border-2 border-[var(--memphis-line)] px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]" onClick={loadRoom}>
+                    <button type="button" className="rounded-xl border border-input bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40" onClick={loadRoom}>
                       {t("errors.retry")}
                     </button>
                   </div>
@@ -1225,7 +1225,7 @@ Team Context: ${activeTeamId}.`;
 
             {/* Right panel (desktop): copilot, thread, pins or members */}
             {!isMobile && anyPanelOpen && room && (
-              <aside aria-label={panelTitle} className="flex w-72 shrink-0 flex-col overflow-hidden border-l-2 border-[var(--memphis-line)] lg:w-80">
+              <aside aria-label={panelTitle} className="flex w-72 shrink-0 flex-col overflow-hidden border-l border-border/50 lg:w-80">
                 {rightPanel(false)}
               </aside>
             )}
@@ -1306,7 +1306,7 @@ Team Context: ${activeTeamId}.`;
       )}
 
       {notice && (
-        <div role="status" className="fixed bottom-4 left-1/2 z-[300] -translate-x-1/2 rounded-xl border-2 border-[var(--memphis-line)] bg-card px-4 py-2 text-xs font-medium shadow-[3px_3px_0_0_var(--memphis-shadow)]">
+        <div role="status" className="fixed bottom-4 left-1/2 z-[300] -translate-x-1/2 rounded-xl border border-border bg-card px-4 py-2 text-xs font-medium shadow-lg">
           {notice}
         </div>
       )}

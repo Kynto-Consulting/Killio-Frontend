@@ -126,7 +126,7 @@ export function BotsTab() {
                     type="button"
                     aria-pressed={on}
                     onClick={() => setSelected(on ? null : b.id)}
-                    className={cx(card, "flex w-full items-start gap-3 p-3 text-left transition-colors hover:bg-accent/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", on && "ring-2 ring-[var(--memphis-line)]")}
+                    className={cx(card, "flex w-full items-start gap-3 p-3 text-left transition-colors hover:bg-accent/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", on && "border-primary bg-primary/5 ring-1 ring-primary/30")}
                   >
                     <BotAvatar name={b.name} url={b.avatarUrl} size={36} />
                     <span className="min-w-0 flex-1">

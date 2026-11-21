@@ -44,7 +44,7 @@ export default function RoomsPageWeb() {
     return (
       <div role="alert" className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
         <p className="text-sm text-muted-foreground">{t("sidebar.loadError")}</p>
-        <button type="button" onClick={directory.refresh} className="rounded-lg border-2 border-[var(--memphis-line)] px-3 py-1.5 text-xs font-bold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">
+        <button type="button" onClick={directory.refresh} className="rounded-xl border border-input bg-background px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
           {t("errors.retry")}
         </button>
       </div>
@@ -54,7 +54,7 @@ export default function RoomsPageWeb() {
   const canCreate = directory.capabilities.canCreateChannels;
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-[var(--memphis-line)] bg-muted/40">
+      <div className="flex h-14 w-14 items-center justify-center rounded-full border border-border bg-muted/40">
         <MessageSquare className="h-7 w-7" aria-hidden />
       </div>
       <h2 className="text-xl font-bold">{t("emptyState.title")}</h2>
@@ -63,7 +63,7 @@ export default function RoomsPageWeb() {
         <button
           type="button"
           onClick={() => setIsCreateOpen(true)}
-          className="inline-flex items-center gap-2 rounded-xl border-2 border-[var(--memphis-line)] bg-[hsl(var(--accent-ink))] px-4 py-2 text-sm font-bold text-[hsl(var(--accent-ink-fg))] shadow-[2px_2px_0_0_var(--memphis-shadow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] focus-visible:ring-offset-2"
+          className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         >
           <Plus className="h-4 w-4" aria-hidden />
           {t("emptyState.createButton")}
