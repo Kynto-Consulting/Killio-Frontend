@@ -66,7 +66,8 @@
       "step1": "Detalles del pack",
       "step2": "Elegir assets",
       "step3": "Primera versión"
-    }
+    },
+    "presentation": "Presentación"
   },
   "myPacks": {
     "title": "Packs de tu equipo",
@@ -160,6 +161,104 @@
       "pending": "Esperando la confirmación del pago...",
       "failed": "El pago no se completó. No se te cobró este pack.",
       "refunded": "Esta compra fue reembolsada."
+    }
+  },
+  "gallery": {
+    "tagline": "Plantillas listas para instalar en tu espacio de trabajo.",
+    "searchPlaceholder": "Buscar por nombre, autor o etiqueta",
+    "sort": {
+      "label": "Ordenar",
+      "recent": "Recientes",
+      "freeFirst": "Gratis primero",
+      "price": "Precio"
+    },
+    "sellerProfile": "Perfil de venta",
+    "all": "Todas",
+    "results": "{{count}} resultados",
+    "clearFilters": "Limpiar filtros",
+    "retry": "Reintentar",
+    "noResults": "No encontramos packs con esos filtros",
+    "noResultsHint": "Prueba con otra palabra o quita la categoría.",
+    "installAria": "Instalar {{title}}",
+    "openPack": "Ver detalles de {{title}}",
+    "anonymous": "Autor anónimo",
+    "tags": "Etiquetas",
+    "cat": {
+      "finanzas": "Finanzas",
+      "comunidad": "Comunidad",
+      "organizacion": "Organización",
+      "desarrollo": "Desarrollo",
+      "corporativo": "Corporativo"
+    }
+  },
+  "detail": {
+    "breadcrumb": "Ruta de navegación",
+    "notFound": "No pudimos abrir este pack",
+    "backToMarketplace": "Volver al marketplace",
+    "author": "Autor",
+    "version": "Versión",
+    "languages": "Idiomas",
+    "signInToInstall": "Inicia sesión para instalar este pack.",
+    "about": "Acerca de este pack",
+    "documentation": "Documentación",
+    "includes": "Qué incluye",
+    "includesEmpty": "Este pack aún no tiene contenido publicado.",
+    "includesSummary": "Resumen por tipo",
+    "customize": "Personalízalo al instalar",
+    "customizeHint": "Al instalar podrás completar estos datos para adaptar el pack a tu equipo.",
+    "required": "Obligatorio",
+    "optional": "Opcional",
+    "related": "Packs relacionados",
+    "galleryTitle": "Vista previa",
+    "galleryImage": "Imagen {{current}} de {{total}} de {{title}}",
+    "galleryEnlarge": "Ampliar imagen",
+    "galleryPrev": "Imagen anterior",
+    "galleryNext": "Imagen siguiente",
+    "galleryThumbs": "Miniaturas",
+    "galleryClose": "Cerrar"
+  },
+  "presentation": {
+    "title": "Presentación del pack",
+    "cover": "Portada",
+    "coverHint": "Se muestra en la galería y en la página del pack. Mejor en formato horizontal (16:10).",
+    "coverUpload": "Subir portada",
+    "coverChange": "Cambiar portada",
+    "coverRemove": "Quitar portada",
+    "dropHint": "o arrastra una imagen aquí",
+    "uploading": "Subiendo...",
+    "gallery": "Galería",
+    "galleryHint": "Capturas que muestran cómo se ve el pack. Usa las flechas para cambiar el orden.",
+    "galleryAdd": "Agregar imágenes",
+    "captionAria": "Subtítulo de la imagen {{n}}",
+    "captionPlaceholder": "Subtítulo (opcional)",
+    "moveUp": "Subir la imagen {{n}}",
+    "moveDown": "Bajar la imagen {{n}}",
+    "remove": "Quitar la imagen {{n}}",
+    "category": "Categoría",
+    "categoryNone": "Sin categoría",
+    "categoryOther": "Otra...",
+    "categoryOtherName": "Nombre de la categoría",
+    "categoryOtherPlaceholder": "Por ejemplo: educacion",
+    "tags": "Etiquetas",
+    "tagsHint": "Hasta {{max}} palabras para que te encuentren más fácil.",
+    "tagPlaceholder": "Escribe y pulsa Enter",
+    "tagAdd": "Agregar",
+    "tagRemove": "Quitar la etiqueta {{tag}}",
+    "save": "Guardar presentación",
+    "saving": "Guardando...",
+    "saved": "Presentación guardada",
+    "errors": {
+      "file": {
+        "type": "Usa una imagen PNG, JPG, WebP o GIF.",
+        "size": "La imagen pesa más de 5 MB.",
+        "empty": "El archivo está vacío."
+      },
+      "url": "La dirección de la imagen no es válida.",
+      "upload": "No se pudo subir la imagen. Inténtalo de nuevo.",
+      "galleryFull": "La galería admite hasta {{max}} imágenes.",
+      "tagsFull": "Puedes usar hasta {{max}} etiquetas.",
+      "category": "Escribe una categoría de 2 a 32 letras, números o guiones.",
+      "save": "No se pudo guardar la presentación."
     }
   }
 }

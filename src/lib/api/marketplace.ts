@@ -19,8 +19,23 @@ export type MarketplacePack = {
   pricingType?: "free" | "paid";
   priceAmountMinor?: number | null;
   currency?: string | null;
+  /** Presentation fields (optional: an older backend may not send them yet). */
+  coverImageUrl?: string | null;
+  gallery?: MarketplaceGalleryImage[];
+  category?: string | null;
+  tags?: string[];
+  authorName?: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type MarketplaceGalleryImage = { url: string; caption: string | null };
+
+export type MarketplacePresentationInput = {
+  coverImageUrl?: string | null;
+  gallery?: MarketplaceGalleryImage[];
+  category?: string | null;
+  tags?: string[];
 };
 
 export type MarketplacePurchase = {
@@ -203,12 +218,14 @@ function buildQuery(params: Record<string, string | number | undefined | null>):
 
 export async function listPublicMarketplacePacks(input: {
   query?: string;
+  category?: string;
   locale?: string;
   limit?: number;
   offset?: number;
 }): Promise<MarketplacePack[]> {
   const query = buildQuery({
     q: input.query,
+    category: input.category,
     locale: input.locale,
     limit: input.limit,
     offset: input.offset,
@@ -266,6 +283,19 @@ export async function updateMarketplacePublishMode(
     method: "PATCH",
     accessToken,
     body: JSON.stringify({ publishMode }),
+  });
+}
+
+/** Owner only. Sends just the fields you pass; `null` clears the cover or the category. */
+export async function updateMarketplacePackPresentation(
+  packId: string,
+  input: MarketplacePresentationInput,
+  accessToken: string,
+): Promise<MarketplacePack> {
+  return fetchApi<MarketplacePack>(`/marketplace/packs/${encodeURIComponent(packId)}/presentation`, {
+    method: "PATCH",
+    accessToken,
+    body: JSON.stringify(input),
   });
 }
 
@@ -338,8 +368,8 @@ export async function getHubStatus(accessToken: string) {
   return fetchApi<{ connected: boolean }>(`/marketplace/hub/status`, { accessToken });
 }
 
-export async function listHubPacks(input: { query?: string; locale?: string; limit?: number; offset?: number }) {
-  const query = buildQuery({ q: input.query, locale: input.locale, limit: input.limit, offset: input.offset });
+export async function listHubPacks(input: { query?: string; category?: string; locale?: string; limit?: number; offset?: number }) {
+  const query = buildQuery({ q: input.query, category: input.category, locale: input.locale, limit: input.limit, offset: input.offset });
   return fetchApi<MarketplacePack[]>(`/marketplace/hub/packs${query}`);
 }
 

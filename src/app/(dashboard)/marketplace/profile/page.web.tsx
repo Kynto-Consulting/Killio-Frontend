@@ -20,6 +20,7 @@ import {
   X,
   Zap,
   Check,
+  Image as ImageIcon,
 } from "lucide-react";
 
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
@@ -37,6 +38,7 @@ import {
   updateMarketplacePublishMode,
 } from "@/lib/api/marketplace";
 import { listScripts, ScriptSummary } from "@/lib/api/scripts";
+import { PresentationEditor } from "@/components/marketplace/presentation-editor";
 
 /* ── types ── */
 type SourceAsset = {
@@ -699,6 +701,8 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
   const [wizard, setWizard] = useState<WizardState | null>(null);
   /* snapshot modal */
   const [snapModal, setSnapModal] = useState<SnapModal | null>(null);
+  /* presentation editor (cover, gallery, category, tags) */
+  const [presentationPack, setPresentationPack] = useState<MarketplacePack | null>(null);
 
   /* ── loaders ── */
   const loadPacks = useCallback(async () => {
@@ -970,7 +974,15 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                     ) : null}
 
                     {/* footer */}
-                    <div className="mt-auto border-t border-foreground/6 dark:border-white/6 p-4">
+                    <div className="mt-auto space-y-2 border-t border-foreground/6 dark:border-white/6 p-4">
+                      <button
+                        type="button"
+                        onClick={() => setPresentationPack(pack)}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-foreground bg-background px-4 py-2 text-[13px] font-bold text-foreground transition-[transform,box-shadow] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[3px_3px_0_0_hsl(var(--foreground))] motion-reduce:transition-none motion-reduce:hover:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]"
+                      >
+                        <ImageIcon className="h-4 w-4" aria-hidden="true" />
+                        {t("profile.presentation")}
+                      </button>
                       <button
                         type="button"
                         onClick={() => setSnapModal({ pack, selectedAssetKeys: [], version: "v1.0", status: "published", locale: sanitizeLocaleCode(pack.defaultLocale || locale), title: pack.title, submitting: false, error: null })}
@@ -1226,6 +1238,18 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
       {/* ════════════════════════════════════════════════════
           SNAPSHOT MODAL
       ════════════════════════════════════════════════════ */}
+      {presentationPack && accessToken ? (
+        <PresentationEditor
+          pack={presentationPack}
+          accessToken={accessToken}
+          onClose={() => setPresentationPack(null)}
+          onSaved={(updated) => {
+            setPacks((cur) => cur.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)));
+            setMsgByPack((cur) => ({ ...cur, [updated.id]: t("presentation.saved") }));
+          }}
+        />
+      ) : null}
+
       {snapModal ? (
         <div className="fixed inset-0 z-[180] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
           <div className="flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-foreground/12 dark:border-white/12 bg-[#0c1018] shadow-2xl">

@@ -1,27 +1,15 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  AlertCircle,
-  Globe,
-  Layout,
-  Link2,
-  Lock,
-  RefreshCcw,
-  Search,
-  Sparkles,
-  Upload,
-  X,
-  Zap,
-  FileText,
-  GitBranch,
-  Download,
-} from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { AlertCircle, ArrowUpDown, RefreshCcw, Search, SearchX, Store, Upload, X } from "lucide-react";
 
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import { useSession } from "@/components/providers/session-provider";
 import { useTenant } from "@/components/providers/tenant-provider";
+import { FOCUS_RING, HARD_SHADOW_HOVER, MemphisIllustration, PackCard, PackCardSkeleton, useCategoryLabel } from "@/components/marketplace/pack-ui";
 import { formatPackPrice, newIdempotencyKey, nextHubAction, parsePurchaseReturn } from "@/lib/marketplace/pricing";
+import { categoriesFromPacks, coverBgVar, coverFamily, filterPacks, parseInstallParam, SORT_MODES, sortPacks, type SortMode } from "@/lib/marketplace/presentation";
 import {
   getMarketplacePackDetail,
   importMarketplacePack,
@@ -36,7 +24,6 @@ import {
   MarketplacePack,
   MarketplacePackDetail,
   MarketplacePlaceholder,
-  MarketplacePublishMode,
 } from "@/lib/api/marketplace";
 
 /* ── types ── */
@@ -97,15 +84,6 @@ function serializeValue(p: MarketplacePlaceholder, raw: string): unknown {
   }
 }
 
-/* ── category data ── */
-type CategoryId = "document" | "mesh" | "board" | "script";
-const CATEGORY_META: { id: CategoryId; icon: React.ElementType; color: string }[] = [
-  { id: "document", icon: FileText,  color: "hsl(var(--c-indigo))" },
-  { id: "mesh",     icon: GitBranch, color: "hsl(var(--c-cyan))" },
-  { id: "board",    icon: Layout,    color: "#f472b6" },
-  { id: "script",   icon: Zap,       color: "hsl(var(--c-amber))" },
-];
-
 /* ── placeholder field ── */
 function PlaceholderField({
   placeholder, value, onChange, t,
@@ -118,7 +96,7 @@ function PlaceholderField({
   const label = leafLabel(placeholder);
   const ns = namespaceLabel(placeholder);
   const syntax = typeof placeholder.validation?.placeholderSyntax === "string" ? placeholder.validation.placeholderSyntax : placeholder.placeholderKey;
-  const base = "mt-1.5 w-full rounded-lg border border-foreground/10 dark:border-white/10 bg-black/30 px-3 py-2 text-sm text-foreground dark:text-white outline-none transition-colors focus:border-[hsl(var(--accent-ink))]/40";
+  const base = "mt-1.5 w-full rounded-lg border border-foreground/10 dark:border-white/10 bg-foreground/5 px-3 py-2 text-sm text-foreground dark:text-white outline-none transition-colors focus:border-[hsl(var(--accent-ink))]/40";
 
   const header = (
     <div className="flex items-center justify-between gap-2">
@@ -129,7 +107,7 @@ function PlaceholderField({
 
   if (placeholder.valueType === "boolean") {
     return (
-      <div className="rounded-xl border border-foreground/8 dark:border-white/8 bg-black/20 p-3">
+      <div className="rounded-xl border border-foreground/8 dark:border-white/8 bg-foreground/5 p-3">
         {header}
         <p className="mt-1 text-xs text-foreground/40 dark:text-white/40">{placeholder.description || syntax}</p>
         <select value={value} onChange={(e) => onChange(e.target.value)} className={base}>
@@ -142,7 +120,7 @@ function PlaceholderField({
   }
   if (placeholder.valueType === "json") {
     return (
-      <div className="rounded-xl border border-foreground/8 dark:border-white/8 bg-black/20 p-3">
+      <div className="rounded-xl border border-foreground/8 dark:border-white/8 bg-foreground/5 p-3">
         {header}
         <p className="mt-1 text-xs text-foreground/40 dark:text-white/40">{placeholder.description || syntax}</p>
         <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={3} className={`${base} font-mono text-xs`} placeholder={t("import.jsonPlaceholder")} />
@@ -150,7 +128,7 @@ function PlaceholderField({
     );
   }
   return (
-    <div className="rounded-xl border border-foreground/8 dark:border-white/8 bg-black/20 p-3">
+    <div className="rounded-xl border border-foreground/8 dark:border-white/8 bg-foreground/5 p-3">
       {header}
       <p className="mt-1 text-xs text-foreground/40 dark:text-white/40">{placeholder.description || syntax}</p>
       <input value={value} onChange={(e) => onChange(e.target.value)} className={base} placeholder={placeholder.isRequired ? t("import.requiredPlaceholder") : t("import.optionalPlaceholder")} />
@@ -161,9 +139,13 @@ function PlaceholderField({
 /* ══════════════════════════════════════════════════════════
    MAIN COMPONENT
 ══════════════════════════════════════════════════════════ */
+const PRIMARY_BTN = `inline-flex items-center justify-center gap-2 rounded-xl border-2 border-foreground bg-[hsl(var(--accent-ink))] px-4 py-2.5 text-[13px] font-extrabold text-[hsl(var(--accent-ink-fg))] ${HARD_SHADOW_HOVER} ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-x-0 disabled:hover:translate-y-0 disabled:hover:shadow-none`;
+const SECONDARY_BTN = `inline-flex items-center justify-center gap-2 rounded-xl border-2 border-foreground bg-background px-3 py-2 text-[13px] font-bold text-foreground ${HARD_SHADOW_HOVER} ${FOCUS_RING}`;
+
 export function MarketplacePageView({ compact = false }: { compact?: boolean } = {}) {
   const { locale } = useI18n();
   const t = useTranslations("marketplace");
+  const categoryLabel = useCategoryLabel();
   const { accessToken, activeTeamId } = useSession();
   // In a tenant workspace the marketplace is the killio.dev hub: browse, buy and download only.
   const isTenant = useTenant().mode === "tenant";
@@ -173,16 +155,20 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
   const [purchaseReturn, setPurchaseReturn] = useState<ReturnType<typeof parsePurchaseReturn>>(null);
 
   const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [category, setCategory] = useState("all");
+  const [sort, setSort] = useState<SortMode>("recent");
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [publicPacks, setPublicPacks] = useState<MarketplacePack[]>([]);
   const [importModal, setImportModal] = useState<ImportModalState | null>(null);
   const [messageByPack, setMessageByPack] = useState<Record<string, string | null>>({});
 
+  // Search and categories filter on the client (instant results, tags included), so the full list is fetched once.
+  // The API functions also accept `category`, ready for when the catalog is too big to load in one go.
   const loadPublicPacks = useCallback(async () => {
     setLoading(true);
     try {
-      const params = { locale, query: query.trim() || undefined, limit: 60 };
+      const params = { locale, limit: 60 };
       const items = isTenant ? await listHubPacks(params) : await listPublicMarketplacePacks(params);
       setPublicPacks(items);
       setError(null);
@@ -191,7 +177,7 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
     } finally {
       setLoading(false);
     }
-  }, [isTenant, locale, query, t]);
+  }, [isTenant, locale, t]);
 
   useEffect(() => { loadPublicPacks().catch(() => undefined); }, [loadPublicPacks]);
 
@@ -331,209 +317,188 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
     return price.kind === "paid" ? t("hub.buy", { price: price.label }) : t("hub.getFree");
   };
 
-  const sorted = useMemo(() => [...publicPacks].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))), [publicPacks]);
+
+  // `/marketplace?install=<packId>` (from the detail page or a shared link) opens that pack's install modal once.
+  const installHandled = useRef<string | null>(null);
+  useEffect(() => {
+    if (typeof window === "undefined" || !accessToken) return;
+    const packId = parseInstallParam(window.location.search);
+    if (!packId || installHandled.current === packId) return;
+    installHandled.current = packId;
+    const params = new URLSearchParams(window.location.search);
+    params.delete("install");
+    const rest = params.toString();
+    window.history.replaceState(null, "", rest ? `${window.location.pathname}?${rest}` : window.location.pathname);
+    (async () => {
+      try {
+        const input = { locale };
+        const detail = isTenant ? await getHubPackDetail(packId, input, accessToken) : await getMarketplacePackDetail(packId, input, accessToken);
+        openImportModal(detail.pack);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : t("errors.loadPackDetail"));
+      }
+    })();
+  }, [accessToken, isTenant, locale, openImportModal, t]);
+
+  const categories = useMemo(() => categoriesFromPacks(publicPacks), [publicPacks]);
+  const visible = useMemo(() => sortPacks(filterPacks(publicPacks, { category, query }), sort), [publicPacks, category, query, sort]);
+  const filtersActive = category !== "all" || query.trim() !== "";
+  const clearFilters = () => { setCategory("all"); setQuery(""); };
   const required = useMemo(() => (importModal?.detail?.placeholders ?? []).filter((p) => p.isRequired), [importModal]);
   const optional = useMemo(() => (importModal?.detail?.placeholders ?? []).filter((p) => !p.isRequired), [importModal]);
-  const cols = compact ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2";
+  const chipBase = `inline-flex shrink-0 items-center gap-1.5 rounded-full border-2 border-foreground px-3.5 py-1.5 text-[13px] font-bold transition-[transform,box-shadow] duration-150 motion-reduce:transition-none ${FOCUS_RING}`;
 
   return (
     <>
-      <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-
-        {/* ── HERO ── */}
-        <div className="relative overflow-hidden rounded-2xl border border-foreground/8 dark:border-white/8 bg-gradient-to-br from-[#060b12] to-[#020408] p-8 shadow-xl">
-          {/* decorative blobs */}
-          <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[hsl(var(--accent-ink))]/5 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-12 left-1/4 h-40 w-64 rounded-full bg-purple-500/5 blur-3xl" />
-          {/* decorative SVG cubes (right side) */}
-          <svg className="pointer-events-none absolute right-0 top-0 h-full w-80 opacity-90" viewBox="0 0 340 160" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <ellipse cx="280" cy="20" r="5" fill="hsl(var(--accent-ink))" opacity=".5" />
-            <ellipse cx="300" cy="120" r="3.5" fill="hsl(var(--accent-ink))" opacity=".35" />
-            <ellipse cx="315" cy="65" r="2.5" fill="#a78bfa" opacity=".45" />
-            {/* purple cube */}
-            <g transform="translate(170,28)">
-              <polygon points="40,0 80,22 80,66 40,88 0,66 0,22" fill="#5b21b6" stroke="#7c3aed" strokeWidth="1" />
-              <polygon points="40,0 80,22 40,44 0,22" fill="#7c3aed" opacity=".8" />
-              <polygon points="0,22 40,44 40,88 0,66" fill="#4c1d95" opacity=".9" />
-              <polygon points="80,22 40,44 40,88 80,66" fill="#6d28d9" opacity=".85" />
-            </g>
-            {/* lime cube */}
-            <g transform="translate(245,12) scale(0.62)">
-              <polygon points="40,0 80,22 80,66 40,88 0,66 0,22" fill="#1a3300" stroke="hsl(var(--accent-ink))" strokeWidth="1.2" />
-              <polygon points="40,0 80,22 40,44 0,22" fill="#3d7a00" opacity=".8" />
-              <polygon points="0,22 40,44 40,88 0,66" fill="#2a5500" opacity=".9" />
-              <polygon points="80,22 40,44 40,88 80,66" fill="#4a9400" opacity=".85" />
-            </g>
-            {/* coin */}
-            <g transform="translate(125,55)">
-              <ellipse cx="26" cy="11" rx="26" ry="11" fill="#ca8a04" opacity=".75" />
-              <ellipse cx="26" cy="8.5" rx="26" ry="11" fill="#fbbf24" />
-              <ellipse cx="26" cy="8.5" rx="20" ry="8.5" fill="#fde68a" opacity=".55" />
-              <text x="26" y="12.5" textAnchor="middle" fontSize="9" fontWeight="800" fill="#92400e" fontFamily="sans-serif">K</text>
-            </g>
-          </svg>
-
-          <div className="relative max-w-xl">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--accent-ink))]/30 bg-[hsl(var(--accent-ink))]/10 px-3 py-0.5 text-[11px] font-bold uppercase tracking-[0.18em] text-[hsl(var(--accent-ink))]">
-              <Sparkles className="h-3 w-3" />
-              {t("eyebrow")}
-            </span>
-            <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-foreground dark:text-white sm:text-4xl">{t("subtitle")}</h1>
-            <p className="mt-2 text-sm text-foreground/50 dark:text-white/50">{t("publicPacks.tagline")}</p>
-
-            {/* search */}
-            <div className="relative mt-5 w-full max-w-sm">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/30 dark:text-white/30" />
+      <div className="mx-auto w-full max-w-7xl px-4 pb-10 sm:px-6 lg:px-8">
+        {/* ── COMPACT HEADER: one row on desktop, sticky search on mobile ── */}
+        <header className="sticky top-0 z-20 -mx-4 border-b-2 border-foreground bg-background px-4 py-3 sm:static sm:mx-0 sm:border-b-0 sm:px-0 sm:pb-2 sm:pt-5">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5">
+            <div className="min-w-0 sm:mr-2">
+              <h1 className="text-2xl font-black leading-none tracking-tight text-foreground">{t("title")}</h1>
+              <p className="mt-1 hidden text-[13px] text-foreground/70 sm:block">{t("gallery.tagline")}</p>
+            </div>
+            <div className="relative order-last w-full sm:order-none sm:ml-auto sm:w-72 lg:w-80">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/60" aria-hidden="true" />
               <input
+                type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="w-full rounded-xl border border-foreground/10 dark:border-white/10 bg-black/30 py-2.5 pl-9 pr-4 text-sm text-foreground dark:text-white placeholder:text-foreground/30 dark:placeholder:text-white/30 outline-none transition-colors focus:border-[hsl(var(--accent-ink))]/40"
-                placeholder={t("publicPacks.search")}
+                aria-label={t("publicPacks.search")}
+                placeholder={t("gallery.searchPlaceholder")}
+                className={`w-full rounded-xl border-2 border-foreground bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-foreground/55 ${FOCUS_RING}`}
               />
             </div>
+            <label className="ml-auto flex items-center gap-1.5 text-[12px] font-bold text-foreground/70 sm:ml-0">
+              <ArrowUpDown className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="sr-only sm:not-sr-only">{t("gallery.sort.label")}</span>
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value as SortMode)}
+                className={`rounded-xl border-2 border-foreground bg-background px-2 py-1.5 text-[13px] font-bold text-foreground ${FOCUS_RING}`}
+              >
+                {SORT_MODES.map((mode) => <option key={mode} value={mode}>{t(`gallery.sort.${mode}`)}</option>)}
+              </select>
+            </label>
+            {!isTenant ? (
+              <Link href="/marketplace/profile" className={SECONDARY_BTN}>
+                <Store className="h-4 w-4" aria-hidden="true" />
+                {t("gallery.sellerProfile")}
+              </Link>
+            ) : null}
           </div>
+        </header>
+
+        {/* ── CATEGORY CHIPS (horizontal scroll on mobile) ── */}
+        <div role="group" aria-label={t("publicPacks.categories")} className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-3 pt-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+          <button
+            type="button"
+            aria-pressed={category === "all"}
+            onClick={() => setCategory("all")}
+            className={`${chipBase} ${category === "all" ? "bg-[hsl(var(--accent-ink))] text-[hsl(var(--accent-ink-fg))] shadow-[3px_3px_0_0_hsl(var(--foreground))]" : "bg-background text-foreground hover:shadow-[3px_3px_0_0_hsl(var(--foreground))]"}`}
+          >
+            {t("gallery.all")}
+          </button>
+          {categories.map((c) => {
+            const active = category === c.slug;
+            return (
+              <button
+                key={c.slug}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setCategory(active ? "all" : c.slug)}
+                className={`${chipBase} ${active ? "shadow-[3px_3px_0_0_hsl(var(--foreground))]" : "bg-background text-foreground hover:shadow-[3px_3px_0_0_hsl(var(--foreground))]"}`}
+                style={active ? { background: coverBgVar(coverFamily(c.slug)), color: "var(--cover-ink)" } : undefined}
+              >
+                <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full border-2 border-foreground" style={{ background: coverBgVar(coverFamily(c.slug)) }} />
+                {categoryLabel(c.slug)}
+                <span className="text-[11px] font-semibold opacity-70">{c.count}</span>
+              </button>
+            );
+          })}
         </div>
 
-        {/* ── CATEGORIES ── */}
-        <div className="mt-6">
-          <div className="mb-3 flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-widest text-foreground/30 dark:text-white/30">{t("publicPacks.categories")}</p>
-          </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {CATEGORY_META.map((cat) => {
-              const Icon = cat.icon;
-              const label = t(`categories.${cat.id}`);
-              const sub   = t(`categories.${cat.id}Sub`);
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setQuery(label)}
-                  className="flex items-center gap-3 rounded-xl border border-foreground/8 dark:border-white/8 bg-white/[0.03] p-3.5 text-left transition-all hover:border-foreground/15 dark:hover:border-white/15 hover:bg-white/[0.06]"
-                >
-                  <div
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border"
-                    style={{ background: `${cat.color}18`, borderColor: `${cat.color}30`, color: cat.color }}
-                  >
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-[13px] font-semibold text-white">{label}</p>
-                    <p className="text-[11px] text-white/40">{sub}</p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* ── ERROR ── */}
-        {error ? (
-          <div className="mt-5 flex items-start gap-2 rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-300">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-            {error}
-          </div>
-        ) : null}
-
+        {/* ── NOTICES ── */}
         {purchaseReturn ? (
-          <div className={`mt-5 rounded-xl border px-4 py-3 text-sm ${purchaseReturn.status === "failed" ? "border-red-400/25 bg-red-500/10 text-red-600 dark:text-red-300" : "border-[#4ade80]/20 bg-[#4ade80]/10 text-[#4ade80]"}`}>
+          <div role="status" className={`mt-3 rounded-2xl border-2 px-4 py-3 text-sm font-semibold ${purchaseReturn.status === "failed" ? "border-red-500 bg-red-500/10 text-red-700 dark:text-red-300" : "border-foreground bg-[var(--cover-badge-free)] text-[var(--cover-ink)]"}`}>
             {t(`hub.return.${purchaseReturn.status}`)}
           </div>
         ) : null}
 
         {isTenant && hubConnected === false ? (
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[hsl(var(--accent-ink))]/25 bg-[hsl(var(--accent-ink))]/10 px-4 py-3 text-sm text-foreground dark:text-white">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-foreground bg-[var(--cover-badge-paid)] px-4 py-3 text-sm text-[var(--cover-ink)]">
             <div>
-              <p className="font-semibold">{t("hub.connectTitle")}</p>
-              <p className="text-xs text-foreground/60 dark:text-white/60">{t("hub.connectBody")}</p>
+              <p className="font-extrabold">{t("hub.connectTitle")}</p>
+              <p className="text-xs font-medium">{t("hub.connectBody")}</p>
             </div>
-            <button type="button" disabled={hubBusy} onClick={() => connectHub().catch(() => undefined)} className="rounded-xl bg-[hsl(var(--accent-ink))] px-4 py-2 text-[13px] font-bold text-[hsl(var(--accent-ink-fg))] disabled:opacity-50">
+            <button type="button" disabled={hubBusy} onClick={() => connectHub().catch(() => undefined)} className={PRIMARY_BTN}>
               {hubBusy ? t("hub.connecting") : t("hub.connect")}
             </button>
           </div>
         ) : null}
 
-        {/* ── PACKS GRID ── */}
-        <section className="mt-6">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-base font-bold text-foreground dark:text-white">{t("publicPacks.title")}</h2>
-              {!loading ? (
-                <p className="mt-0.5 text-xs text-foreground/40 dark:text-white/40">{t("publicPacks.count", { count: sorted.length })}</p>
+        {/* ── RESULTS ── */}
+        <section className="mt-2" aria-busy={loading}>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p aria-live="polite" className="text-[13px] font-semibold text-foreground/70">
+              {loading ? t("status.loading") : t("gallery.results", { count: visible.length })}
+            </p>
+            <div className="flex items-center gap-2">
+              {filtersActive && !loading ? (
+                <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 rounded-full border-2 border-foreground px-3 py-1 text-[12px] font-bold text-foreground hover:bg-foreground/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">
+                  <X className="h-3.5 w-3.5" aria-hidden="true" />
+                  {t("gallery.clearFilters")}
+                </button>
               ) : null}
+              <button type="button" onClick={() => loadPublicPacks().catch(() => undefined)} aria-label={t("actions.refresh")} className={SECONDARY_BTN}>
+                <RefreshCcw className={`h-3.5 w-3.5 ${loading ? "animate-spin motion-reduce:animate-none" : ""}`} aria-hidden="true" />
+                <span className="hidden sm:inline">{t("actions.refresh")}</span>
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => loadPublicPacks().catch(() => undefined)}
-              className="inline-flex items-center gap-2 rounded-xl border border-foreground/10 dark:border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-foreground/60 dark:text-white/60 transition-all hover:border-foreground/20 dark:hover:border-white/20 hover:text-foreground dark:hover:text-white"
-            >
-              <RefreshCcw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-              {t("actions.refresh")}
-            </button>
           </div>
 
-          {loading ? (
-            <div className="flex items-center justify-center py-24 text-sm text-foreground/30 dark:text-white/30">
-              <RefreshCcw className="mr-2 h-4 w-4 animate-spin" /> {t("status.loading")}
+          {error ? (
+            <div role="alert" className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border-2 border-red-500 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-700 dark:text-red-300">
+              <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span className="min-w-0 flex-1">{error}</span>
+              <button type="button" onClick={() => loadPublicPacks().catch(() => undefined)} className={SECONDARY_BTN}>{t("gallery.retry")}</button>
             </div>
-          ) : sorted.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-foreground/10 dark:border-white/10 py-24 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-foreground/10 dark:border-white/10 bg-white/[0.03]">
-                <Download className="h-7 w-7 text-foreground/20 dark:text-white/20" />
-              </div>
-              <p className="mt-4 text-sm font-semibold text-foreground/50 dark:text-white/50">{t("empty.noPublicPacks")}</p>
-              <p className="mt-1 text-xs text-foreground/25 dark:text-white/25">{t("publicPacks.checkBack")}</p>
+          ) : null}
+
+          {loading ? (
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {Array.from({ length: compact ? 3 : 8 }).map((_, i) => <PackCardSkeleton key={i} />)}
+            </div>
+          ) : visible.length === 0 ? (
+            <div className="flex flex-col items-center rounded-3xl border-2 border-dashed border-foreground/40 px-6 py-14 text-center">
+              <MemphisIllustration className="h-24 w-40" />
+              <p className="mt-4 text-lg font-black text-foreground">{filtersActive ? t("gallery.noResults") : t("empty.noPublicPacks")}</p>
+              <p className="mt-1 max-w-sm text-sm text-foreground/70">{filtersActive ? t("gallery.noResultsHint") : t("publicPacks.checkBack")}</p>
+              {filtersActive ? (
+                <button type="button" onClick={clearFilters} className={`${PRIMARY_BTN} mt-5`}>
+                  <SearchX className="h-4 w-4" aria-hidden="true" />
+                  {t("gallery.clearFilters")}
+                </button>
+              ) : null}
             </div>
           ) : (
-            <div className={`grid gap-4 ${cols}`}>
-              {sorted.map((pack) => (
-                <article
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {visible.map((pack) => (
+                <PackCard
                   key={pack.id}
-                  className="group flex flex-col overflow-hidden rounded-2xl border border-foreground/8 dark:border-white/8 bg-white/[0.03] transition-all hover:border-foreground/15 dark:hover:border-white/15 hover:bg-white/[0.05]"
-                >
-                  <div className="flex-1 p-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h3 className="truncate text-[15px] font-bold text-foreground dark:text-white transition-colors group-hover:text-[hsl(var(--accent-ink))]">
-                          {pack.title}
-                        </h3>
-                        <p className="mt-0.5 font-mono text-[11px] text-foreground/30 dark:text-white/30">{pack.slug}</p>
-                      </div>
-                      <span className="shrink-0 rounded-full border border-foreground/10 dark:border-white/10 bg-foreground/5 dark:bg-white/5 px-2.5 py-0.5 text-[11px] font-medium text-foreground/40 dark:text-white/40">
-                        {pack.defaultLocale}
-                      </span>
-                      {(() => {
-                        const price = formatPackPrice(pack, locale);
-                        return (
-                          <span className="shrink-0 rounded-full border border-[hsl(var(--accent-ink))]/30 bg-[hsl(var(--accent-ink))]/10 px-2.5 py-0.5 text-[11px] font-bold text-[hsl(var(--accent-ink))]">
-                            {price.kind === "free" ? t("hub.free") : price.label}
-                          </span>
-                        );
-                      })()}
-                    </div>
-                    <p className="mt-3 line-clamp-2 text-[13px] leading-relaxed text-foreground/50 dark:text-white/50">
-                      {pack.summary ?? t("empty.noSummary")}
-                    </p>
-                  </div>
-
-                  {messageByPack[pack.id] ? (
-                    <div className="mx-5 mb-3 rounded-lg border border-[#4ade80]/20 bg-[#4ade80]/10 px-3 py-2 text-xs text-[#4ade80]">
-                      {messageByPack[pack.id]}
-                    </div>
-                  ) : null}
-
-                  <div className="border-t border-foreground/6 dark:border-white/6 p-4">
-                    <button
-                      type="button"
-                      onClick={() => openImportModal(pack)}
-                      disabled={!accessToken}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-[hsl(var(--accent-ink))] px-4 py-2.5 text-[13px] font-bold text-[hsl(var(--accent-ink-fg))] transition-all hover:bg-[#c8ef60] disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      <Upload className="h-4 w-4" />
-                      {isTenant ? hubButtonLabel(pack) : t("actions.configureImport")}
-                    </button>
-                  </div>
-                </article>
+                  pack={pack}
+                  footer={
+                    <>
+                      {messageByPack[pack.id] ? (
+                        <p role="status" className="mb-2 rounded-lg border-2 border-foreground bg-[var(--cover-badge-free)] px-3 py-1.5 text-xs font-bold text-[var(--cover-ink)]">{messageByPack[pack.id]}</p>
+                      ) : null}
+                      <button type="button" onClick={() => openImportModal(pack)} disabled={!accessToken} aria-label={t("gallery.installAria", { title: pack.title })} className={`${PRIMARY_BTN} w-full`}>
+                        <Upload className="h-4 w-4" aria-hidden="true" />
+                        {isTenant ? hubButtonLabel(pack) : t("actions.configureImport")}
+                      </button>
+                    </>
+                  }
+                />
               ))}
             </div>
           )}
@@ -546,9 +511,9 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
           className="fixed inset-0 z-[180] flex items-end justify-center bg-black/70 p-4 backdrop-blur-sm sm:items-center"
           onClick={(e) => { if (e.target === e.currentTarget) setImportModal(null); }}
         >
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-foreground/12 dark:border-white/12 bg-[#0c1018] shadow-2xl">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-foreground/12 dark:border-white/12 bg-background shadow-2xl">
             {/* modal header */}
-            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-foreground/8 dark:border-white/8 bg-[#0c1018] px-6 py-5">
+            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-foreground/8 dark:border-white/8 bg-background px-6 py-5">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-foreground/30 dark:text-white/30">{t("import.modalEyebrow")}</p>
                 <h3 className="mt-1.5 text-xl font-extrabold tracking-tight text-foreground dark:text-white">{importModal.pack.title}</h3>
@@ -573,7 +538,7 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
                   <input
                     value={importModal.destinationTeamId}
                     onChange={(e) => setImportModal((cur) => cur ? { ...cur, destinationTeamId: e.target.value } : cur)}
-                    className="mt-1.5 w-full rounded-xl border border-foreground/10 dark:border-white/10 bg-black/30 px-3 py-2 text-sm text-foreground dark:text-white outline-none focus:border-[hsl(var(--accent-ink))]/40"
+                    className="mt-1.5 w-full rounded-xl border border-foreground/10 dark:border-white/10 bg-foreground/5 px-3 py-2 text-sm text-foreground dark:text-white outline-none focus:border-[hsl(var(--accent-ink))]/40"
                   />
                 </div>
                 <div>
@@ -581,7 +546,7 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
                   <input
                     value={importModal.selector}
                     onChange={(e) => setImportModal((cur) => cur ? { ...cur, selector: e.target.value } : cur)}
-                    className="mt-1.5 w-full rounded-xl border border-foreground/10 dark:border-white/10 bg-black/30 px-3 py-2 text-sm text-foreground dark:text-white outline-none focus:border-[hsl(var(--accent-ink))]/40"
+                    className="mt-1.5 w-full rounded-xl border border-foreground/10 dark:border-white/10 bg-foreground/5 px-3 py-2 text-sm text-foreground dark:text-white outline-none focus:border-[hsl(var(--accent-ink))]/40"
                   />
                 </div>
                 <div>
@@ -589,7 +554,7 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
                   <select
                     value={importModal.locale}
                     onChange={(e) => setImportModal((cur) => cur ? { ...cur, locale: e.target.value } : cur)}
-                    className="mt-1.5 w-full rounded-xl border border-foreground/10 dark:border-white/10 bg-black/30 px-3 py-2 text-sm text-foreground dark:text-white outline-none focus:border-[hsl(var(--accent-ink))]/40"
+                    className="mt-1.5 w-full rounded-xl border border-foreground/10 dark:border-white/10 bg-foreground/5 px-3 py-2 text-sm text-foreground dark:text-white outline-none focus:border-[hsl(var(--accent-ink))]/40"
                   >
                     {(importModal.detail?.localizations ?? []).map((l) => <option key={l.locale} value={l.locale}>{l.locale}</option>)}
                     {importModal.detail?.localizations?.length ? null : <option value={locale}>{locale}</option>}
@@ -623,7 +588,7 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
 
               <div className="mt-5 grid gap-4 lg:grid-cols-2">
                 {/* required */}
-                <div className="rounded-xl border border-foreground/8 dark:border-white/8 bg-black/20 p-4">
+                <div className="rounded-xl border border-foreground/8 dark:border-white/8 bg-foreground/5 p-4">
                   <div className="flex items-center gap-2">
                     <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
                     <p className="text-[13px] font-bold text-foreground dark:text-white">{t("import.requiredTitle")}</p>
@@ -640,7 +605,7 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
                   </div>
                 </div>
                 {/* optional */}
-                <div className="rounded-xl border border-foreground/8 dark:border-white/8 bg-black/20 p-4">
+                <div className="rounded-xl border border-foreground/8 dark:border-white/8 bg-foreground/5 p-4">
                   <div className="flex items-center gap-2">
                     <span className="h-1.5 w-1.5 rounded-full bg-foreground/20 dark:bg-white/20" />
                     <p className="text-[13px] font-bold text-foreground dark:text-white">{t("import.optionalTitle")}</p>
@@ -660,7 +625,7 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
             </div>
 
             {/* modal footer */}
-            <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 border-t border-foreground/8 dark:border-white/8 bg-[#0c1018] px-6 py-4">
+            <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 border-t border-foreground/8 dark:border-white/8 bg-background px-6 py-4">
               <span className="rounded-full border border-foreground/10 dark:border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-[11px] text-foreground/35 dark:text-white/35">
                 {t("import.placeholderCount", { count: importModal.detail?.placeholders?.length ?? 0 })}
               </span>

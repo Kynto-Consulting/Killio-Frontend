@@ -66,7 +66,8 @@
       "step1": "Pack details",
       "step2": "Choose assets",
       "step3": "First version"
-    }
+    },
+    "presentation": "Presentation"
   },
   "myPacks": {
     "title": "Your Team Packs",
@@ -160,6 +161,104 @@
       "pending": "Waiting for the payment confirmation...",
       "failed": "The payment was not completed. You have not been charged for this pack.",
       "refunded": "This purchase was refunded."
+    }
+  },
+  "gallery": {
+    "tagline": "Ready-made templates you can install in your workspace.",
+    "searchPlaceholder": "Search by name, author or tag",
+    "sort": {
+      "label": "Sort",
+      "recent": "Newest",
+      "freeFirst": "Free first",
+      "price": "Price"
+    },
+    "sellerProfile": "Seller profile",
+    "all": "All",
+    "results": "{{count}} results",
+    "clearFilters": "Clear filters",
+    "retry": "Try again",
+    "noResults": "No packs match those filters",
+    "noResultsHint": "Try another word or remove the category.",
+    "installAria": "Install {{title}}",
+    "openPack": "See details of {{title}}",
+    "anonymous": "Anonymous author",
+    "tags": "Tags",
+    "cat": {
+      "finanzas": "Finance",
+      "comunidad": "Community",
+      "organizacion": "Organization",
+      "desarrollo": "Development",
+      "corporativo": "Corporate"
+    }
+  },
+  "detail": {
+    "breadcrumb": "Breadcrumb",
+    "notFound": "We could not open this pack",
+    "backToMarketplace": "Back to the marketplace",
+    "author": "Author",
+    "version": "Version",
+    "languages": "Languages",
+    "signInToInstall": "Sign in to install this pack.",
+    "about": "About this pack",
+    "documentation": "Documentation",
+    "includes": "What's included",
+    "includesEmpty": "This pack has no published content yet.",
+    "includesSummary": "Summary by type",
+    "customize": "Make it yours when you install",
+    "customizeHint": "While installing you can fill in these details to adapt the pack to your team.",
+    "required": "Required",
+    "optional": "Optional",
+    "related": "Related packs",
+    "galleryTitle": "Preview",
+    "galleryImage": "Image {{current}} of {{total}} of {{title}}",
+    "galleryEnlarge": "Enlarge image",
+    "galleryPrev": "Previous image",
+    "galleryNext": "Next image",
+    "galleryThumbs": "Thumbnails",
+    "galleryClose": "Close"
+  },
+  "presentation": {
+    "title": "Pack presentation",
+    "cover": "Cover",
+    "coverHint": "Shown in the gallery and on the pack page. Landscape (16:10) works best.",
+    "coverUpload": "Upload cover",
+    "coverChange": "Change cover",
+    "coverRemove": "Remove cover",
+    "dropHint": "or drag an image here",
+    "uploading": "Uploading...",
+    "gallery": "Gallery",
+    "galleryHint": "Screenshots that show how the pack looks. Use the arrows to change the order.",
+    "galleryAdd": "Add images",
+    "captionAria": "Caption of image {{n}}",
+    "captionPlaceholder": "Caption (optional)",
+    "moveUp": "Move image {{n}} up",
+    "moveDown": "Move image {{n}} down",
+    "remove": "Remove image {{n}}",
+    "category": "Category",
+    "categoryNone": "No category",
+    "categoryOther": "Other...",
+    "categoryOtherName": "Category name",
+    "categoryOtherPlaceholder": "For example: education",
+    "tags": "Tags",
+    "tagsHint": "Up to {{max}} words so people find it more easily.",
+    "tagPlaceholder": "Type and press Enter",
+    "tagAdd": "Add",
+    "tagRemove": "Remove tag {{tag}}",
+    "save": "Save presentation",
+    "saving": "Saving...",
+    "saved": "Presentation saved",
+    "errors": {
+      "file": {
+        "type": "Use a PNG, JPG, WebP or GIF image.",
+        "size": "The image is larger than 5 MB.",
+        "empty": "The file is empty."
+      },
+      "url": "The image address is not valid.",
+      "upload": "The image could not be uploaded. Try again.",
+      "galleryFull": "The gallery holds up to {{max}} images.",
+      "tagsFull": "You can use up to {{max}} tags.",
+      "category": "Enter a category of 2 to 32 letters, numbers or hyphens.",
+      "save": "The presentation could not be saved."
     }
   }
 }

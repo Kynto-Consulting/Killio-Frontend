@@ -213,3 +213,29 @@
 
 /* The sidebar shows its own "Powered by" mark; the floating one steps aside. */
 body.has-inline-powered-by [data-floating-powered-by] { display: none; }
+
+/* Marketplace cover tokens (Corporate Memphis). Keep in sync with COVER_TOKENS in src/lib/marketplace/presentation.ts (a test checks it). */
+:root {
+  --cover-ink: #1B1B2F;
+  --cover-sticker: #FFF4E0;
+  --cover-bg-finanzas: #BDEFD8;
+  --cover-bg-comunidad: #FFC9DC;
+  --cover-bg-organizacion: #D3CAFF;
+  --cover-bg-desarrollo: #B6ECE6;
+  --cover-bg-corporativo: #FFE08A;
+  --cover-bg-otra: #FFC2B8;
+  --cover-badge-free: #8FE3BC;
+  --cover-badge-paid: #F5B82E;
+}
+.dark {
+  --cover-ink: #F8F3E6;
+  --cover-sticker: #2A2640;
+  --cover-bg-finanzas: #14473D;
+  --cover-bg-comunidad: #5A1F3A;
+  --cover-bg-organizacion: #2E2670;
+  --cover-bg-desarrollo: #0F4A4A;
+  --cover-bg-corporativo: #5C4306;
+  --cover-bg-otra: #5E2A22;
+  --cover-badge-free: #1F6B50;
+  --cover-badge-paid: #7A5A06;
+}
