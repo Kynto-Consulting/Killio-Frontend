@@ -432,22 +432,26 @@
       "nobody_can_post": "Nobody will be able to write except the roles that allow it and administrators."
     },
     "keys": {
-      "room.view": "See the channel",
-      "room.post": "Write messages",
-      "room.react": "React",
-      "room.call": "Call",
-      "room.manage_messages": "Manage messages",
-      "room.pin": "Pin messages",
-      "room.mention_everyone": "Mention everyone"
+      "room": {
+        "view": "See the channel",
+        "post": "Write messages",
+        "react": "React",
+        "call": "Call",
+        "manage_messages": "Manage messages",
+        "pin": "Pin messages",
+        "mention_everyone": "Mention everyone"
+      }
     },
     "keyHints": {
-      "room.view": "Shows in the list and can be read",
-      "room.post": "Send and reply",
-      "room.react": "Add emoji to messages",
-      "room.call": "Start or join calls",
-      "room.manage_messages": "Delete other people's messages",
-      "room.pin": "Pin important messages",
-      "room.mention_everyone": "Use @everyone and roles that are not mentionable"
+      "room": {
+        "view": "Shows in the list and can be read",
+        "post": "Send and reply",
+        "react": "Add emoji to messages",
+        "call": "Start or join calls",
+        "manage_messages": "Delete other people's messages",
+        "pin": "Pin important messages",
+        "mention_everyone": "Use @everyone and roles that are not mentionable"
+      }
     }
   },
   "mod": {

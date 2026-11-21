@@ -432,22 +432,26 @@
       "nobody_can_post": "Nadie podrá escribir salvo los roles que lo permitan y los administradores."
     },
     "keys": {
-      "room.view": "Ver el canal",
-      "room.post": "Escribir mensajes",
-      "room.react": "Reaccionar",
-      "room.call": "Llamar",
-      "room.manage_messages": "Gestionar mensajes",
-      "room.pin": "Anclar mensajes",
-      "room.mention_everyone": "Mencionar a todos"
+      "room": {
+        "view": "Ver el canal",
+        "post": "Escribir mensajes",
+        "react": "Reaccionar",
+        "call": "Llamar",
+        "manage_messages": "Gestionar mensajes",
+        "pin": "Anclar mensajes",
+        "mention_everyone": "Mencionar a todos"
+      }
     },
     "keyHints": {
-      "room.view": "Aparece en la lista y se puede leer",
-      "room.post": "Enviar y responder",
-      "room.react": "Añadir emojis a mensajes",
-      "room.call": "Iniciar o unirse a llamadas",
-      "room.manage_messages": "Borrar mensajes de otras personas",
-      "room.pin": "Fijar mensajes importantes",
-      "room.mention_everyone": "Usar @everyone y roles no mencionables"
+      "room": {
+        "view": "Aparece en la lista y se puede leer",
+        "post": "Enviar y responder",
+        "react": "Añadir emojis a mensajes",
+        "call": "Iniciar o unirse a llamadas",
+        "manage_messages": "Borrar mensajes de otras personas",
+        "pin": "Fijar mensajes importantes",
+        "mention_everyone": "Usar @everyone y roles no mencionables"
+      }
     }
   },
   "mod": {
