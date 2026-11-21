@@ -53,8 +53,31 @@ export type NodeKind =
   | 'core.action.ai_response'
   | 'core.action.js_code'
   | 'killio.trigger.room_message'
+  | 'killio.trigger.command'
+  | 'killio.trigger.interaction'
+  | 'killio.trigger.reaction_added'
+  | 'killio.trigger.message_edited'
+  | 'killio.trigger.message_deleted'
+  | 'killio.trigger.member_join'
+  | 'killio.trigger.scheduled'
   | 'killio.room.send_message'
-  | 'killio.room.react';
+  | 'killio.room.reply'
+  | 'killio.room.edit_message'
+  | 'killio.room.delete_message'
+  | 'killio.room.pin_message'
+  | 'killio.room.create_thread'
+  | 'killio.room.react'
+  | 'killio.room.unreact'
+  | 'killio.room.send_dm'
+  | 'killio.room.respond_interaction'
+  | 'killio.team.assign_self_role'
+  | 'killio.team.remove_self_role'
+  | 'killio.moderation.mute_member'
+  | 'killio.moderation.kick_member'
+  | 'killio.room.count_recent_messages'
+  | 'killio.team.member_info'
+  | 'core.condition.text_match_list'
+  | 'core.transform.count_matches';
 
 export interface ScriptNodeData {
   id: string;
@@ -238,7 +261,18 @@ export async function saveScriptGraph(
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ teamId, graph }),
   });
-  if (!res.ok) throw new Error('Failed to save script graph');
+  if (!res.ok) {
+    // The backend says why a bot graph is refused (nodes a bot may not use, one trigger per kind...): keep its message.
+    let message = 'Failed to save script graph';
+    try {
+      const body = await res.json();
+      const text = Array.isArray(body?.message) ? body.message.join(' ') : body?.message;
+      if (typeof text === 'string' && text.trim()) message = text.trim();
+    } catch {
+      /* keep the generic message */
+    }
+    throw new Error(message);
+  }
   return res.json();
 }
 

@@ -6,8 +6,10 @@ import { NodeKind } from "@/lib/api/scripts";
 import {
   GitBranch, Filter, PlusSquare, Pencil, ArrowRight, UserPlus, Play,
   Scale, ArrowRightLeft, FileText, Split, Clock3, Webhook, Database,
-  HardDriveUpload, Hash, SlidersHorizontal, Layers, GitFork, Globe, Code2, Repeat, Scissors, Braces, FilePlus2, MessageCircle, Send, Sparkles, MessageSquareText, SmilePlus,
+  HardDriveUpload, Hash, SlidersHorizontal, Layers, GitFork, Globe, Code2, Repeat, Scissors, Braces, FilePlus2, MessageCircle, Send, Sparkles,
 } from "lucide-react";
+import { ROOM_NODE_ICONS } from "@/components/scripts/nodes/RoomNodes";
+import { roomPaletteSections, type RoomNodeSpec } from "@/lib/bots/room-nodes";
 
 export type PaletteIntegrationKey = "core" | "github" | "whatsapp" | "slack" | "rooms";
 
@@ -486,40 +488,6 @@ const PALETTE_ITEMS: PaletteItem[] = [
     category: "actions",
     integration: "core",
   },
-  // Rooms and bots
-  {
-    id: "rooms.message.trigger",
-    kind: "killio.trigger.room_message",
-    labelKey: "roomMessageTrigger",
-    icon: MessageSquareText,
-    color: "bg-sky-700 text-white",
-    category: "triggers",
-    integration: "rooms",
-    searchTerms: ["room", "sala", "bot", "chat", "mensaje", "comando", "command"],
-    template: { label: "Room message", config: { commandPrefix: "", matchMode: "all" } },
-  },
-  {
-    id: "rooms.send.message",
-    kind: "killio.room.send_message",
-    labelKey: "roomSendMessage",
-    icon: Send,
-    color: "bg-sky-600 text-white",
-    category: "actions",
-    integration: "rooms",
-    searchTerms: ["room", "sala", "bot", "chat", "reply", "responder", "enviar"],
-    template: { label: "Reply", config: { text: "" } },
-  },
-  {
-    id: "rooms.react",
-    kind: "killio.room.react",
-    labelKey: "roomReact",
-    icon: SmilePlus,
-    color: "bg-sky-600 text-white",
-    category: "actions",
-    integration: "rooms",
-    searchTerms: ["room", "sala", "bot", "emoji", "reaction", "reaccion"],
-    template: { label: "React", config: { emoji: "\ud83d\udc4d" } },
-  },
 ];
 
 const INTEGRATION_ORDER: PaletteIntegrationKey[] = ["core", "github", "whatsapp", "slack", "rooms"];
@@ -536,6 +504,12 @@ export function NodePalette({ integrationAvailability }: NodePaletteProps) {
     slack: true,
     rooms: true,
     ...integrationAvailability,
+  };
+
+  const onDragRoomStart = (event: React.DragEvent<HTMLDivElement>, spec: RoomNodeSpec) => {
+    event.dataTransfer.setData("application/killio-node-kind", spec.kind);
+    event.dataTransfer.setData("application/killio-node-template", JSON.stringify({ label: t(`canvas.nodes.${spec.labelKey}`), config: spec.defaults }));
+    event.dataTransfer.effectAllowed = "move";
   };
 
   const onDragStart = (event: React.DragEvent<HTMLDivElement>, item: PaletteItem) => {
@@ -579,6 +553,21 @@ export function NodePalette({ integrationAvailability }: NodePaletteProps) {
       return (item.searchTerms ?? []).some((term) => term.toLowerCase().includes(normalizedSearch));
     });
   }, [availability, integrationFilter, normalizedSearch, t]);
+
+  // "Rooms and bots": triggers first, then actions, from the catalog; same filters as the rest of the palette.
+  const roomSections = useMemo(() => {
+    if (!availability.rooms || (integrationFilter !== "all" && integrationFilter !== "rooms")) return [];
+    return roomPaletteSections()
+      .map((section) => ({
+        role: section.role,
+        specs: section.specs.filter((spec) => {
+          if (!normalizedSearch) return true;
+          if (t(`canvas.nodes.${spec.labelKey}`).toLowerCase().includes(normalizedSearch)) return true;
+          return spec.searchTerms.some((term) => term.toLowerCase().includes(normalizedSearch));
+        }),
+      }))
+      .filter((section) => section.specs.length > 0);
+  }, [availability.rooms, integrationFilter, normalizedSearch, t]);
 
   const grouped = visibleItems.reduce<Record<string, PaletteItem[]>>((acc, item) => {
     (acc[item.category] ??= []).push(item);
@@ -636,7 +625,40 @@ export function NodePalette({ integrationAvailability }: NodePaletteProps) {
           </div>
         </div>
       ))}
-      {visibleItems.length === 0 && (
+      {roomSections.length > 0 && (
+        <section aria-labelledby="palette-rooms-title" className="space-y-2">
+          <h3 id="palette-rooms-title" className="border-t border-border pt-2 text-[10px] font-bold uppercase tracking-wide text-foreground">
+            {t("canvas.integrationFilter.rooms")}
+          </h3>
+          {roomSections.map((section) => (
+            <div key={section.role}>
+              <span className="mb-1 block text-[10px] font-semibold uppercase text-muted-foreground">
+                {t(`canvas.categories.${section.role === "trigger" ? "triggers" : "actions"}`)}
+              </span>
+              <div className="space-y-1.5">
+                {section.specs.map((spec) => {
+                  const Icon = ROOM_NODE_ICONS[spec.icon];
+                  return (
+                    <div
+                      key={spec.kind}
+                      draggable
+                      title={t(`canvas.room.nodes.${spec.labelKey}`)}
+                      onDragStart={(event) => onDragRoomStart(event, spec)}
+                      className="flex cursor-grab items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 text-xs font-medium text-foreground shadow-sm transition-shadow hover:shadow-md active:cursor-grabbing"
+                    >
+                      <span className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded ${spec.color} text-white`}>
+                        {Icon && <Icon className="h-3 w-3" aria-hidden />}
+                      </span>
+                      <span className="truncate">{t(`canvas.nodes.${spec.labelKey}`)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+      {visibleItems.length === 0 && roomSections.length === 0 && (
         <p className="rounded-md border border-dashed border-border px-2.5 py-2 text-[11px] text-muted-foreground">
           {t("canvas.noPaletteMatches")}
         </p>

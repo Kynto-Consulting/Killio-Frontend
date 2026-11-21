@@ -646,7 +646,30 @@
       "whatsappPersonalSend": "WhatsApp (personal): Enviar",
       "roomMessageTrigger": "Sala: Mensaje recibido",
       "roomSendMessage": "Sala: Enviar mensaje",
-      "roomReact": "Sala: Reaccionar"
+      "roomReact": "Sala: Reaccionar",
+      "roomCommandTrigger": "Sala: Comando",
+      "roomInteractionTrigger": "Sala: Botón o selector pulsado",
+      "roomReactionTrigger": "Sala: Reacción añadida",
+      "roomEditedTrigger": "Sala: Mensaje editado",
+      "roomDeletedTrigger": "Sala: Mensaje borrado",
+      "roomMemberJoinTrigger": "Sala: Miembro nuevo",
+      "roomScheduledTrigger": "Sala: Programado",
+      "roomReply": "Sala: Responder",
+      "roomEditMessage": "Sala: Editar mensaje",
+      "roomDeleteMessage": "Sala: Borrar mensaje",
+      "roomPinMessage": "Sala: Anclar mensaje",
+      "roomCreateThread": "Sala: Crear hilo",
+      "roomUnreact": "Sala: Quitar reacción",
+      "roomSendDm": "Sala: Mensaje directo",
+      "roomRespondInteraction": "Sala: Responder a interacción",
+      "teamAssignSelfRole": "Roles: Dar rol autoasignable",
+      "teamRemoveSelfRole": "Roles: Quitar rol autoasignable",
+      "modMuteMember": "Moderación: Silenciar miembro",
+      "modKickMember": "Moderación: Expulsar miembro",
+      "roomCountRecent": "Sala: Contar mensajes recientes",
+      "teamMemberInfo": "Roles: Datos del miembro",
+      "condTextMatchList": "Condición: Texto coincide con lista de palabras",
+      "transCountMatches": "Transformar: Contar menciones o enlaces"
     },
     "fields": {
       "repoFullName": "Repo (owner/repo)",
@@ -946,6 +969,512 @@
         "quote": "Cita",
         "code": "Código",
         "callout": "Callout"
+      }
+    },
+    "room": {
+      "required": "obligatorio",
+      "nodeNeedsAttention": "Este nodo necesita atención",
+      "anyMessage": "Todos los mensajes",
+      "add": "Añadir",
+      "remove": "Quitar",
+      "moveUp": "Subir",
+      "moveDown": "Bajar",
+      "preview": "Vista previa",
+      "samplePayload": "Ejemplo de lo que entrega este disparador",
+      "pickRoom": "Elige una sala",
+      "sameRoom": "La sala que lo disparó",
+      "invoker": "La persona que inició la ejecución",
+      "customValue": "Otro valor o variable…",
+      "backToList": "Lista",
+      "templateHint": "Usa {{field}} o {{expr}} para insertar datos de la ejecución. Escribe { para ver las variables.",
+      "textPlaceholder": "Hola {authorName}",
+      "anyCommand": "Cualquier comando de este bot",
+      "anySubcommand": "Cualquier subcomando",
+      "commandNoBot": "Vincula este script a un bot (pestaña Bots) para elegir aquí sus comandos y usar sus opciones como variables.",
+      "commandNoOptions": "/{{command}} no tiene opciones.",
+      "commandOptions": "Opciones de /{{command}}",
+      "commandOptionsUse": "Cada opción es una variable de la ejecución, por ejemplo {{example}}.",
+      "duplicateTrigger": "Un script de bot admite un solo disparador de cada tipo. Quita el repetido o el script no se guardará.",
+      "scheduledNote": "Solo corre mientras un programador externo llama al servidor cada 5 minutos o menos (sin servidor propio no hay temporizadores). Las horas son UTC. El primer tick tras activarlo solo registra el punto de partida.",
+      "ports": {
+        "in": "Entrada: input",
+        "noIn": "Sin entrada: inicia el script",
+        "out": "Salida: output"
+      },
+      "weekdays": {
+        "0": "Dom",
+        "1": "Lun",
+        "2": "Mar",
+        "3": "Mié",
+        "4": "Jue",
+        "5": "Vie",
+        "6": "Sáb"
+      },
+      "emoji": {
+        "quick": "Emojis frecuentes"
+      },
+      "mentions": {
+        "insert": "Insertar mención…",
+        "people": "Personas",
+        "roles": "Roles"
+      },
+      "variables": {
+        "title": "Variables disponibles",
+        "insert": "Insertar variable…",
+        "emitted": "Lo que entrega este disparador",
+        "copy": "Copiar {{name}}",
+        "copied": "Copiado",
+        "unknown": "No es una variable de esta ejecución: {{names}}. El servidor sustituye cada { } por el valor de ese campo (vacío si no existe), así que las llaves literales desaparecen."
+      },
+      "optionTypes": {
+        "string": "texto",
+        "integer": "entero",
+        "number": "número",
+        "boolean": "sí/no",
+        "user": "persona",
+        "role": "rol",
+        "channel": "canal",
+        "attachment": "adjunto",
+        "subcommand": "subcomando",
+        "subcommand_group": "grupo"
+      },
+      "nodes": {
+        "roomMessageTrigger": "Inicia el script cuando se publica un mensaje en una sala. Filtra por sala, prefijo (/ping) o mención.",
+        "roomCommandTrigger": "Inicia el script cuando alguien ejecuta un comando de barra del bot. Los argumentos se validan antes y llegan tipados en options.",
+        "roomInteractionTrigger": "Inicia el script cuando una persona pulsa un botón o elige una opción de un mensaje que publicó este bot.",
+        "roomReactionTrigger": "Inicia el script cuando una persona añade una reacción en una sala que el bot ve. Las reacciones de bots nunca inician nada.",
+        "roomEditedTrigger": "Inicia el script cuando una persona edita un mensaje que el bot ve.",
+        "roomDeletedTrigger": "Inicia el script cuando se borra un mensaje en una sala que el bot ve.",
+        "roomMemberJoinTrigger": "Inicia el script cuando una persona entra al espacio de trabajo. Necesita la sala donde actúa el bot.",
+        "roomScheduledTrigger": "Inicia el script con un horario: cada N minutos, o a diario a una hora UTC.",
+        "roomSendMessage": "Publica un mensaje en una sala como el bot: texto y/o bloques ricos, con botones y selectores si quieres.",
+        "roomReply": "Responde a un mensaje como el bot (por defecto el que disparó el script). Puede ir en su hilo o ser privado para una persona.",
+        "roomEditMessage": "Edita un mensaje que escribió este bot (por defecto el último que publicó en esta ejecución).",
+        "roomDeleteMessage": "Borra un mensaje que escribió este bot (por defecto el último que publicó en esta ejecución).",
+        "roomPinMessage": "Ancla o desancla un mensaje con el sistema de anclados de la sala, con caducidad opcional.",
+        "roomCreateThread": "Abre un hilo en un mensaje publicando su primera respuesta.",
+        "roomReact": "Añade una reacción con emoji como el bot. Por defecto al mensaje que disparó el script.",
+        "roomUnreact": "Quita la reacción del propio bot de un mensaje.",
+        "roomSendDm": "Escribe un mensaje directo a una persona (por defecto quien inició la ejecución). Limitado por hora y auditado.",
+        "roomRespondInteraction": "Responde a la pulsación de un botón o selector: actualiza el mensaje, responde solo a esa persona o publica uno nuevo.",
+        "teamAssignSelfRole": "Da a quien reaccionó o pulsó un botón un rol autoasignable. Solo desde un disparador de Reacción o Interacción; el bot necesita bots.assign_roles.",
+        "teamRemoveSelfRole": "Quita un rol autoasignable a quien reaccionó o pulsó un botón. Mismas reglas que darlo.",
+        "modMuteMember": "Silencia a un miembro con los permisos y la jerarquía del moderador que pulsó el botón (no del bot). Solo desde un disparador de Interacción; el id del botón debe contener el id de la persona (mod:mute:<id>).",
+        "modKickMember": "Expulsa a un miembro del espacio como el moderador que pulsó el botón. Solo desde un disparador de Interacción; el id del botón debe contener el id de la persona.",
+        "roomCountRecent": "Cuenta los mensajes recientes de una persona en una sala (borrados incluidos) y guarda el número en el item.",
+        "teamMemberInfo": "Lee si una persona es miembro, nueva, exenta (por roles), administradora o propietaria y lo pone en el item como member.",
+        "condTextMatchList": "Comprueba un texto contra una lista de palabras. Dos salidas: match_true y match_false.",
+        "transCountMatches": "Cuenta las menciones, enlaces o coincidencias de un patrón de un texto y guarda el número."
+      },
+      "fields": {
+        "commandPrefix": {
+          "label": "Prefijo del comando",
+          "hint": "Solo mensajes que empiezan con este texto. Vacío = todos los mensajes."
+        },
+        "requireMention": {
+          "label": "Solo si se menciona al bot"
+        },
+        "matchMode": {
+          "label": "Filtros",
+          "options": {
+            "all": "Deben cumplirse todos",
+            "any": "Basta con uno"
+          }
+        },
+        "roomId": {
+          "label": "Sala",
+          "hint": "Vacío = la sala que disparó el script. Elige una o usa una variable."
+        },
+        "roomIdRequired": {
+          "hint": "La sala donde actúa el bot. Debe poder verla."
+        },
+        "command": {
+          "label": "Comando",
+          "hint": "Vacío = cualquier comando que registre este bot."
+        },
+        "subcommand": {
+          "label": "Subcomando",
+          "hint": "Solo se ejecuta con este subcomando."
+        },
+        "customId": {
+          "label": "Id del componente",
+          "hint": "Id exacto del botón o selector, o un prefijo terminado en * (vote:*). Vacío = cualquiera."
+        },
+        "emoji": {
+          "label": "Emoji",
+          "hint": "Exactamente este emoji. En disparadores, vacío = cualquiera."
+        },
+        "onlyOwnMessages": {
+          "label": "Solo en mensajes escritos por este bot"
+        },
+        "scheduleMode": {
+          "label": "Repetir",
+          "options": {
+            "every": "Cada N minutos",
+            "daily": "A diario a una hora"
+          }
+        },
+        "everyMinutes": {
+          "label": "Cada (minutos)",
+          "hint": "Entre 5 y 10080."
+        },
+        "dailyAt": {
+          "label": "Hora (UTC)",
+          "hint": "HH:MM en 24 horas, por ejemplo 09:30."
+        },
+        "weekdays": {
+          "label": "Días de la semana (UTC)",
+          "hint": "Ninguno marcado = todos los días."
+        },
+        "text": {
+          "label": "Texto del mensaje"
+        },
+        "blocks": {
+          "label": "Contenido enriquecido",
+          "hint": "Tarjetas, listas, tablas, enlaces e imágenes requieren bots.send_embeds en el bot y enlaces incrustados en la sala."
+        },
+        "blocksFrom": {
+          "label": "Bloques desde un campo",
+          "hint": "Nombre de un campo del item que ya contiene los bloques. Reemplaza a los bloques de arriba."
+        },
+        "components": {
+          "label": "Botones y selectores",
+          "hint": "Una pulsación inicia el disparador de Interacción de este bot con el mismo id."
+        },
+        "componentsFrom": {
+          "label": "Componentes desde un campo",
+          "hint": "Nombre de un campo del item que ya contiene las filas."
+        },
+        "expiresInMinutes": {
+          "label": "Los componentes caducan en (minutos)",
+          "hint": "Entre 1 y 10080. Vacío = 24 horas. En un anclado: cuándo termina (vacío = sin caducidad)."
+        },
+        "ephemeral": {
+          "label": "Solo lo ve quien inició la ejecución"
+        },
+        "messageId": {
+          "label": "ID del mensaje",
+          "hint": "Vacío = el predeterminado de este nodo (el mensaje que disparó, o el último que publicó el bot)."
+        },
+        "inThread": {
+          "label": "Dentro del hilo del mensaje"
+        },
+        "unpin": {
+          "label": "Desanclar en vez de anclar"
+        },
+        "replaceOldest": {
+          "label": "Reemplazar el anclado más antiguo si la sala está llena"
+        },
+        "userId": {
+          "label": "Persona",
+          "hint": "Vacío = quien inició la ejecución. Escribir a otra persona requiere bots.send_dm."
+        },
+        "mode": {
+          "label": "Responder",
+          "options": {
+            "update_message": "Actualizando el mensaje",
+            "ephemeral": "Solo a esa persona",
+            "message": "Publicando un mensaje nuevo",
+            "word": "Palabra completa",
+            "contains": "Contiene",
+            "exact": "Exacto"
+          }
+        },
+        "roleId": {
+          "label": "ID del rol",
+          "hint": "Un rol autoasignable de este espacio."
+        },
+        "minutes": {
+          "label": "Minutos",
+          "hint": "De 1 a 1440. Por defecto 10."
+        },
+        "reason": {
+          "label": "Motivo"
+        },
+        "windowSeconds": {
+          "label": "Ventana (segundos)",
+          "hint": "De 1 a 600."
+        },
+        "outputPath": {
+          "label": "Guardar el número en",
+          "hint": "Nombre del campo del item."
+        },
+        "roleIds": {
+          "label": "Roles exentos",
+          "hint": "Un id de rol por línea."
+        },
+        "newMemberHours": {
+          "label": "Miembro nuevo durante (horas)",
+          "hint": "0 lo desactiva."
+        },
+        "field": {
+          "label": "Campo con el texto"
+        },
+        "words": {
+          "label": "Palabras",
+          "hint": "Una por línea."
+        },
+        "wordsFrom": {
+          "label": "Palabras desde un campo",
+          "hint": "Nombre de un campo que ya contiene la lista."
+        },
+        "caseInsensitive": {
+          "label": "Ignorar mayúsculas y minúsculas"
+        },
+        "ignoreAccents": {
+          "label": "Ignorar acentos"
+        },
+        "preset": {
+          "label": "Qué contar",
+          "options": {
+            "mentions": "Menciones",
+            "links": "Enlaces",
+            "custom": "Patrón propio"
+          }
+        },
+        "pattern": {
+          "label": "Patrón (expresión regular)"
+        },
+        "moderate": {
+          "label": "Moderar: borrar el mensaje que disparó aunque no sea del bot",
+          "hint": "El bot necesita room.manage_messages en la sala."
+        }
+      },
+      "vars": {
+        "roomId": "Id de la sala",
+        "receivedAt": "Cuándo llegó",
+        "text": "Texto del mensaje",
+        "message": "Texto del mensaje (alias)",
+        "command": "Nombre del comando",
+        "args": "Texto tras el comando",
+        "authorUserId": "Id de la persona",
+        "authorName": "Nombre de la persona",
+        "authorIsBot": "Si es un bot",
+        "mentionsBot": "Si se mencionó al bot",
+        "messageId": "Id del mensaje",
+        "subcommandGroup": "Grupo de subcomandos",
+        "subcommand": "Subcomando",
+        "options": "Todas las opciones (objeto)",
+        "invokedBy": "Quien lo inició (id)",
+        "invokedByName": "Quien lo inició (nombre)",
+        "customId": "Id del componente",
+        "values": "Valores elegidos (lista)",
+        "value": "Primer valor elegido",
+        "componentType": "button o select",
+        "botMessageId": "Mensaje con el componente",
+        "interactionId": "Id de esta pulsación",
+        "emoji": "Emoji",
+        "messageAuthorUserId": "Autor del mensaje (id)",
+        "messageText": "Texto del mensaje",
+        "previousText": "Texto antes de borrarse",
+        "deletedBy": "Quien lo borró (id)",
+        "deletedByName": "Quien lo borró (nombre)",
+        "teamId": "Id del espacio",
+        "userId": "Id de la persona",
+        "userName": "Nombre de la persona",
+        "joinedAt": "Cuándo entró",
+        "scheduledFor": "Momento al que corresponde",
+        "lastRunAt": "Ejecución anterior",
+        "roomSendResult": "Resultado del envío ({ sent, id, ... })",
+        "roomEditResult": "Resultado de la edición",
+        "roomDeleteResult": "Resultado del borrado",
+        "roomPinResult": "Resultado del anclado",
+        "roomThreadResult": "Resultado ({ id, threadRootId })",
+        "roomReactResult": "Resultado de la reacción",
+        "roomDmResult": "Resultado ({ id, roomId, userId })",
+        "roomInteractionResult": "Resultado de la respuesta",
+        "selfRoleResult": "Resultado ({ done, action, roleName, changed | error })",
+        "moderationResult": "Resultado ({ done, kind, userId | error })",
+        "recentMessages": "Número de mensajes recientes (el campo que elijas)",
+        "member": "Datos del miembro ({ isMember, isNew, isExempt, isAdmin, isOwner, roleIds, hoursSinceJoin })",
+        "__matched": "Si coincidió alguna palabra",
+        "matchedWords": "Palabras que coincidieron",
+        "matchCount": "Número contado (el campo que elijas)"
+      },
+      "blocks": {
+        "viewLabel": "Vista del editor",
+        "view": {
+          "form": "Formulario",
+          "json": "JSON"
+        },
+        "size": "{{count}}/{{max}} bloques · {{kb}} de {{maxKb}} KB",
+        "empty": "Sin contenido enriquecido. Añade bloques para enviar tarjetas, listas, tablas o enlaces.",
+        "add": "Añadir un bloque…",
+        "previewNote": "Las variables aparecen tal como las escribes; se rellenan cuando el script corre.",
+        "headingLevel": "Nivel {{n}}",
+        "types": {
+          "text": "Texto",
+          "heading": "Título",
+          "list": "Lista",
+          "checklist": "Lista de tareas",
+          "table": "Tabla",
+          "image": "Imagen",
+          "link": "Enlace",
+          "code": "Código",
+          "quote": "Cita",
+          "divider": "Separador",
+          "embed": "Tarjeta"
+        },
+        "fields": {
+          "text": "Texto",
+          "level": "Nivel",
+          "ordered": "Lista numerada",
+          "items": "Elementos",
+          "columns": "Columnas",
+          "rows": "Filas",
+          "url": "Enlace (https)",
+          "alt": "Texto alternativo",
+          "caption": "Pie de imagen",
+          "title": "Título",
+          "description": "Descripción",
+          "language": "Lenguaje",
+          "code": "Código",
+          "color": "Color",
+          "fields": "Campos",
+          "footer": "Pie",
+          "imageUrl": "Imagen (https)",
+          "thumbnailUrl": "Miniatura (https)",
+          "timestamp": "Fecha (ISO)"
+        },
+        "hints": {
+          "lines": "Un elemento por línea.",
+          "checklist": "Uno por línea: [x] hecho, [ ] pendiente.",
+          "columns": "Nombres de columna separados por |",
+          "rows": "Una fila por línea, celdas separadas por |",
+          "fields": "Uno por línea: nombre | valor | inline (opcional)",
+          "divider": "Una línea horizontal. No tiene opciones.",
+          "embedsPerm": "Requiere bots.send_embeds en el bot y enlaces incrustados en la sala."
+        },
+        "json": {
+          "syntax": "Eso no es JSON válido.",
+          "list": "Debe ser una lista de bloques ([ ... ]).",
+          "hint": "Se aplica cuando es válido. El formulario muestra los mismos datos."
+        }
+      },
+      "components": {
+        "empty": "Sin botones ni selectores. Añade una fila para hacer el mensaje interactivo.",
+        "row": "Fila {{n}}",
+        "addRow": "Añadir fila",
+        "addButton": "Botón",
+        "addSelect": "Selector",
+        "kind": {
+          "button": "Botón",
+          "select": "Selector"
+        },
+        "previewNote": "Vista previa: aquí los controles no hacen nada.",
+        "fields": {
+          "label": "Etiqueta",
+          "style": "Estilo",
+          "emoji": "Emoji",
+          "url": "Enlace (https)",
+          "customId": "Id",
+          "disabled": "Deshabilitado",
+          "placeholder": "Texto de ayuda",
+          "options": "Opciones",
+          "minValues": "Mínimo de elecciones",
+          "maxValues": "Máximo de elecciones"
+        },
+        "styles": {
+          "primary": "Principal",
+          "secondary": "Secundario",
+          "success": "Éxito",
+          "danger": "Peligro",
+          "link": "Enlace"
+        },
+        "hints": {
+          "url": "Se abre en una pestaña nueva. Un botón de enlace no envía nada al script.",
+          "customId": "Letras, dígitos y _ . : - / (hasta 100). Único en el mensaje. El disparador de Interacción filtra por él.",
+          "options": "Una por línea: etiqueta | valor | descripción (valor y descripción opcionales). Hasta {{max}}."
+        },
+        "removeAll": "Quitar los botones y selectores del mensaje",
+        "removeAllHint": "Envía una lista vacía. Déjalo sin marcar para mantener sin cambios los componentes del mensaje."
+      },
+      "issues": {
+        "node": {
+          "room_required": "Elige una sala.",
+          "emoji_required": "Escribe un emoji.",
+          "content_required": "Escribe un texto o añade bloques.",
+          "schedule_one": "Indica exactamente una: cada N minutos, o una hora diaria.",
+          "every_range": "Número entero de 5 a 10080.",
+          "daily_format": "Usa HH:MM, por ejemplo 09:30.",
+          "weekdays_range": "Elige días de lunes a domingo.",
+          "weekdays_need_daily": "Los días solo se aplican a una hora diaria.",
+          "expires_range": "Debe ser 1 minuto o más.",
+          "command_name": "Usa letras a-z, dígitos, - o _ (hasta 32).",
+          "message_id_uuid": "Debe ser un id de mensaje o una variable.",
+          "room_uuid": "Debe ser un id de sala o una variable.",
+          "custom_id_pattern": "Letras, dígitos y _ . : - / y un * opcional al final.",
+          "role_required": "Escribe el id de un rol.",
+          "user_required": "Escribe el id de la persona."
+        },
+        "blocks": {
+          "not_list": "Los bloques deben ser una lista.",
+          "empty": "Añade al menos un bloque.",
+          "too_many": "Máximo {{max}} bloques.",
+          "too_large": "Demasiado grande: máximo {{kb}} KB.",
+          "type_unknown": "Tipo de bloque desconocido.",
+          "text_required": "El texto es obligatorio.",
+          "text_long": "Demasiado largo.",
+          "heading_level": "El nivel debe ser 1, 2 o 3.",
+          "items_empty": "Añade al menos un elemento.",
+          "items_many": "Demasiados elementos (máximo 25).",
+          "item_required": "Este elemento está vacío.",
+          "item_long": "Elemento demasiado largo (máximo 200).",
+          "columns_range": "Usa de 1 a 8 columnas.",
+          "rows_many": "Máximo 25 filas.",
+          "row_wide": "Una fila tiene más celdas que columnas.",
+          "cell_long": "Una celda es demasiado larga (máximo 200).",
+          "url_required": "Falta el enlace.",
+          "url_https": "Debe ser un enlace https.",
+          "color_format": "Usa un color como #1a2b3c.",
+          "embed_empty": "Añade un título, una descripción o campos.",
+          "fields_many": "Máximo 10 campos.",
+          "field_name": "Un campo necesita nombre.",
+          "field_value": "Un campo necesita valor.",
+          "timestamp": "No es una fecha válida.",
+          "title_long": "Título demasiado largo (máximo 256).",
+          "alt_long": "Texto demasiado largo.",
+          "code_long": "Código demasiado largo (máximo 4000)."
+        },
+        "components": {
+          "too_many_rows": "Máximo {{max}} filas.",
+          "row_empty": "Una fila necesita componentes.",
+          "select_alone": "Una fila con selector solo lleva ese selector.",
+          "too_many_buttons": "Máximo 5 botones por fila.",
+          "type_invalid": "Componente desconocido.",
+          "style_invalid": "Estilo desconocido.",
+          "label_required": "La etiqueta es obligatoria.",
+          "label_long": "Etiqueta demasiado larga (máximo {{max}}).",
+          "custom_id_required": "El id es obligatorio.",
+          "custom_id_invalid": "Usa letras, dígitos y _ . : - / (hasta 100).",
+          "custom_id_duplicate": "Este id se repite en el mensaje.",
+          "link_url": "Un botón de enlace necesita un enlace https.",
+          "link_custom_id": "Un botón de enlace no lleva id.",
+          "url_extra": "Solo los botones de enlace llevan enlace.",
+          "options_empty": "Añade al menos una opción.",
+          "options_many": "Máximo 25 opciones.",
+          "option_label": "Cada opción necesita etiqueta.",
+          "option_value": "Cada opción necesita un valor.",
+          "option_value_duplicate": "Dos opciones tienen el mismo valor.",
+          "option_description_long": "Descripción demasiado larga (máximo 100).",
+          "values_range": "El mínimo y el máximo deben caber en el número de opciones.",
+          "placeholder_long": "Texto de ayuda demasiado largo (máximo 150).",
+          "expires_range": "La caducidad debe estar entre {{min}} y {{maxMin}} minutos."
+        }
+      },
+      "graph": {
+        "title": "Grafo del bot: {{count}} por revisar",
+        "saveFailed": "No se pudo guardar el script.",
+        "saveFailedWith": "No se pudo guardar el script: {{message}}",
+        "issues": {
+          "no_trigger": "Un script de bot necesita al menos un disparador de bot (mensaje, comando, botón, reacción...).",
+          "duplicate_trigger": "Solo se admite un disparador de cada tipo ({{kind}}).",
+          "node_kind_not_allowed": "{{kind}} no se puede usar en un script de bot: no se ejecuta con los permisos del bot.",
+          "unreachable": "Ningún disparador llega a este nodo, así que nunca se ejecuta.",
+          "edge_dangling": "Una conexión apunta a un nodo que no existe.",
+          "trigger_has_input": "Un disparador no tiene entrada: nada puede conectarse a él.",
+          "node_invalid": "Necesita atención: {{field}}."
+        }
       }
     }
   },

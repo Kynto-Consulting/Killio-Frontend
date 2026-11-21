@@ -646,7 +646,30 @@
       "whatsappPersonalSend": "WhatsApp (personal): Send",
       "roomMessageTrigger": "Room: Message received",
       "roomSendMessage": "Room: Send message",
-      "roomReact": "Room: React"
+      "roomReact": "Room: React",
+      "roomCommandTrigger": "Room: Command",
+      "roomInteractionTrigger": "Room: Button or select pressed",
+      "roomReactionTrigger": "Room: Reaction added",
+      "roomEditedTrigger": "Room: Message edited",
+      "roomDeletedTrigger": "Room: Message deleted",
+      "roomMemberJoinTrigger": "Room: Member joined",
+      "roomScheduledTrigger": "Room: Scheduled",
+      "roomReply": "Room: Reply",
+      "roomEditMessage": "Room: Edit message",
+      "roomDeleteMessage": "Room: Delete message",
+      "roomPinMessage": "Room: Pin message",
+      "roomCreateThread": "Room: Create thread",
+      "roomUnreact": "Room: Remove reaction",
+      "roomSendDm": "Room: Direct message",
+      "roomRespondInteraction": "Room: Respond to interaction",
+      "teamAssignSelfRole": "Roles: Give self-assignable role",
+      "teamRemoveSelfRole": "Roles: Take away self-assignable role",
+      "modMuteMember": "Moderation: Mute member",
+      "modKickMember": "Moderation: Remove member",
+      "roomCountRecent": "Room: Count recent messages",
+      "teamMemberInfo": "Roles: Member info",
+      "condTextMatchList": "Condition: Text matches a word list",
+      "transCountMatches": "Transform: Count mentions or links"
     },
     "fields": {
       "repoFullName": "Repo (owner/repo)",
@@ -946,6 +969,512 @@
         "quote": "Quote",
         "code": "Code",
         "callout": "Callout"
+      }
+    },
+    "room": {
+      "required": "required",
+      "nodeNeedsAttention": "This node needs attention",
+      "anyMessage": "Every message",
+      "add": "Add",
+      "remove": "Remove",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "preview": "Preview",
+      "samplePayload": "Example of what this trigger delivers",
+      "pickRoom": "Choose a room",
+      "sameRoom": "The room that triggered it",
+      "invoker": "The person who started the run",
+      "customValue": "Other value or variable…",
+      "backToList": "List",
+      "templateHint": "Use {{field}} or {{expr}} to insert data of the run. Type { to see the variables.",
+      "textPlaceholder": "Hello {authorName}",
+      "anyCommand": "Any command of this bot",
+      "anySubcommand": "Any subcommand",
+      "commandNoBot": "Bind this script to a bot (Bots tab) to pick its commands here and use its options as variables.",
+      "commandNoOptions": "/{{command}} takes no options.",
+      "commandOptions": "Options of /{{command}}",
+      "commandOptionsUse": "Each option is a variable of the run, for example {{example}}.",
+      "duplicateTrigger": "A bot script can hold only one trigger of each kind. Remove the duplicate or the script will not save.",
+      "scheduledNote": "Runs only while an external scheduler calls the server every 5 minutes or less (serverless has no timers). Times are UTC. The first tick after activation only records the starting point.",
+      "ports": {
+        "in": "Input: input",
+        "noIn": "No input: it starts the script",
+        "out": "Output: output"
+      },
+      "weekdays": {
+        "0": "Sun",
+        "1": "Mon",
+        "2": "Tue",
+        "3": "Wed",
+        "4": "Thu",
+        "5": "Fri",
+        "6": "Sat"
+      },
+      "emoji": {
+        "quick": "Common emoji"
+      },
+      "mentions": {
+        "insert": "Insert mention…",
+        "people": "People",
+        "roles": "Roles"
+      },
+      "variables": {
+        "title": "Available variables",
+        "insert": "Insert variable…",
+        "emitted": "What this trigger delivers",
+        "copy": "Copy {{name}}",
+        "copied": "Copied",
+        "unknown": "Not a variable of this run: {{names}}. The server replaces every { } with the value of that field (empty if it does not exist), so literal braces disappear."
+      },
+      "optionTypes": {
+        "string": "text",
+        "integer": "integer",
+        "number": "number",
+        "boolean": "yes/no",
+        "user": "person",
+        "role": "role",
+        "channel": "channel",
+        "attachment": "attachment",
+        "subcommand": "subcommand",
+        "subcommand_group": "group"
+      },
+      "nodes": {
+        "roomMessageTrigger": "Starts the script when a message is posted in a room. Filter by room, prefix (/ping) or mention.",
+        "roomCommandTrigger": "Starts the script when someone runs one of the bot's slash commands. Arguments are validated before the run and arrive typed in options.",
+        "roomInteractionTrigger": "Starts the script when a person presses a button or picks an option of a message this bot posted.",
+        "roomReactionTrigger": "Starts the script when a person adds a reaction in a room the bot can see. Reactions by bots never start anything.",
+        "roomEditedTrigger": "Starts the script when a person edits a message the bot can see.",
+        "roomDeletedTrigger": "Starts the script when a message is deleted in a room the bot can see.",
+        "roomMemberJoinTrigger": "Starts the script when a person joins the workspace. Needs the room where the bot acts.",
+        "roomScheduledTrigger": "Starts the script on a schedule: every N minutes, or daily at a UTC time.",
+        "roomSendMessage": "Posts a message in a room as the bot: text and/or rich blocks, optionally buttons and selects.",
+        "roomReply": "Replies to a message as the bot (by default the one that triggered the script). Can go in its thread or be private to one person.",
+        "roomEditMessage": "Edits a message this bot wrote (by default the last one it posted in this run).",
+        "roomDeleteMessage": "Deletes a message this bot wrote (by default the last one it posted in this run).",
+        "roomPinMessage": "Pins or unpins a message through the room's pin system, with an optional expiry.",
+        "roomCreateThread": "Opens a thread on a message by posting its first reply.",
+        "roomReact": "Adds an emoji reaction as the bot. Defaults to the message that triggered the script.",
+        "roomUnreact": "Removes the bot's own reaction from a message.",
+        "roomSendDm": "Writes a direct message to a person (by default the one who started the run). Limited per hour and audited.",
+        "roomRespondInteraction": "Answers a button or select press: update the message, answer only that person, or post a new message.",
+        "teamAssignSelfRole": "Gives the person who reacted or pressed a button a self-assignable role. Only from a Reaction or Interaction trigger; the bot needs bots.assign_roles.",
+        "teamRemoveSelfRole": "Takes a self-assignable role away from the person who reacted or pressed a button. Same rules as giving it.",
+        "modMuteMember": "Mutes a member with the rights and hierarchy of the moderator who pressed the button (not the bot). Only from an Interaction trigger; the id of the button must contain the user id (mod:mute:<id>).",
+        "modKickMember": "Removes a member from the workspace as the moderator who pressed the button. Only from an Interaction trigger; the button id must contain the user id.",
+        "roomCountRecent": "Counts the recent messages of a person in a room (deleted ones included) and stores the number in the item.",
+        "teamMemberInfo": "Reads whether a person is a member, new, exempt (by roles), admin or owner, and puts it in the item as member.",
+        "condTextMatchList": "Checks a text against a list of words. Two outputs: match_true and match_false.",
+        "transCountMatches": "Counts the mentions, links or custom pattern matches of a text and stores the number."
+      },
+      "fields": {
+        "commandPrefix": {
+          "label": "Command prefix",
+          "hint": "Only messages that start with this text. Empty = every message."
+        },
+        "requireMention": {
+          "label": "Only when the bot is mentioned"
+        },
+        "matchMode": {
+          "label": "Filters",
+          "options": {
+            "all": "All must match",
+            "any": "Any can match"
+          }
+        },
+        "roomId": {
+          "label": "Room",
+          "hint": "Empty = the room that triggered the script. Pick one, or use a variable."
+        },
+        "roomIdRequired": {
+          "hint": "The room where the bot acts. It must be able to see it."
+        },
+        "command": {
+          "label": "Command",
+          "hint": "Empty = any command registered by this bot."
+        },
+        "subcommand": {
+          "label": "Subcommand",
+          "hint": "Only runs for this subcommand."
+        },
+        "customId": {
+          "label": "Component id",
+          "hint": "Exact id of the button or select, or a prefix ending in * (vote:*). Empty = any."
+        },
+        "emoji": {
+          "label": "Emoji",
+          "hint": "Exactly this emoji. For triggers, empty = any."
+        },
+        "onlyOwnMessages": {
+          "label": "Only on messages written by this bot"
+        },
+        "scheduleMode": {
+          "label": "Repeat",
+          "options": {
+            "every": "Every N minutes",
+            "daily": "Daily at a time"
+          }
+        },
+        "everyMinutes": {
+          "label": "Every (minutes)",
+          "hint": "Between 5 and 10080."
+        },
+        "dailyAt": {
+          "label": "Time (UTC)",
+          "hint": "HH:MM, 24 hours, for example 09:30."
+        },
+        "weekdays": {
+          "label": "Days of the week (UTC)",
+          "hint": "None selected = every day."
+        },
+        "text": {
+          "label": "Message text"
+        },
+        "blocks": {
+          "label": "Rich content",
+          "hint": "Cards, lists, tables, links and images need bots.send_embeds on the bot and embed links in the room."
+        },
+        "blocksFrom": {
+          "label": "Blocks from a field",
+          "hint": "Name of a field of the item that already holds the blocks. It replaces the blocks above."
+        },
+        "components": {
+          "label": "Buttons and selects",
+          "hint": "A press starts the Interaction trigger of this bot with the same id."
+        },
+        "componentsFrom": {
+          "label": "Components from a field",
+          "hint": "Name of a field of the item that already holds the rows."
+        },
+        "expiresInMinutes": {
+          "label": "Components expire after (minutes)",
+          "hint": "Between 1 and 10080. Empty = 24 hours. For a pin: when the pin ends (empty = no expiry)."
+        },
+        "ephemeral": {
+          "label": "Only the person who started the run sees it"
+        },
+        "messageId": {
+          "label": "Message ID",
+          "hint": "Empty = the default of this node (the triggering message, or the last one the bot posted)."
+        },
+        "inThread": {
+          "label": "Inside the message's thread"
+        },
+        "unpin": {
+          "label": "Unpin instead of pin"
+        },
+        "replaceOldest": {
+          "label": "Replace the oldest pin when the room is full"
+        },
+        "userId": {
+          "label": "Person",
+          "hint": "Empty = the person who started the run. Writing to anyone else needs bots.send_dm."
+        },
+        "mode": {
+          "label": "Answer by",
+          "options": {
+            "update_message": "Updating the message",
+            "ephemeral": "Answering only that person",
+            "message": "Posting a new message",
+            "word": "Whole word",
+            "contains": "Contains",
+            "exact": "Exact"
+          }
+        },
+        "roleId": {
+          "label": "Role ID",
+          "hint": "A self-assignable role of this workspace."
+        },
+        "minutes": {
+          "label": "Minutes",
+          "hint": "1 to 1440. Default 10."
+        },
+        "reason": {
+          "label": "Reason"
+        },
+        "windowSeconds": {
+          "label": "Window (seconds)",
+          "hint": "1 to 600."
+        },
+        "outputPath": {
+          "label": "Store the number in",
+          "hint": "Name of the field of the item."
+        },
+        "roleIds": {
+          "label": "Exempt roles",
+          "hint": "One role id per line."
+        },
+        "newMemberHours": {
+          "label": "New member for (hours)",
+          "hint": "0 turns it off."
+        },
+        "field": {
+          "label": "Field with the text"
+        },
+        "words": {
+          "label": "Words",
+          "hint": "One per line."
+        },
+        "wordsFrom": {
+          "label": "Words from a field",
+          "hint": "Name of a field that already holds the list."
+        },
+        "caseInsensitive": {
+          "label": "Ignore upper / lower case"
+        },
+        "ignoreAccents": {
+          "label": "Ignore accents"
+        },
+        "preset": {
+          "label": "What to count",
+          "options": {
+            "mentions": "Mentions",
+            "links": "Links",
+            "custom": "Custom pattern"
+          }
+        },
+        "pattern": {
+          "label": "Pattern (regular expression)"
+        },
+        "moderate": {
+          "label": "Moderate: delete the triggering message even if it is not the bot's",
+          "hint": "The bot needs room.manage_messages in the room."
+        }
+      },
+      "vars": {
+        "roomId": "Room id",
+        "receivedAt": "When it arrived",
+        "text": "Text of the message",
+        "message": "Text of the message (alias)",
+        "command": "Command name",
+        "args": "Text after the command",
+        "authorUserId": "Person id",
+        "authorName": "Person name",
+        "authorIsBot": "Whether it is a bot",
+        "mentionsBot": "Whether the bot was mentioned",
+        "messageId": "Message id",
+        "subcommandGroup": "Subcommand group",
+        "subcommand": "Subcommand",
+        "options": "All options (object)",
+        "invokedBy": "Person who started it (id)",
+        "invokedByName": "Person who started it (name)",
+        "customId": "Id of the component",
+        "values": "Chosen values (list)",
+        "value": "First chosen value",
+        "componentType": "button or select",
+        "botMessageId": "Message with the component",
+        "interactionId": "Id of this press",
+        "emoji": "Emoji",
+        "messageAuthorUserId": "Author of the message (id)",
+        "messageText": "Text of the message",
+        "previousText": "Text before it was deleted",
+        "deletedBy": "Who deleted it (id)",
+        "deletedByName": "Who deleted it (name)",
+        "teamId": "Workspace id",
+        "userId": "Person id",
+        "userName": "Person name",
+        "joinedAt": "When they joined",
+        "scheduledFor": "Moment this run is for",
+        "lastRunAt": "Previous run",
+        "roomSendResult": "Result of the send ({ sent, id, ... })",
+        "roomEditResult": "Result of the edit",
+        "roomDeleteResult": "Result of the delete",
+        "roomPinResult": "Result of the pin",
+        "roomThreadResult": "Result ({ id, threadRootId })",
+        "roomReactResult": "Result of the reaction",
+        "roomDmResult": "Result ({ id, roomId, userId })",
+        "roomInteractionResult": "Result of the answer",
+        "selfRoleResult": "Result ({ done, action, roleName, changed | error })",
+        "moderationResult": "Result ({ done, kind, userId | error })",
+        "recentMessages": "Number of recent messages (the field you chose)",
+        "member": "Member info ({ isMember, isNew, isExempt, isAdmin, isOwner, roleIds, hoursSinceJoin })",
+        "__matched": "Whether a word matched",
+        "matchedWords": "Words that matched",
+        "matchCount": "Number counted (the field you chose)"
+      },
+      "blocks": {
+        "viewLabel": "Editor view",
+        "view": {
+          "form": "Form",
+          "json": "JSON"
+        },
+        "size": "{{count}}/{{max}} blocks · {{kb}} of {{maxKb}} KB",
+        "empty": "No rich content. Add blocks to send cards, lists, tables or links.",
+        "add": "Add a block…",
+        "previewNote": "Variables appear as written; they are filled in when the script runs.",
+        "headingLevel": "Level {{n}}",
+        "types": {
+          "text": "Text",
+          "heading": "Heading",
+          "list": "List",
+          "checklist": "Checklist",
+          "table": "Table",
+          "image": "Image",
+          "link": "Link",
+          "code": "Code",
+          "quote": "Quote",
+          "divider": "Divider",
+          "embed": "Card"
+        },
+        "fields": {
+          "text": "Text",
+          "level": "Level",
+          "ordered": "Numbered list",
+          "items": "Items",
+          "columns": "Columns",
+          "rows": "Rows",
+          "url": "Link (https)",
+          "alt": "Alternative text",
+          "caption": "Caption",
+          "title": "Title",
+          "description": "Description",
+          "language": "Language",
+          "code": "Code",
+          "color": "Color",
+          "fields": "Fields",
+          "footer": "Footer",
+          "imageUrl": "Image (https)",
+          "thumbnailUrl": "Thumbnail (https)",
+          "timestamp": "Date (ISO)"
+        },
+        "hints": {
+          "lines": "One item per line.",
+          "checklist": "One per line: [x] done, [ ] pending.",
+          "columns": "Column names separated by |",
+          "rows": "One row per line, cells separated by |",
+          "fields": "One per line: name | value | inline (optional)",
+          "divider": "A horizontal line. It has no options.",
+          "embedsPerm": "Needs bots.send_embeds on the bot and embed links in the room."
+        },
+        "json": {
+          "syntax": "That is not valid JSON.",
+          "list": "It must be a list of blocks ([ ... ]).",
+          "hint": "Applies when it is valid. The form shows the same data."
+        }
+      },
+      "components": {
+        "empty": "No buttons or selects. Add a row to make the message interactive.",
+        "row": "Row {{n}}",
+        "addRow": "Add row",
+        "addButton": "Button",
+        "addSelect": "Select",
+        "kind": {
+          "button": "Button",
+          "select": "Select"
+        },
+        "previewNote": "Preview: controls do nothing here.",
+        "fields": {
+          "label": "Label",
+          "style": "Style",
+          "emoji": "Emoji",
+          "url": "Link (https)",
+          "customId": "Id",
+          "disabled": "Disabled",
+          "placeholder": "Placeholder",
+          "options": "Options",
+          "minValues": "Minimum choices",
+          "maxValues": "Maximum choices"
+        },
+        "styles": {
+          "primary": "Primary",
+          "secondary": "Secondary",
+          "success": "Success",
+          "danger": "Danger",
+          "link": "Link"
+        },
+        "hints": {
+          "url": "Opens in a new tab. Link buttons send nothing to the script.",
+          "customId": "Letters, digits and _ . : - / (up to 100). Unique in the message. The Interaction trigger filters by it.",
+          "options": "One per line: label | value | description (value and description optional). Up to {{max}}."
+        },
+        "removeAll": "Remove the buttons and selects of the message",
+        "removeAllHint": "Sends an empty list. Leave it off to keep the message's components unchanged."
+      },
+      "issues": {
+        "node": {
+          "room_required": "Choose a room.",
+          "emoji_required": "Write an emoji.",
+          "content_required": "Write a text or add blocks.",
+          "schedule_one": "Set exactly one: every N minutes, or a daily time.",
+          "every_range": "Whole number from 5 to 10080.",
+          "daily_format": "Use HH:MM, for example 09:30.",
+          "weekdays_range": "Pick days from Monday to Sunday.",
+          "weekdays_need_daily": "Days only apply to a daily time.",
+          "expires_range": "Must be 1 or more minutes.",
+          "command_name": "Use letters a-z, digits, - or _ (up to 32).",
+          "message_id_uuid": "It must be a message id or a variable.",
+          "room_uuid": "It must be a room id or a variable.",
+          "custom_id_pattern": "Letters, digits and _ . : - / and an optional * at the end.",
+          "role_required": "Write a role id.",
+          "user_required": "Write the id of the person."
+        },
+        "blocks": {
+          "not_list": "Blocks must be a list.",
+          "empty": "Add at least one block.",
+          "too_many": "At most {{max}} blocks.",
+          "too_large": "Too large: at most {{kb}} KB.",
+          "type_unknown": "Unknown block type.",
+          "text_required": "The text is required.",
+          "text_long": "Too long.",
+          "heading_level": "Level must be 1, 2 or 3.",
+          "items_empty": "Add at least one item.",
+          "items_many": "Too many items (25 at most).",
+          "item_required": "This item is empty.",
+          "item_long": "Item too long (200 at most).",
+          "columns_range": "Use 1 to 8 columns.",
+          "rows_many": "At most 25 rows.",
+          "row_wide": "A row has more cells than columns.",
+          "cell_long": "A cell is too long (200 at most).",
+          "url_required": "A link is required.",
+          "url_https": "It must be an https link.",
+          "color_format": "Use a color like #1a2b3c.",
+          "embed_empty": "Add a title, a description or fields.",
+          "fields_many": "At most 10 fields.",
+          "field_name": "A field needs a name.",
+          "field_value": "A field needs a value.",
+          "timestamp": "Not a valid date.",
+          "title_long": "Title too long (256 at most).",
+          "alt_long": "Text too long.",
+          "code_long": "Code too long (4000 at most)."
+        },
+        "components": {
+          "too_many_rows": "At most {{max}} rows.",
+          "row_empty": "A row needs components.",
+          "select_alone": "A row with a select holds only that select.",
+          "too_many_buttons": "At most 5 buttons per row.",
+          "type_invalid": "Unknown component.",
+          "style_invalid": "Unknown style.",
+          "label_required": "The label is required.",
+          "label_long": "Label too long ({{max}} at most).",
+          "custom_id_required": "The id is required.",
+          "custom_id_invalid": "Use letters, digits and _ . : - / (up to 100).",
+          "custom_id_duplicate": "This id is used twice in the message.",
+          "link_url": "A link button needs an https link.",
+          "link_custom_id": "A link button has no id.",
+          "url_extra": "Only link buttons have a link.",
+          "options_empty": "Add at least one option.",
+          "options_many": "At most 25 options.",
+          "option_label": "Every option needs a label.",
+          "option_value": "Every option needs a value.",
+          "option_value_duplicate": "Two options have the same value.",
+          "option_description_long": "Description too long (100 at most).",
+          "values_range": "Minimum and maximum must fit the number of options.",
+          "placeholder_long": "Placeholder too long (150 at most).",
+          "expires_range": "Expiry must be between {{min}} and {{maxMin}} minutes."
+        }
+      },
+      "graph": {
+        "title": "Bot graph: {{count}} to review",
+        "saveFailed": "Could not save the script.",
+        "saveFailedWith": "Could not save the script: {{message}}",
+        "issues": {
+          "no_trigger": "A bot script needs at least one bot trigger (message, command, button, reaction...).",
+          "duplicate_trigger": "Only one trigger of each kind is allowed ({{kind}}).",
+          "node_kind_not_allowed": "{{kind}} cannot be used in a bot script: it does not run with the bot's permissions.",
+          "unreachable": "No trigger reaches this node, so it never runs.",
+          "edge_dangling": "A connection points to a node that does not exist.",
+          "trigger_has_input": "A trigger has no input: nothing can connect to it.",
+          "node_invalid": "Needs attention: {{field}}."
+        }
       }
     }
   },

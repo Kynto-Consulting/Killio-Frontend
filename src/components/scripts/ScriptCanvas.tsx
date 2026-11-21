@@ -22,7 +22,9 @@ import "@xyflow/react/dist/style.css";
 import { GithubTriggerNode } from "./nodes/GithubTriggerNode";
 import { ManualTriggerNode } from "./nodes/ManualTriggerNode";
 import { WebhookTriggerNode } from "./nodes/WebhookTriggerNode";
-import { RoomMessageTriggerNode, RoomSendMessageNode, RoomReactNode } from "./nodes/RoomNodes";
+import { ROOM_NODE_TYPES } from "./nodes/RoomNodes";
+import { RoomNodeProperties } from "./room-node-form";
+import { isRoomNodeKind, validateBotGraph } from "@/lib/bots/room-nodes";
 import { WhatsappIncomingTriggerNode } from "./nodes/WhatsappIncomingTriggerNode";
 import { AiResponseNode } from "./nodes/AiResponseNode";
 import { WhatsappPersonalSendNode } from "./nodes/WhatsappPersonalSendNode";
@@ -117,9 +119,7 @@ const nodeTypes: NodeTypes = {
   "core.action.whatsapp_personal_send": WhatsappPersonalSendNode,
   "core.action.ai_response": AiResponseNode,
   "core.action.js_code": JsCodeNode,
-  "killio.trigger.room_message": RoomMessageTriggerNode,
-  "killio.room.send_message": RoomSendMessageNode,
-  "killio.room.react": RoomReactNode,
+  ...ROOM_NODE_TYPES,
 };
 
 type ConfigFieldType = "text" | "textarea" | "code" | "number" | "boolean" | "select";
@@ -823,29 +823,6 @@ const NODE_CONFIG_FIELDS: Partial<Record<NodeKind, ConfigField[]>> = {
     { key: "sourcePath", type: "text", labelKey: "canvas.fields.sourcePath", placeholderKey: "canvas.placeholders.aiSourcePath" },
     { key: "outputPath", type: "text", labelKey: "canvas.fields.outputPath", placeholderKey: "canvas.placeholders.aiOutputPath" },
   ],
-  "killio.trigger.room_message": [
-    { key: "commandPrefix", type: "text", labelKey: "canvas.fields.roomCommandPrefix", placeholderKey: "canvas.placeholders.roomCommandPrefix" },
-    { key: "requireMention", type: "boolean", labelKey: "canvas.fields.roomRequireMention" },
-    {
-      key: "matchMode",
-      type: "select",
-      labelKey: "canvas.fields.roomMatchMode",
-      options: [
-        { value: "all", labelKey: "canvas.fields.roomMatchAll" },
-        { value: "any", labelKey: "canvas.fields.roomMatchAny" },
-      ],
-    },
-    { key: "roomId", type: "text", labelKey: "canvas.fields.roomFilterRoomId" },
-  ],
-  "killio.room.send_message": [
-    { key: "text", type: "textarea", labelKey: "canvas.fields.roomText", placeholderKey: "canvas.placeholders.roomText" },
-    { key: "roomId", type: "text", labelKey: "canvas.fields.roomId", placeholderKey: "canvas.placeholders.roomId" },
-  ],
-  "killio.room.react": [
-    { key: "emoji", type: "text", labelKey: "canvas.fields.roomEmoji", placeholderKey: "canvas.placeholders.roomEmoji" },
-    { key: "messageId", type: "text", labelKey: "canvas.fields.roomMessageId", placeholderKey: "canvas.placeholders.roomMessageId" },
-    { key: "roomId", type: "text", labelKey: "canvas.fields.roomId", placeholderKey: "canvas.placeholders.roomId" },
-  ],
   "core.action.whatsapp_personal_send": [
     { key: "toNumber", type: "text", labelKey: "canvas.fields.toNumber", placeholderKey: "canvas.placeholders.toNumber" },
     { key: "text", type: "textarea", labelKey: "canvas.fields.messageText", placeholderKey: "canvas.placeholders.whatsappPersonalText" },
@@ -1074,20 +1051,7 @@ function buildNodePayloadPreview(node: Node | null): Record<string, unknown> | n
     };
   }
 
-  if (node.type === "killio.trigger.room_message") {
-    return {
-      externalKey: "00000000-0000-4000-8000-000000000001",
-      data: {
-        roomId: "00000000-0000-4000-8000-000000000002",
-        messageId: "00000000-0000-4000-8000-000000000001",
-        text: "/hola mundo",
-        command: "hola",
-        args: "mundo",
-        authorName: "Ana",
-        mentionsBot: false,
-      },
-    };
-  }
+  if (isRoomNodeKind(node.type)) return null;
 
   if (node.type === "whatsapp.trigger.incoming") {
     return {
@@ -1167,6 +1131,7 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>(graph ? toRfNodes(graph.nodes) : []);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(graph ? toRfEdges(graph.edges) : []);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [toggling, setToggling] = useState(false);
   const [running, setRunning] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -1193,8 +1158,15 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
     [nodes, selectedNodeId],
   );
 
+  // Bot graphs (any room trigger or action): problems the backend would refuse, or that would leave a node that never runs.
+  const botGraphIssues = useMemo(
+    () => (nodes.some((n) => isRoomNodeKind(n.type)) ? validateBotGraph(nodes as never, edges as never) : []),
+    [nodes, edges],
+  );
+
   const selectedNodeKind = selectedNode?.type as NodeKind | undefined;
-  const selectedNodeFields = (selectedNodeKind ? NODE_CONFIG_FIELDS[selectedNodeKind] : undefined) ?? [];
+  const selectedIsRoomNode = isRoomNodeKind(selectedNodeKind);
+  const selectedNodeFields = (selectedNodeKind && !selectedIsRoomNode ? NODE_CONFIG_FIELDS[selectedNodeKind] : undefined) ?? [];
   const selectedNodeConfig = ((selectedNode?.data?.config as Record<string, any>) ?? {});
   const visibleSelectedNodeFields = useMemo(
     () => selectedNodeFields.filter((field) => isFieldVisible(field, selectedNodeConfig)),
@@ -1529,6 +1501,17 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
     });
   }, [updateSelectedNode]);
 
+  const patchSelectedNodeConfig = useCallback((patch: Record<string, unknown>) => {
+    updateSelectedNode((node) => {
+      const nextConfig = { ...((node.data?.config as Record<string, any>) ?? {}) };
+      for (const [key, value] of Object.entries(patch)) {
+        if (value === undefined || value === null || value === "") delete nextConfig[key];
+        else nextConfig[key] = value;
+      }
+      return { ...node, data: { ...node.data, config: nextConfig } };
+    });
+  }, [updateSelectedNode]);
+
   const updateSwitchRoute = useCallback((index: number, nextRoute: { value: string; handle: string }) => {
     updateSelectedNode((node) => {
       const currentConfig = (node.data?.config as Record<string, any>) ?? {};
@@ -1763,8 +1746,12 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveError(null);
     try {
       await onSave(fromRfGraph(nodes, edges, scriptId));
+    } catch (error) {
+      // The server explains why a bot graph is refused (not allowed node, two triggers of one kind...): show it instead of failing silently.
+      setSaveError(error instanceof Error ? error.message : "");
     } finally {
       setSaving(false);
     }
@@ -1882,6 +1869,29 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
         </div>
       </div>
 
+      {saveError !== null && (
+        <p role="alert" className="border-b border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-700 dark:text-red-300">
+          {saveError ? t("canvas.room.graph.saveFailedWith", { message: saveError }) : t("canvas.room.graph.saveFailed")}
+        </p>
+      )}
+      {botGraphIssues.length > 0 && (
+        <details className="border-b border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs text-foreground">
+          <summary className="cursor-pointer font-semibold">{t("canvas.room.graph.title", { count: botGraphIssues.length })}</summary>
+          <ul className="mt-1 list-disc space-y-0.5 pl-5">
+            {botGraphIssues.map((issue, i) => {
+              const node = issue.nodeId ? nodes.find((n) => n.id === issue.nodeId) : undefined;
+              const name = node ? String((node.data as { label?: string } | undefined)?.label ?? node.type ?? "") : "";
+              return (
+                <li key={i}>
+                  {name && <span className="font-semibold">{name}: </span>}
+                  {t(`canvas.room.graph.issues.${issue.code}`, { field: issue.field ? t(`canvas.room.fields.${issue.field}.label`) : "", kind: issue.kind ?? "" })}
+                </li>
+              );
+            })}
+          </ul>
+        </details>
+      )}
+
       {/* Canvas + Palette */}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:flex-row">
         <NodePalette integrationAvailability={{ github: hasActiveGithubIntegration, whatsapp: true, slack: true }} />
@@ -1939,6 +1949,22 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
                     placeholder={t("canvas.nodeLabelPlaceholder")}
                   />
                 </div>
+
+                {selectedIsRoomNode && selectedNodeKind && (
+                  <RoomNodeProperties
+                    key={selectedNode.id}
+                    kind={selectedNodeKind as Parameters<typeof RoomNodeProperties>[0]["kind"]}
+                    nodeId={selectedNode.id}
+                    scriptId={scriptId}
+                    teamId={teamId}
+                    accessToken={accessToken}
+                    config={selectedNodeConfig}
+                    nodes={nodes}
+                    edges={edges}
+                    onChange={updateSelectedNodeConfigValue}
+                    onPatch={patchSelectedNodeConfig}
+                  />
+                )}
 
                 {visibleSelectedNodeFields.map((field) => {
                   const value = selectedNodeConfig[field.key];
