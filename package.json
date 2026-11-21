@@ -14,6 +14,7 @@
     "test:roles": "node --experimental-strip-types --test \"src/lib/roles/*.test.ts\"",
     "test:ui-mode": "node --experimental-strip-types --test \"src/lib/ui-mode/*.test.ts\"",
     "test:calls": "node --experimental-strip-types --test \"src/lib/calls/*.test.ts\"",
+    "test:agent-composer": "node --experimental-strip-types --test \"src/lib/agent-composer.test.ts\"",
     "test:rooms": "node --experimental-strip-types --test \"src/lib/rooms/*.test.ts\" \"src/lib/realtime/*.test.ts\"",
     "build:turbo": "next build --turbo"
   },
