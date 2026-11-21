@@ -10,7 +10,7 @@ import {
 } from "./model.ts";
 
 const role = (id: string, position: number, extra: Partial<TeamRole> = {}): TeamRole => ({
-  id, name: id, color: null, position, permissions: {}, isSystem: false, systemKey: null, isDefault: false, mentionable: false, ...extra,
+  id, name: id, color: null, position, permissions: {}, isSystem: false, systemKey: null, isDefault: false, mentionable: false, selfAssignable: false, ...extra,
 });
 const owner = role("owner", 500, { systemKey: "owner", isSystem: true });
 const admin = role("admin", 400, { systemKey: "admin", isSystem: true, permissions: { "members.kick": "allow", "boards.create": "allow" } });

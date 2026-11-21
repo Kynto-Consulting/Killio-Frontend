@@ -276,7 +276,10 @@
     "color": "Colour",
     "mentionable": "Can be mentioned",
     "mentionableHelp": "Anyone can notify people with this role using @.",
-    "preview": "How it will look"
+    "preview": "How it will look",
+    "selfAssignable": "Self-assignable",
+    "selfAssignableHelp": "Members can take or drop it themselves through a bot (reaction or button). Roles with dangerous permissions cannot be self-assignable.",
+    "selfAssignableSystem": "System and default roles cannot be self-assignable."
   },
   "delete": {
     "title": "Delete role",

@@ -46,6 +46,8 @@ export interface RoleInput {
   name: string;
   color?: string | null;
   mentionable?: boolean;
+  /** Needs roles.manage; the server refuses system / default roles and roles with dangerous permissions (400 with the reason). */
+  selfAssignable?: boolean;
   permissions?: PermissionMap;
 }
 

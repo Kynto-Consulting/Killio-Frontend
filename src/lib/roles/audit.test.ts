@@ -20,7 +20,7 @@ test("summarizeMetadata resolves ids, skips objects and caps the items", () => {
 });
 
 test("assignBlockReason follows the server's manageableRoleIds when present", () => {
-  const role = (id: string, position: number): TeamRole => ({ id, name: id, color: null, position, permissions: {}, isSystem: false, systemKey: null, isDefault: false, mentionable: false });
+  const role = (id: string, position: number): TeamRole => ({ id, name: id, color: null, position, permissions: {}, isSystem: false, systemKey: null, isDefault: false, mentionable: false, selfAssignable: false });
   const actor: Actor = { isOwner: false, permissions: new Set(), highestPosition: 10, manageableRoleIds: new Set(["viewer"]) };
   assert.equal(assignBlockReason(actor, role("viewer", 50)), null);
   assert.equal(assignBlockReason(actor, role("other", 1)), "position");

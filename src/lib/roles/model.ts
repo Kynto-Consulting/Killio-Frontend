@@ -21,6 +21,8 @@ export interface TeamRole {
   systemKey: string | null;
   isDefault: boolean;
   mentionable: boolean;
+  /** Members may take it themselves through a bot (reaction / button). Never on system or default roles. */
+  selfAssignable: boolean;
   memberCount?: number;
 }
 
@@ -96,6 +98,7 @@ export function normalizeRole(raw: any): TeamRole {
     systemKey: (raw?.systemKey ?? raw?.system_key ?? null) || null,
     isDefault: !!(raw?.isDefault ?? raw?.is_default),
     mentionable: !!raw?.mentionable,
+    selfAssignable: raw?.selfAssignable === true,
     memberCount: typeof raw?.memberCount === "number" ? raw.memberCount : undefined,
   };
 }

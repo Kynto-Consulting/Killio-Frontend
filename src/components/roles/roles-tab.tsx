@@ -189,6 +189,7 @@ function RoleEditor({ role, canEdit, onDuplicate, onDelete }: { role: TeamRole; 
   const [name, setName] = useState(role.name);
   const [color, setColor] = useState<string | null>(role.color);
   const [mentionable, setMentionable] = useState(role.mentionable);
+  const [selfAssignable, setSelfAssignable] = useState(role.selfAssignable);
   const [perms, setPerms] = useState<PermissionMap>(role.permissions);
   const [saving, setSaving] = useState(false);
 
@@ -196,7 +197,7 @@ function RoleEditor({ role, canEdit, onDuplicate, onDelete }: { role: TeamRole; 
   const manageable = canEdit && canManageRole(s.actor, role);
   const lockedReason = isOwner ? t("block.owner_role") : !canEdit ? t("block.noRolesManage") : !canManageRole(s.actor, role) ? t("block.position") : null;
   const nameValid = ROLE_NAME_RE.test(name.trim());
-  const dirty = name.trim() !== role.name || color !== role.color || mentionable !== role.mentionable || permissionsChanged(perms, role.permissions);
+  const dirty = name.trim() !== role.name || color !== role.color || mentionable !== role.mentionable || selfAssignable !== role.selfAssignable || permissionsChanged(perms, role.permissions);
   const { allow, deny } = countStates(perms);
   const deletable = manageable && !role.isSystem && !role.isDefault;
 
@@ -204,6 +205,7 @@ function RoleEditor({ role, canEdit, onDuplicate, onDelete }: { role: TeamRole; 
     setName(role.name);
     setColor(role.color);
     setMentionable(role.mentionable);
+    setSelfAssignable(role.selfAssignable);
     setPerms(role.permissions);
   };
 
@@ -211,7 +213,7 @@ function RoleEditor({ role, canEdit, onDuplicate, onDelete }: { role: TeamRole; 
     if (!nameValid || saving || !dirty) return;
     setSaving(true);
     try {
-      await updateRole(s.teamId, role.id, { name: name.trim(), color, mentionable, permissions: perms }, s.accessToken);
+      await updateRole(s.teamId, role.id, { name: name.trim(), color, mentionable, ...(selfAssignable !== role.selfAssignable ? { selfAssignable } : {}), permissions: perms }, s.accessToken);
       invalidateTeamRoles(s.teamId);
       invalidateTeamPermissions(s.teamId);
       toast(t("toast.saved"), "success");
@@ -273,6 +275,13 @@ function RoleEditor({ role, canEdit, onDuplicate, onDelete }: { role: TeamRole; 
                 <p className="text-xs text-muted-foreground">{t("display.mentionableHelp")}</p>
               </div>
               <Switch checked={mentionable} onChange={setMentionable} label={t("display.mentionable")} disabled={!manageable} />
+            </div>
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
+              <div>
+                <div className="text-sm font-semibold text-foreground">{t("display.selfAssignable")}</div>
+                <p className="text-xs text-muted-foreground">{role.isSystem || role.isDefault ? t("display.selfAssignableSystem") : t("display.selfAssignableHelp")}</p>
+              </div>
+              <Switch checked={selfAssignable} onChange={setSelfAssignable} label={t("display.selfAssignable")} disabled={!manageable || role.isSystem || role.isDefault} />
             </div>
             <div className="rounded-lg border border-dashed border-border px-3 py-2">
               <div className="mb-1 text-[11px] font-semibold text-muted-foreground">{t("display.preview")}</div>

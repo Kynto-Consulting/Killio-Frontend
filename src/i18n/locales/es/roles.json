@@ -276,7 +276,10 @@
     "color": "Color",
     "mentionable": "Se puede mencionar",
     "mentionableHelp": "Cualquiera podrá avisar a quienes tienen este rol con @.",
-    "preview": "Así se verá"
+    "preview": "Así se verá",
+    "selfAssignable": "Autoasignable",
+    "selfAssignableHelp": "Los miembros pueden tomarlo o soltarlo ellos mismos mediante un bot (reacción o botón). Los roles con permisos peligrosos no pueden ser autoasignables.",
+    "selfAssignableSystem": "Los roles de sistema y el rol por defecto no pueden ser autoasignables."
   },
   "delete": {
     "title": "Borrar rol",
