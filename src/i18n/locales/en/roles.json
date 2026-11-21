@@ -539,7 +539,9 @@
       "roleName": "Role",
       "roleId": "Role",
       "permissions": "Permissions",
-      "resourceType": "Resource"
+      "resourceType": "Resource",
+      "after": "After",
+      "before": "Before"
     }
   },
   "overview": {

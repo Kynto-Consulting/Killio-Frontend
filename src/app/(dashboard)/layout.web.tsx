@@ -832,7 +832,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
                     href={item.href}
                     title={isSidebarCollapsed ? item.name : undefined}
                     className={`flex items-center space-x-3 rounded-md py-2 text-sm font-medium transition-colors ${isSidebarCollapsed ? "justify-center px-0" : "px-3"} ${isActive && !isNestedMenu
-                      ? "bg-accent/20 text-accent font-semibold"
+                      ? "bg-accent/20 text-foreground font-semibold"
                       : isActive && isNestedMenu
                         ? "bg-accent/5 text-foreground font-semibold"
                         : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
