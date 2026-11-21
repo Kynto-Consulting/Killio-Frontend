@@ -49,7 +49,7 @@ export function UnreadBanner({ h, t }: { h: RoomHistoryView; t: TFn }) {
   const count = `${h.unreadCount}${h.unreadCapped ? "+" : ""}`;
   const since = sinceLabel(h.unreadSince);
   return (
-    <div role="region" aria-label={t("history.unreadRegion")} className="sticky top-0 z-10 -mx-1 mb-1 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-rose-500/40 bg-rose-50 px-2.5 py-1 text-xs text-rose-900 shadow-sm dark:bg-rose-950/80 dark:text-rose-100">
+    <div role="region" aria-label={t("history.unreadRegion")} className="sticky top-0 z-10 -mx-1 mb-1 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-rose-500/40 bg-rose-50 px-2.5 py-1 text-xs text-rose-900 shadow-sm dark:bg-rose-950 dark:text-rose-100">
       <span className="min-w-0 flex-1 font-semibold">
         {since ? t("history.unreadSince", { count, since }) : t("history.unreadCount", { count })}
         {h.unreadMentions > 0 && <span className="ml-1.5 rounded-full bg-rose-600 px-1.5 py-px text-[10px] font-bold text-white">{t("history.unreadMentions", { count: h.unreadMentions })}</span>}

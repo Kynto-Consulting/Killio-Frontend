@@ -289,8 +289,8 @@ export function formatNewCount(n: number): string {
 }
 
 /** Debounce with a trailing call and `flush`/`cancel`. Plain timers: injectable for tests. */
-export function createDebounced<A extends unknown[]>(fn: (...args: A) => void, ms: number, timers: { set: typeof setTimeout; clear: typeof clearTimeout } = { set: setTimeout, clear: clearTimeout }) {
-  let handle: ReturnType<typeof setTimeout> | null = null;
+export function createDebounced<A extends unknown[]>(fn: (...args: A) => void, ms: number, timers: { set: (fn: () => void, ms: number) => unknown; clear: (handle: any) => void } = { set: (fn, ms) => setTimeout(fn, ms), clear: (h) => clearTimeout(h) }) {
+  let handle: unknown = null;
   let last: A | null = null;
   const run = () => {
     handle = null;
