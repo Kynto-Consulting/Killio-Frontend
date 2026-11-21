@@ -314,7 +314,7 @@ export function RoomSidebar({
   const nothingMatches = filtering && model.categories.every((c) => c.rooms.length === 0) && model.entityGroups.length === 0 && model.directMessages.length === 0;
 
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col overflow-hidden border-r-2 border-[var(--memphis-line)] bg-card/40 md:w-60" aria-label={t("title")}>
+    <aside className="flex h-full w-64 shrink-0 flex-col overflow-hidden border-r-2 border-[var(--memphis-line)] bg-card md:w-60" aria-label={t("title")}>
       <div className="flex shrink-0 items-center justify-between gap-1 border-b border-border px-3 py-2.5">
         <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t("title")}</h2>
         <div className="flex items-center gap-0.5">
