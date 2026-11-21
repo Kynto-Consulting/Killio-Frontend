@@ -131,7 +131,7 @@ function usePrefersReducedMotion(): boolean {
 }
 
 const FALLBACK_CONTROLS: RoomControls = {
-  composer: "input", showReactions: true, showCall: true, showTranscripts: true, showSettings: false, showModeration: false,
+  composer: "input", showReactions: true, showCall: true, call: { start: true, join: true, speak: true, video: true, screenShare: true, muteOthers: false, removeParticipants: false }, showTranscripts: true, showSettings: false, showModeration: false,
   canEditOwn: true, canDeleteOwn: true, canDeleteOthers: false, canPin: false, canMentionEveryone: false, canReply: true,
 };
 

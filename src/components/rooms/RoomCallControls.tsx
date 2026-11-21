@@ -6,6 +6,7 @@ import {
   Sparkles, PhoneOff, Circle, Square, Settings
 } from "lucide-react";
 import type { VideoFilter } from "@/hooks/use-room-call";
+import type { CallRestrictions } from "@/lib/rooms/call-rights";
 import { RoomCallEffectsPanel } from "./RoomCallEffectsPanel";
 
 interface RoomCallControlsProps {
@@ -17,6 +18,8 @@ interface RoomCallControlsProps {
   isRecording: boolean;
   recordingElapsed: number;
   canRecord: boolean;
+  /** Controls the room's permissions take away (disabled, with the reason as tooltip). */
+  restrictions?: CallRestrictions;
   onOpenSettings: () => void;
   onToggleAudio: () => void;
   onToggleVideo: () => void;
@@ -42,6 +45,7 @@ export function RoomCallControls({
   isRecording,
   recordingElapsed,
   canRecord,
+  restrictions = {},
   onOpenSettings,
   onToggleAudio,
   onToggleVideo,
@@ -51,14 +55,17 @@ export function RoomCallControls({
   onLeave,
   t,
 }: RoomCallControlsProps) {
+  const blocked = (name: keyof CallRestrictions): string | undefined => (restrictions[name] ? t(`call.blocked.${restrictions[name]}`) : undefined);
+  const off = "disabled:cursor-not-allowed disabled:opacity-40";
   return (
     <div className="relative flex items-center gap-2 bg-zinc-900/95 rounded-xl px-4 py-2 border border-zinc-700 shadow-xl">
       {/* Mic */}
       <button
         onClick={onToggleAudio}
-        title={t("call.controls.toggleMic")}
+        disabled={!!restrictions.speak}
+        title={blocked("speak") ?? t("call.controls.toggleMic")}
         aria-label={isAudioMuted ? "Unmute microphone" : "Mute microphone"}
-        className={`flex items-center justify-center w-9 h-9 rounded-full transition-colors ${
+        className={`flex items-center justify-center w-9 h-9 rounded-full transition-colors ${off} ${
           isAudioMuted ? "bg-red-600 text-white" : "bg-zinc-700 text-zinc-100 hover:bg-zinc-600"
         }`}
       >
@@ -68,9 +75,10 @@ export function RoomCallControls({
       {/* Camera */}
       <button
         onClick={onToggleVideo}
-        title={t("call.controls.toggleCamera")}
+        disabled={!!restrictions.video}
+        title={blocked("video") ?? t("call.controls.toggleCamera")}
         aria-label={isVideoMuted ? "Turn on camera" : "Turn off camera"}
-        className={`flex items-center justify-center w-9 h-9 rounded-full transition-colors ${
+        className={`flex items-center justify-center w-9 h-9 rounded-full transition-colors ${off} ${
           isVideoMuted ? "bg-red-600 text-white" : "bg-zinc-700 text-zinc-100 hover:bg-zinc-600"
         }`}
       >
@@ -94,9 +102,10 @@ export function RoomCallControls({
       {/* Screen share */}
       <button
         onClick={onToggleScreenShare}
-        title={isScreenSharing ? t("call.controls.stopScreen") : t("call.controls.screen")}
+        disabled={!!restrictions.screenShare}
+        title={blocked("screenShare") ?? (isScreenSharing ? t("call.controls.stopScreen") : t("call.controls.screen"))}
         aria-label={isScreenSharing ? "Stop screen share" : "Share screen"}
-        className={`flex items-center justify-center w-9 h-9 rounded-full transition-colors ${
+        className={`flex items-center justify-center w-9 h-9 rounded-full transition-colors ${off} ${
           isScreenSharing
             ? "bg-accent text-accent-foreground"
             : "bg-zinc-700 text-zinc-100 hover:bg-zinc-600"
@@ -109,9 +118,10 @@ export function RoomCallControls({
       {canRecord && (
         <button
           onClick={onToggleRecording}
-          title={isRecording ? t("call.controls.stopRecord") : t("call.controls.record")}
+          disabled={!!restrictions.record && !isRecording}
+          title={(!isRecording ? blocked("record") : undefined) ?? (isRecording ? t("call.controls.stopRecord") : t("call.controls.record"))}
           aria-label={isRecording ? "Stop recording" : "Start recording"}
-          className={`flex items-center gap-1.5 px-3 h-9 rounded-full text-xs font-medium transition-colors ${
+          className={`flex items-center gap-1.5 px-3 h-9 rounded-full text-xs font-medium transition-colors ${off} ${
             isRecording ? "bg-red-600 text-white" : "bg-zinc-700 text-zinc-100 hover:bg-zinc-600"
           }`}
         >

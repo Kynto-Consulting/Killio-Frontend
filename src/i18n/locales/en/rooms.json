@@ -160,6 +160,15 @@
       "toggleMic": "Toggle microphone",
       "toggleCamera": "Toggle camera"
     },
+    "blocked": {
+      "muted": "You are muted in this channel.",
+      "start": "You do not have permission to start calls in this channel.",
+      "join": "You do not have permission to join calls in this channel.",
+      "speak": "You do not have permission to speak in this channel's calls.",
+      "video": "You do not have permission to use the camera in this channel's calls.",
+      "screenShare": "You do not have permission to share your screen in this channel's calls.",
+      "record": "You do not have permission to record this channel's calls."
+    },
     "effects": {
       "title": "Video effects",
       "groupNone": "None",
@@ -437,6 +446,35 @@
     "allow": "Allow",
     "inherit": "Inherit",
     "deny": "Deny",
+    "search": "Search permissions",
+    "expandAll": "Expand all",
+    "collapseAll": "Collapse all",
+    "noMatches": "No permission matches.",
+    "dangerous": "Sensitive",
+    "dangerousTitle": "Sensitive permission: it hands over control or wide access. Give it only to people you trust.",
+    "inheritsFrom": "If left on Inherit, takes the value of “{{name}}”",
+    "fallbackNote": "Basic list: this server did not send the channel permission catalog, so only the most common permissions are shown.",
+    "keyGroups": {
+      "access": "Access",
+      "messages": "Messages",
+      "threads": "Threads",
+      "pins": "Pinned",
+      "calls": "Calls",
+      "moderation": "Moderation",
+      "webhooks": "Webhooks",
+      "management": "Channel management",
+      "other": "Other"
+    },
+    "presetReadonly": "Read only for everyone",
+    "presetModeration": "Moderation channel (moderators only)",
+    "presetBots": "Bots channel (commands and buttons)",
+    "presetAnnouncementHint": "Nobody posts except the roles you choose",
+    "presetPrivateHint": "Only the roles you choose see and write in the channel",
+    "presetReadonlyHint": "Everybody reads; nobody writes or reacts (people who manage the channel still can)",
+    "presetModerationHint": "Hidden for everyone; the roles you choose see it, write, moderate messages and read the log",
+    "presetBotsHint": "Everybody can use commands and buttons; no threads, attachments, blocks or @everyone. It does not limit free text: the server has no permission for that.",
+    "moderationPick": "Choose which roles moderate this channel",
+    "moderationWho": "Only these moderate and see the channel: {{names}}",
     "warn": {
       "hidden_from_everyone": "Nobody will see this channel except the roles that allow it and administrators.",
       "nobody_can_post": "Nobody will be able to write except the roles that allow it and administrators."

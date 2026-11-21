@@ -160,6 +160,15 @@
       "toggleMic": "Activar/silenciar micrófono",
       "toggleCamera": "Encender/apagar cámara"
     },
+    "blocked": {
+      "muted": "Estás silenciado en este canal.",
+      "start": "No tienes permiso para iniciar llamadas en este canal.",
+      "join": "No tienes permiso para unirte a llamadas en este canal.",
+      "speak": "No tienes permiso para hablar en las llamadas de este canal.",
+      "video": "No tienes permiso para usar la cámara en las llamadas de este canal.",
+      "screenShare": "No tienes permiso para compartir pantalla en las llamadas de este canal.",
+      "record": "No tienes permiso para grabar las llamadas de este canal."
+    },
     "effects": {
       "title": "Efectos de video",
       "groupNone": "Sin efecto",
@@ -437,6 +446,35 @@
     "allow": "Permitir",
     "inherit": "Heredar",
     "deny": "Denegar",
+    "search": "Buscar permisos",
+    "expandAll": "Expandir todo",
+    "collapseAll": "Contraer todo",
+    "noMatches": "Ningún permiso coincide.",
+    "dangerous": "Delicado",
+    "dangerousTitle": "Permiso delicado: da control o acceso amplio. Dalo solo a quien confíes.",
+    "inheritsFrom": "Si queda en Igual, hereda de «{{name}}»",
+    "fallbackNote": "Lista básica: este servidor no envió el catálogo de permisos del canal, así que solo se muestran los permisos más comunes.",
+    "keyGroups": {
+      "access": "Acceso",
+      "messages": "Mensajes",
+      "threads": "Hilos",
+      "pins": "Anclados",
+      "calls": "Llamadas",
+      "moderation": "Moderación",
+      "webhooks": "Webhooks",
+      "management": "Gestión del canal",
+      "other": "Otros"
+    },
+    "presetReadonly": "Solo lectura para todos",
+    "presetModeration": "Canal de moderación (solo moderadores)",
+    "presetBots": "Canal de bots (comandos y botones)",
+    "presetAnnouncementHint": "Nadie publica salvo los roles que elijas",
+    "presetPrivateHint": "Solo los roles que elijas ven y escriben en el canal",
+    "presetReadonlyHint": "Todos leen; nadie escribe ni reacciona (quien administra el canal sigue pudiendo)",
+    "presetModerationHint": "Oculto para todos; los roles que elijas lo ven, escriben, moderan mensajes y leen el registro",
+    "presetBotsHint": "Todos pueden usar comandos y botones; sin hilos, adjuntos, bloques ni @everyone. No limita el texto libre: el servidor no tiene un permiso para eso.",
+    "moderationPick": "Elige qué roles moderan este canal",
+    "moderationWho": "Solo moderan y ven el canal: {{names}}",
     "warn": {
       "hidden_from_everyone": "Nadie verá este canal salvo los roles que lo permitan y los administradores.",
       "nobody_can_post": "Nadie podrá escribir salvo los roles que lo permitan y los administradores."

@@ -7,6 +7,8 @@ import {
 } from "@/lib/api/rooms";
 import { useRoomSubjects } from "@/hooks/use-room-subjects";
 import { draftsToDtos, normalizeOverridesResponse, type OverrideDraft } from "@/lib/rooms/tristate";
+import { buildRoomCatalog } from "@/lib/rooms/permission-catalog";
+import { useRoomPermissionCatalog } from "@/hooks/use-room-permission-catalog";
 import { PermissionOverridesEditor } from "./PermissionOverridesEditor";
 import { RoomModalShell, roomField, roomGhostButton, roomLabel, roomPrimaryButton } from "./RoomModalShell";
 
@@ -34,6 +36,9 @@ export function CategorySettingsModal({ open, onClose, teamId, accessToken, grou
   const [drafts, setDrafts] = useState<OverrideDraft[]>([]);
   const [initialDtos, setInitialDtos] = useState("[]");
   const [overridesState, setOverridesState] = useState<"idle" | "loading" | "error" | "unavailable">("idle");
+  /** Answer of GET /teams/:id/room-groups/:groupId/permissions: its `universe` / `catalog` decide the keys shown. */
+  const [overridesRaw, setOverridesRaw] = useState<unknown>(null);
+  const catalog = useRoomPermissionCatalog(overridesRaw, teamId);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,6 +50,7 @@ export function CategorySettingsModal({ open, onClose, teamId, accessToken, grou
     setDrafts([]);
     setInitialDtos("[]");
     setOverridesState("idle");
+    setOverridesRaw(null);
     setError(null);
     setBusy(false);
   }, [open, group]);
@@ -56,9 +62,11 @@ export function CategorySettingsModal({ open, onClose, teamId, accessToken, grou
     getCategoryOverrides(teamId, group.id, accessToken)
       .then((raw) => {
         if (cancelled) return;
-        const loaded = normalizeOverridesResponse(raw);
+        const universe = buildRoomCatalog(raw).universe;
+        const loaded = normalizeOverridesResponse(raw, universe);
+        setOverridesRaw(raw);
         setDrafts(loaded);
-        setInitialDtos(JSON.stringify(draftsToDtos(loaded)));
+        setInitialDtos(JSON.stringify(draftsToDtos(loaded, universe)));
         setOverridesState("idle");
       })
       .catch((err) => { if (!cancelled) setOverridesState(err instanceof RoomsApiError && err.isUnavailable ? "unavailable" : "error"); });
@@ -66,7 +74,7 @@ export function CategorySettingsModal({ open, onClose, teamId, accessToken, grou
   }, [open, group, teamId, accessToken, canEditPermissions]);
 
   const showPermissions = canEditPermissions && editing; // a new category is created first, permissions follow
-  const changed = JSON.stringify(draftsToDtos(drafts)) !== initialDtos;
+  const changed = JSON.stringify(draftsToDtos(drafts, catalog.universe)) !== initialDtos;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,7 +88,7 @@ export function CategorySettingsModal({ open, onClose, teamId, accessToken, grou
         if (name.trim() !== group.name) patch.name = name.trim();
         if ((emoji.trim() || null) !== (group.emoji ?? null)) patch.emoji = emoji.trim() || null;
         saved = Object.keys(patch).length > 0 ? { ...group, ...(await updateRoomGroup(teamId, group.id, patch, accessToken)) } : group;
-        if (showPermissions && changed && overridesState === "idle") await setCategoryOverrides(teamId, group.id, draftsToDtos(drafts), accessToken);
+        if (showPermissions && changed && overridesState === "idle") await setCategoryOverrides(teamId, group.id, draftsToDtos(drafts, catalog.universe), accessToken);
       } else {
         saved = await createRoomGroup(teamId, { name: name.trim(), emoji: emoji.trim() || undefined }, accessToken);
       }
@@ -152,7 +160,7 @@ export function CategorySettingsModal({ open, onClose, teamId, accessToken, grou
             {overridesState === "loading" && <div className="flex items-center gap-2 py-6 text-xs text-muted-foreground" role="status"><Loader2 className="h-4 w-4 animate-spin" aria-hidden />{t("perm.loading")}</div>}
             {overridesState === "error" && <p role="alert" className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">{t("perm.loadError")}</p>}
             {overridesState === "unavailable" && <p role="status" className="rounded-xl border border-border bg-muted/50 p-3 text-xs text-muted-foreground">{t("perm.unavailable")}</p>}
-            {overridesState === "idle" && <PermissionOverridesEditor drafts={drafts} onChange={setDrafts} subjects={subjects} isLoadingSubjects={isLoadingSubjects} t={t} />}
+            {overridesState === "idle" && <PermissionOverridesEditor drafts={drafts} onChange={setDrafts} subjects={subjects} isLoadingSubjects={isLoadingSubjects} catalog={catalog} t={t} />}
           </div>
         )}
 

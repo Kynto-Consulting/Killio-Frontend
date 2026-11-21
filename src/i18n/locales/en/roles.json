@@ -40,7 +40,10 @@
     "denyHint": "Deny"
   },
   "cascade": {
-    "explain": "How it is decided: the person's groups are checked first, then their personal roles, and finally the default role. The first layer that is not on “Inherit” wins."
+    "explain": "How it is decided: the person's groups are checked first, then their personal roles, and finally the default role. The first layer that is not on “Inherit” wins.",
+    "inheritsFrom": "If left on Inherit, takes the value of “{{name}}”",
+    "fineKey": "Fine",
+    "fineKeyTitle": "Fine permission: split from “{{name}}” and, while on Inherit, it behaves like it."
   },
   "group": {
     "general": "Space general",

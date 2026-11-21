@@ -34,7 +34,8 @@ export async function getMyTeamPermissions(teamId: string, accessToken: string):
 /* ── permission catalogue (addendum A7): the editors are built only from this ── */
 /** Throws when the endpoint is missing or answers something that is not a catalogue (callers fall back to the approximate one). */
 export async function getPermissionCatalog(teamId: string, accessToken: string, locale = "en"): Promise<PermissionCatalog> {
-  const raw = await fetchApi<unknown>(`/teams/${q(teamId)}/permissions/catalog`, { accessToken });
+  // `?lang=`: the app's language decides the texts (without it the server uses the account's locale, which may differ).
+  const raw = await fetchApi<unknown>(`/teams/${q(teamId)}/permissions/catalog?lang=${encodeURIComponent(locale)}`, { accessToken });
   const catalog = normalizeCatalog(raw, locale);
   if (!catalog || catalog.providers.length === 0) throw new Error("Empty permission catalog");
   return catalog;

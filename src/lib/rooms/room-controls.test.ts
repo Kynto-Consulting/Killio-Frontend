@@ -127,3 +127,39 @@ test("the pin keys: pin, pin without expiry, unpin others and see pins are separ
   assert.equal(legacy.canPinPermanent, false);
   assert.equal(legacy.canViewPins, true, "an old server without the key does not hide the pins");
 });
+
+test("fine call rights come from the key list; an old server without them falls back to room.call", () => {
+  const modern = normalizeRoomAccess({ canStartCall: true, permissions: ["room.view", "room.call", "room.call.start", "room.call.join", "room.call.speak"] });
+  assert.equal(modern.canStartCall, true);
+  assert.equal(modern.canSpeak, true);
+  assert.equal(modern.canVideo, false, "room.call alone no longer opens the camera once the server speaks fine keys");
+  assert.equal(modern.canShareScreen, false);
+  const c = resolveRoomControls(modern, { roomType: "channel" });
+  assert.deepEqual(c.call, { start: true, join: true, speak: true, video: false, screenShare: false, muteOthers: false, removeParticipants: false });
+  assert.equal(c.showCall, true);
+
+  const old = normalizeRoomAccess({ permissions: ["room.view", "room.post", "room.call"] });
+  assert.equal(old.canVideo && old.canShareScreen && old.canSpeak && old.canStartCall && old.canJoinCall, true);
+  assert.equal(old.canMuteOthers, false);
+});
+
+test("the canXxx flags alone mark a modern server even when every fine key is denied", () => {
+  const a = normalizeRoomAccess({ canStartCall: false, canJoinCall: false, permissions: ["room.view", "room.call"] });
+  assert.equal(a.canJoinCall, false);
+  assert.equal(a.canVideo, false);
+});
+
+test("legacy booleans: fine call flags default to canCall and moderation to canManage", () => {
+  const a = normalizeRoomAccess({ canPost: true, canCall: true, canManage: true });
+  assert.equal(a.canVideo && a.canShareScreen && a.canSpeak, true);
+  assert.equal(a.canMuteOthers && a.canRemoveParticipants, true);
+  const b = normalizeRoomAccess({ canPost: true, canCall: true, canVideo: false, canShareScreen: false });
+  assert.equal(b.canVideo, false);
+  assert.equal(b.canSpeak, true);
+});
+
+test("a mute silences every call right of the room", () => {
+  const a = normalizeRoomAccess({ canPost: true, canCall: true, isMuted: true, mutedUntil: null });
+  const c = resolveRoomControls(a, { roomType: "channel" });
+  assert.equal(c.call.speak || c.call.video || c.call.screenShare || c.call.start || c.call.join, false);
+});

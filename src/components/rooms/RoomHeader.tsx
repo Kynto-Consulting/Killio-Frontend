@@ -33,6 +33,8 @@ interface RoomHeaderProps {
   isAiRoom?: boolean;
   onOpenSidebar?: () => void;
   onStartCall: () => void;
+  /** Why starting / joining a call is not allowed here (the button is then disabled, with this as tooltip). */
+  callBlockedReason?: string | null;
   onLeaveCall: () => void;
   onToggleAiPanel: () => void;
   onToggleMembersPanel: () => void;
@@ -60,15 +62,16 @@ const btn =
   "relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] motion-reduce:transition-none";
 const btnOn = "bg-muted text-foreground";
 
-function IconButton({ label, pressed, onClick, children, tone }: { label: string; pressed?: boolean; onClick: () => void; children: React.ReactNode; tone?: "danger" }) {
+function IconButton({ label, pressed, onClick, children, tone, disabledReason }: { label: string; pressed?: boolean; onClick: () => void; children: React.ReactNode; tone?: "danger"; disabledReason?: string | null }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={label}
-      title={label}
+      title={disabledReason ?? label}
       aria-pressed={pressed}
-      className={`${btn} ${pressed ? btnOn : ""} ${tone === "danger" ? "!bg-rose-600/15 !text-rose-600 hover:!bg-rose-600/25" : ""}`}
+      disabled={!!disabledReason}
+      className={`${btn} ${pressed ? btnOn : ""} ${disabledReason ? "cursor-not-allowed opacity-40" : ""} ${tone === "danger" ? "!bg-rose-600/15 !text-rose-600 hover:!bg-rose-600/25" : ""}`}
     >
       {children}
     </button>
@@ -140,7 +143,7 @@ const menuItem = "flex w-full items-center gap-2 px-3 py-2 text-left text-xs hov
 
 export function RoomHeader({
   room, title, presenceMembers, memberCount, isInCall, isAiPanelOpen, isMembersPanelOpen, isPinsOpen, isSearchOpen, pinCount, controls, isAiRoom = false,
-  onOpenSidebar, onStartCall, onLeaveCall, onToggleAiPanel, onToggleMembersPanel, onTogglePins, onToggleSearch, onOpenSettings, t,
+  onOpenSidebar, onStartCall, callBlockedReason, onLeaveCall, onToggleAiPanel, onToggleMembersPanel, onTogglePins, onToggleSearch, onOpenSettings, t,
 }: RoomHeaderProps) {
   const platform = usePlatform();
   const isMobile = platform === "mobile";
@@ -157,7 +160,7 @@ export function RoomHeader({
 
   const showMembers = !isAiRoom && room.type !== "dm";
   const callButton = controls.showCall ? (
-    <IconButton label={isInCall ? t("header.leaveCall") : t("header.call")} onClick={isInCall ? onLeaveCall : onStartCall} tone={isInCall ? "danger" : undefined}>
+    <IconButton label={isInCall ? t("header.leaveCall") : t("header.call")} onClick={isInCall ? onLeaveCall : onStartCall} tone={isInCall ? "danger" : undefined} disabledReason={isInCall ? null : callBlockedReason}>
       {isInCall ? <PhoneOff className="h-4 w-4" aria-hidden /> : <Phone className="h-4 w-4" aria-hidden />}
     </IconButton>
   ) : null;

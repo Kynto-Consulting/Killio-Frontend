@@ -27,7 +27,7 @@ import { useRoomDeleted } from "@/hooks/use-room-deleted";
 import { setRoomMutedLocally } from "@/hooks/use-room-unread";
 import { mergePinned, filterMessagesByText, messageActions, splitThreads } from "@/lib/rooms/message-structure";
 import { neutralizeEveryone, toWireMentions } from "@/lib/rooms/mentions";
-import { muteMinutesLeft } from "@/lib/rooms/room-controls";
+import { isMuteActive, muteMinutesLeft } from "@/lib/rooms/room-controls";
 import { useRealtime } from "@/components/providers/realtime-provider";
 import { realtimeChannel } from "@/lib/realtime/channels";
 import { streamAgentChat } from "@/lib/api/agent";
@@ -674,6 +674,13 @@ Team Context: ${activeTeamId}.`;
 
   const muteLeft = muteMinutesLeft(access);
   const pageControls = permissionsReady ? controls : { ...controls, composer: "input" as const };
+  // Starting or joining is decided by room.call.start / room.call.join: when the one that applies is missing the button says why.
+  const callBlockedReason = (() => {
+    if (!permissionsReady) return null;
+    if (activeCallInRoom ? controls.call.join : controls.call.start) return null;
+    if (isMuteActive(access)) return t("call.blocked.muted");
+    return t(activeCallInRoom ? "call.blocked.join" : "call.blocked.start");
+  })();
 
   // ── Actions ────────────────────────────────────────────────────────────────
   const [notice, setNotice] = useState<string | null>(null);
@@ -980,6 +987,7 @@ Team Context: ${activeTeamId}.`;
                     isAiRoom={isAiRoom}
                     onOpenSidebar={openSidebar}
                     onStartCall={handleJoinCall}
+                    callBlockedReason={callBlockedReason}
                     onLeaveCall={leaveRoomCall}
                     onToggleAiPanel={handleToggleAiPanel}
                     onToggleMembersPanel={handleToggleMembersPanel}
@@ -1010,7 +1018,7 @@ Team Context: ${activeTeamId}.`;
                   )}
 
                   {/* Active call banner: visible to members not in the call, and only to those who may join */}
-                  {activeCallInRoom && !call.isInCall && controls.showCall && (
+                  {activeCallInRoom && !call.isInCall && controls.call.join && (
                     <div role="status" className="flex shrink-0 items-center gap-3 border-b border-emerald-500/30 bg-emerald-500/10 px-4 py-2">
                       <span className="relative flex h-2 w-2" aria-hidden>
                         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75 motion-reduce:animate-none" />

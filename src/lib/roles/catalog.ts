@@ -19,8 +19,15 @@ export interface CatalogPermission {
   groupLabel: string;
   scope: PermissionScope;
   resourceTypes: string[] | null;
+  /** Extra scopes where the same key is also valid (a team key that is also a room override key, ...). */
+  alsoIn: PermissionScope[];
   dangerous: boolean;
   requires: string[];
+  /**
+   * The coarse key this finer key falls back to when it stays on "inherit" in every layer (server `impliedBy`).
+   * The editors say "if left on Same, inherits from X"; a key with it is a "fine" key.
+   */
+  impliedBy: string | null;
   /** The provider marked it obsolete, or the provider is uninstalled. */
   obsolete: boolean;
   providerId: string;
@@ -79,16 +86,20 @@ export function normalizeCatalog(raw: unknown, locale = "en"): PermissionCatalog
       const key = typeof d?.key === "string" ? d.key : "";
       if (!key || seen.has(key)) continue;
       seen.add(key);
+      const groupText = localizedText(d.groupLabel ?? groupLabel, locale);
       permissions.push({
         key,
         label: localizedText(d.label, locale),
         description: localizedText(d.description, locale),
-        group: String(d.group ?? groupId ?? "general"),
-        groupLabel: localizedText(d.groupLabel ?? groupLabel, locale),
+        // The server's groups carry only a label (no id): the label is then the id, or every group of a provider would merge.
+        group: String(d.group ?? groupId ?? (groupText || "general")),
+        groupLabel: groupText,
         scope: SCOPES.has(d.scope) ? d.scope : "team",
         resourceTypes: Array.isArray(d.resourceTypes) ? strList(d.resourceTypes) : null,
+        alsoIn: strList(d.alsoIn).filter((s): s is PermissionScope => SCOPES.has(s)),
         dangerous: d.dangerous === true,
         requires: strList(d.requires),
+        impliedBy: typeof d.impliedBy === "string" && d.impliedBy && d.impliedBy !== key ? d.impliedBy : null,
         obsolete: d.obsolete === true || !installed,
         providerId: id,
       });
@@ -106,14 +117,14 @@ export function approximateCatalog(): PermissionCatalog {
     g.keys.map(
       (key): CatalogPermission => ({
         key, label: "", description: "", group: g.id, groupLabel: "", scope: key.startsWith("room.") ? "room" : "team",
-        resourceTypes: null, dangerous: dangerous.has(key), requires: requires[key] ?? [], obsolete: false, providerId: "core",
+        resourceTypes: null, alsoIn: [], impliedBy: null, dangerous: dangerous.has(key), requires: requires[key] ?? [], obsolete: false, providerId: "core",
       }),
     ),
   );
   permissions.push(
     ...RESOURCE_PERMISSION_KEYS.map(
       (key): CatalogPermission => ({
-        key, label: "", description: "", group: "resource", groupLabel: "", scope: "resource", resourceTypes: null,
+        key, label: "", description: "", group: "resource", groupLabel: "", scope: "resource", resourceTypes: null, alsoIn: [], impliedBy: null,
         dangerous: false, requires: key === "resource.view" ? [] : ["resource.view"], obsolete: false, providerId: "core",
       }),
     ),

@@ -19,6 +19,7 @@ import { NotificationCenter } from "@/components/ui/notification-center";
 import { CardTimerWidget } from "@/components/ui/card-timer-widget";
 import { RoomVideoCall } from "@/components/rooms/RoomVideoCall";
 import { RoomCallControls } from "@/components/rooms/RoomCallControls";
+import { useCallRestrictions } from "@/hooks/use-call-restrictions";
 import { PushPermissionBanner } from "@/components/rooms/PushPermissionBanner";
 import { useSession } from "@/components/providers/session-provider";
 import { useLocalWorkspace, LocalWorkspaceProvider } from "@/components/providers/local-workspace-provider";
@@ -207,7 +208,9 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
     return () => window.clearTimeout(id);
   }, [online, boards, recentDocuments]);
   const [hasTimers, setHasTimers] = useState(false);
-  const { call, settingsModalOpen, setSettingsModalOpen, canvasRef, localVideoRef } = useCall();
+  const { call, activeRoomId, settingsModalOpen, setSettingsModalOpen, canvasRef, localVideoRef } = useCall();
+  // The room's rights (room.call.video, room.call.screen_share, ...) decide which buttons of the call bar work.
+  const callRestrictions = useCallRestrictions(call.isInCall ? activeRoomId : null, accessToken, call);
   const { updateAvailable } = useVersionCheck();
   const [dismissedBanners, setDismissedBanners] = useState<string[]>(() => {
     if (typeof window !== "undefined") {
@@ -1175,7 +1178,8 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
                 activeFilter={call.activeFilter}
                 isRecording={call.isRecording}
                 recordingElapsed={call.recordingElapsed}
-                canRecord={true} // Simplified for global
+                canRecord={true}
+                restrictions={callRestrictions}
                 onOpenSettings={() => setSettingsModalOpen(true)}
                 onToggleAudio={call.toggleAudio}
                 onToggleVideo={call.toggleVideo}

@@ -10,6 +10,8 @@ import { useRoomSubjects } from "@/hooks/use-room-subjects";
 import { useRealtimeAccessRenewal } from "@/hooks/use-room-realtime-access";
 import { deleteConfirmationMatches, deleteErrorKind } from "@/lib/rooms/channel-order";
 import { draftsToDtos, normalizeOverridesResponse, type OverrideDraft } from "@/lib/rooms/tristate";
+import { buildRoomCatalog } from "@/lib/rooms/permission-catalog";
+import { useRoomPermissionCatalog } from "@/hooks/use-room-permission-catalog";
 import { PermissionOverridesEditor } from "./PermissionOverridesEditor";
 import { RoomModalShell, roomField, roomGhostButton, roomLabel, roomPrimaryButton } from "./RoomModalShell";
 
@@ -58,6 +60,9 @@ export function ChannelSettingsModal({
   const [initialDtos, setInitialDtos] = useState("[]");
   const [overridesState, setOverridesState] = useState<"idle" | "loading" | "error" | "unavailable" | "unsupported">("idle");
   const [inheritedCount, setInheritedCount] = useState(0);
+  /** Answer of GET /rooms/:id/permissions: its `universe` / `catalog` decide which keys the editor shows. */
+  const [overridesRaw, setOverridesRaw] = useState<unknown>(null);
+  const catalog = useRoomPermissionCatalog(overridesRaw, teamId);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -82,6 +87,7 @@ export function ChannelSettingsModal({
     setInitialDtos("[]");
     setOverridesState("idle");
     setInheritedCount(0);
+    setOverridesRaw(null);
   }, [open, room, initialGroupId, showReadReceipts]);
 
   // Existing channel: load its overrides.
@@ -99,9 +105,11 @@ export function ChannelSettingsModal({
           setOverridesState("unsupported");
           return;
         }
-        const loaded = normalizeOverridesResponse(raw);
+        const universe = buildRoomCatalog(raw).universe;
+        const loaded = normalizeOverridesResponse(raw, universe);
+        setOverridesRaw(raw);
         setDrafts(loaded);
-        setInitialDtos(JSON.stringify(draftsToDtos(loaded)));
+        setInitialDtos(JSON.stringify(draftsToDtos(loaded, universe)));
         setOverridesState("idle");
       })
       .catch((err) => {
@@ -116,7 +124,7 @@ export function ChannelSettingsModal({
     () => normalized.length > 0 && rooms.some((r) => r.id !== room?.id && r.type === "channel" && normalizeRoomName(r.name) === normalized),
     [rooms, room?.id, normalized],
   );
-  const permissionsChanged = JSON.stringify(draftsToDtos(drafts)) !== initialDtos;
+  const permissionsChanged = JSON.stringify(draftsToDtos(drafts, catalog.universe)) !== initialDtos;
   const canSave = normalized.length > 0 && !duplicate && !busy && !(editing && overridesState === "loading");
 
   const explain = (err: unknown, fallbackKey: string) => {
@@ -142,7 +150,7 @@ export function ChannelSettingsModal({
         if ((categoryId || null) !== (room.categoryId ?? room.groupId ?? null)) patch.categoryId = categoryId || null;
         if (Object.keys(patch).length > 0) updated = { ...room, ...(await updateRoom(room.id, patch, accessToken)) };
         if (canEditPermissions && permissionsChanged && overridesState === "idle") {
-          await setRoomOverrides(room.id, draftsToDtos(drafts), accessToken);
+          await setRoomOverrides(room.id, draftsToDtos(drafts, catalog.universe), accessToken);
         }
         if (receipts !== (showReadReceipts ?? true)) {
           await updateRoomSettings(room.id, { showReadReceipts: receipts }, accessToken);
@@ -157,7 +165,7 @@ export function ChannelSettingsModal({
           groupId: categoryId || undefined,
           categoryId: categoryId || undefined,
           description: topic.trim() || undefined,
-          overrides: canEditPermissions && drafts.length > 0 ? draftsToDtos(drafts) : undefined,
+          overrides: canEditPermissions && drafts.length > 0 ? draftsToDtos(drafts, catalog.universe) : undefined,
         }, accessToken);
         // The realtime token was signed before this room existed: renew it so the new channel can be subscribed.
         await renew();
@@ -333,7 +341,7 @@ export function ChannelSettingsModal({
             {(overridesState === "idle") && (
               <>
                 {inheritedCount > 0 && <p role="note" className="mb-3 rounded-xl border border-border bg-muted/40 p-2.5 text-[11px] text-muted-foreground">{t("perm.inherited", { count: inheritedCount })}</p>}
-                <PermissionOverridesEditor drafts={drafts} onChange={setDrafts} subjects={subjects} isLoadingSubjects={isLoadingSubjects} t={t} />
+                <PermissionOverridesEditor drafts={drafts} onChange={setDrafts} subjects={subjects} isLoadingSubjects={isLoadingSubjects} catalog={catalog} t={t} />
               </>
             )}
           </div>

@@ -40,7 +40,10 @@
     "denyHint": "Denegar"
   },
   "cascade": {
-    "explain": "Cómo se decide: primero se mira lo de los grupos de la persona, luego sus roles personales y por último el rol por defecto. La primera capa que no esté en «Igual» manda."
+    "explain": "Cómo se decide: primero se mira lo de los grupos de la persona, luego sus roles personales y por último el rol por defecto. La primera capa que no esté en «Igual» manda.",
+    "inheritsFrom": "Si queda en Igual, hereda de «{{name}}»",
+    "fineKey": "Fino",
+    "fineKeyTitle": "Permiso fino: sale de «{{name}}» y, mientras esté en Igual, se comporta como él."
   },
   "group": {
     "general": "General del espacio",

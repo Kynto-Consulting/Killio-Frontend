@@ -145,15 +145,19 @@ export function RolePermissionsEditor({ role, value, onChange, actor, locked, lo
                   const reason = reasonText(d.key);
                   const state = triStateOf(value, d.key);
                   const missing = state === "allow" ? unmetRequires(d.key, isAllowed, catalog) : [];
+                  // A "fine" key (split from a coarse one): while it stays on Inherit it takes the coarse key's value.
+                  const parent = d.impliedBy ? text.nameOfKey(catalog, d.impliedBy) : null;
                   return (
                     <li key={d.key} className="flex items-center justify-between gap-3 px-3 py-2">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-foreground">
                           <span className="truncate">{text.name(d)}</span>
                           {d.dangerous && <DangerBadge />}
+                          {parent && <span title={t("cascade.fineKeyTitle", { name: parent })} className="shrink-0 rounded border border-border px-1 py-px text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">{t("cascade.fineKey")}</span>}
                           {reason && <Lock className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />}
                         </div>
                         {text.desc(d) && <p className="text-xs text-muted-foreground">{text.desc(d)}</p>}
+                        {parent && state === "inherit" && <p className="text-[11px] text-muted-foreground">{"↳ "}{t("cascade.inheritsFrom", { name: parent })}</p>}
                         {reason && <p className="mt-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-300">{reason}</p>}
                         {missing.length > 0 && <p className="mt-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-300">{t("catalog.requires", { names: missing.map((k) => text.nameOfKey(catalog, k)).join(", ") })}</p>}
                       </div>

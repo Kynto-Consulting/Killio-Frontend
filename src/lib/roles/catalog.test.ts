@@ -112,3 +112,29 @@ test("groupHeldByCatalog uses the live catalogue; administrator collapses; resou
   assert.deepEqual(g.map((x) => `${x.providerId}/${x.group}`).sort(), ["core/integrations", "integrations.github/github"]);
   assert.deepEqual(groupHeldByCatalog(["administrator", "integrations.manage"], approximateCatalog()).map((x) => x.keys), [["administrator"]]);
 });
+
+test("normalizeCatalog reads impliedBy and alsoIn; a self-reference is ignored", () => {
+  const c = normalizeCatalog({
+    providers: [{ id: "core", label: "Killio", groups: [{ label: "Rooms", permissions: [
+      { key: "rooms.create_channels", label: "Create channels", scope: "team", impliedBy: "rooms.create" },
+      { key: "room.pin", label: "Pin", scope: "team", alsoIn: ["room", "bogus"], impliedBy: null },
+      { key: "rooms.loop", label: "Loop", scope: "team", impliedBy: "rooms.loop" },
+    ] }] }],
+  }, "en")!;
+  const idx = catalogIndex(c);
+  assert.equal(idx.get("rooms.create_channels")?.impliedBy, "rooms.create");
+  assert.equal(idx.get("room.pin")?.impliedBy, null);
+  assert.deepEqual(idx.get("room.pin")?.alsoIn, ["room"]);
+  assert.equal(idx.get("rooms.loop")?.impliedBy, null);
+});
+
+test("server groups have a label and no id: each label stays its own group", () => {
+  const c = normalizeCatalog({
+    providers: [{ id: "core", label: "Killio", groups: [
+      { label: "Rooms", permissions: [{ key: "rooms.create", label: "Create", scope: "team" }] },
+      { label: "Moderation", permissions: [{ key: "members.kick", label: "Kick", scope: "team" }] },
+    ] }],
+  }, "en")!;
+  const groups = groupCatalog(c, ["team"])[0].groups;
+  assert.deepEqual(groups.map((g) => g.label), ["Rooms", "Moderation"]);
+});

@@ -14,6 +14,14 @@ export interface RoomAccess {
   canReact: boolean;
   canCall: boolean;
   canRecord: boolean;
+  /** Per-room call rights (room.call.*). An older server only knows `room.call`: all of them then follow `canCall`. */
+  canStartCall: boolean;
+  canJoinCall: boolean;
+  canSpeak: boolean;
+  canVideo: boolean;
+  canShareScreen: boolean;
+  canMuteOthers: boolean;
+  canRemoveParticipants: boolean;
   canInvite: boolean;
   canManage: boolean;
   canManageMessages: boolean;
@@ -33,10 +41,25 @@ export interface RoomAccess {
 
 export type ComposerMode = "input" | "announcement" | "muted" | "readonly";
 
+/** What the call bar offers inside a call of the room (each right can be revoked per channel). */
+export interface CallRights {
+  start: boolean;
+  join: boolean;
+  speak: boolean;
+  video: boolean;
+  screenShare: boolean;
+  muteOthers: boolean;
+  removeParticipants: boolean;
+}
+
+export type CallRightName = keyof CallRights;
+
 export interface RoomControls {
   composer: ComposerMode;
   showReactions: boolean;
   showCall: boolean;
+  /** Fine call rights; `showCall` stays the coarse "may use calls at all" (room.call, not muted). */
+  call: CallRights;
   showTranscripts: boolean;
   showSettings: boolean;
   showModeration: boolean;
@@ -56,6 +79,8 @@ export interface RoomControlsContext {
 
 const has = (keys: Set<string>, key: string) => keys.has(key) || keys.has("administrator");
 
+const CALL_FLAGS = ["canStartCall", "canJoinCall", "canSpeak", "canVideo", "canShareScreen", "canMuteOthers", "canRemoveParticipants"] as const;
+
 /** Accepts either backend shape (or an unknown / failed answer) and returns every flag explicitly. */
 export function normalizeRoomAccess(raw: unknown): RoomAccess {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, any>;
@@ -65,12 +90,23 @@ export function normalizeRoomAccess(raw: unknown): RoomAccess {
   if (keyList) {
     const keys = new Set((keyList as unknown[]).filter((k): k is string => typeof k === "string"));
     const post = has(keys, "room.post");
+    // A server that knows the fine call keys sends them (or the canXxx flags); an older one only knows `room.call`.
+    const fineCalls = CALL_FLAGS.some((f) => typeof r[f] === "boolean") || [...keys].some((k) => k.startsWith("room.call."));
+    const callRight = (key: string, legacy: boolean) => (fineCalls ? has(keys, key) : legacy);
+    const canCall = has(keys, "room.call");
     return {
       canView: has(keys, "room.view"),
       canPost: post,
       canReact: has(keys, "room.react"),
       canCall: has(keys, "room.call"),
       canRecord: has(keys, "room.record") || has(keys, "room.call"),
+      canStartCall: callRight("room.call.start", canCall),
+      canJoinCall: callRight("room.call.join", canCall),
+      canSpeak: callRight("room.call.speak", canCall),
+      canVideo: callRight("room.call.video", canCall),
+      canShareScreen: callRight("room.call.screen_share", canCall),
+      canMuteOthers: callRight("room.call.mute_others", has(keys, "room.manage")),
+      canRemoveParticipants: callRight("room.call.remove_participants", has(keys, "room.manage")),
       canInvite: has(keys, "room.invite"),
       canManage: has(keys, "room.manage"),
       canManageMessages: has(keys, "room.manage_messages"),
@@ -87,13 +123,21 @@ export function normalizeRoomAccess(raw: unknown): RoomAccess {
   }
 
   const canPost = bool(r.canPost) ?? false;
+  const canCall = bool(r.canCall) ?? canPost;
   return {
     canView: bool(r.canView) ?? true,
     canPost,
     // Without an explicit flag the old rule holds: whoever can write can react and call.
     canReact: bool(r.canReact) ?? canPost,
-    canCall: bool(r.canCall) ?? canPost,
+    canCall,
     canRecord: bool(r.canRecord) ?? canPost,
+    canStartCall: bool(r.canStartCall) ?? canCall,
+    canJoinCall: bool(r.canJoinCall) ?? canCall,
+    canSpeak: bool(r.canSpeak) ?? canCall,
+    canVideo: bool(r.canVideo) ?? canCall,
+    canShareScreen: bool(r.canShareScreen) ?? canCall,
+    canMuteOthers: bool(r.canMuteOthers) ?? (bool(r.canManage) ?? false),
+    canRemoveParticipants: bool(r.canRemoveParticipants) ?? (bool(r.canManage) ?? false),
     canInvite: bool(r.canInvite) ?? false,
     canManage: bool(r.canManage) ?? false,
     canManageMessages: bool(r.canManageMessages) ?? (bool(r.canManage) ?? false),
@@ -133,7 +177,17 @@ export function resolveRoomControls(access: RoomAccess, ctx: RoomControlsContext
   return {
     composer,
     showReactions: access.canReact && !muted,
-    showCall: access.canCall && !muted,
+    // The server decides calls by room.call.start / room.call.join; `canCall` alone no longer covers a room that names them.
+    showCall: (access.canCall || access.canStartCall || access.canJoinCall) && !muted,
+    call: {
+      start: access.canStartCall && !muted,
+      join: access.canJoinCall && !muted,
+      speak: access.canSpeak && !muted,
+      video: access.canVideo && !muted,
+      screenShare: access.canShareScreen && !muted,
+      muteOthers: access.canMuteOthers,
+      removeParticipants: access.canRemoveParticipants,
+    },
     showTranscripts: access.canCall,
     showSettings: access.canManage && !isDm,
     showModeration: (access.canMuteMembers || access.canManage) && !isDm,
