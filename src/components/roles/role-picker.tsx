@@ -16,7 +16,7 @@ export function RolePicker({ roles, value, onChange, actor, disabled, hideOwner 
 
   if (list.length === 0) return <p className="text-xs text-muted-foreground">{t("picker.noRoles")}</p>;
   return (
-    <ul role="group" aria-label={t("picker.label")} className={cx("max-h-56 divide-y divide-border overflow-y-auto rounded-lg border border-border", className)}>
+    <ul role="group" aria-label={t("picker.label")} className={cx("divide-y divide-border rounded-lg border border-border", list.length > 8 ? "max-h-[26rem] overflow-y-auto" : "", className)}>
       {list.map((r) => {
         const block = assignBlockReason(actor, r);
         const off = disabled || !!block;
