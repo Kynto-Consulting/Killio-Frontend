@@ -16,6 +16,7 @@ import { RichText } from "./rich-text";
 import { ActivityLogModal } from "./activity-log-modal";
 import { useMemo } from "react";
 import { ReferenceTokenInput } from "./reference-token-input";
+import { useRoomMentionSupport } from "@/hooks/use-room-mention-support";
 import { AgentChatPanel } from "@/components/agent";
 import { buildDocumentContextSummary } from "@/lib/brick-context";
 import { getWorkspaceMemberLabel, normalizeWorkspaceMember, toReferenceUsers, type WorkspaceMemberLike } from "@/lib/workspace-members";
@@ -165,6 +166,7 @@ export function DocumentCommentsDrawer({
   const { roomId: autoLinkedRoomId, ensureRoom } = useLinkedRoom(activeTeamId, "document", docId, accessToken, !!docId);
   const effectiveRoomId = linkedRoomId ?? autoLinkedRoomId;
   const roomChat = useRoomChat(effectiveRoomId, accessToken, user, linkedRoomId ? undefined : ensureRoom);
+  const mentionSupport = useRoomMentionSupport(activeTeamId, effectiveRoomId, accessToken);
   const [roomInput, setRoomInput] = useState("");
 
   // Legacy comments state (kept for the activity tab resolver context)
@@ -322,7 +324,7 @@ export function DocumentCommentsDrawer({
     e?.preventDefault();
     if (!roomInput.trim() || roomChat.isSending) return;
     try {
-      await roomChat.sendMessage(roomInput.trim());
+      await roomChat.sendMessage(mentionSupport.prepare(roomInput.trim()));
       setRoomInput("");
     } catch (e) {
       console.error("Failed to send comment", e);
@@ -543,10 +545,12 @@ export function DocumentCommentsDrawer({
               boards={boards}
               folders={folders}
               users={members}
+              roles={mentionSupport.roles}
+              extraMentions={mentionSupport.extraMentions}
               activeBricks={docBricks as any[]}
               onSubmit={async () => {
                 if (!roomInput.trim()) return;
-                await roomChat.sendMessage(roomInput.trim());
+                await roomChat.sendMessage(mentionSupport.prepare(roomInput.trim()));
                 setRoomInput("");
               }}
               className="w-full"
@@ -556,7 +560,7 @@ export function DocumentCommentsDrawer({
               type="button"
               onClick={async () => {
                 if (!roomInput.trim()) return;
-                await roomChat.sendMessage(roomInput.trim());
+                await roomChat.sendMessage(mentionSupport.prepare(roomInput.trim()));
                 setRoomInput("");
               }}
               disabled={roomChat.isSending || !roomInput.trim()}

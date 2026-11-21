@@ -17,6 +17,7 @@ import { useBoardChatDrawer, prettifyAction, fieldLabels, getResolverContext, ge
 import { getWorkspaceMemberLabel } from "@/lib/workspace-members";
 import { useLinkedRoom } from "@/hooks/use-linked-room";
 import { useRoomChat } from "@/hooks/use-room-chat";
+import { useRoomMentionSupport } from "@/hooks/use-room-mention-support";
 import { RoomMessageItem } from "@/components/rooms/RoomMessageItem";
 import type { LinkedEntityType } from "@/lib/api/rooms";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
@@ -80,6 +81,7 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
   const effectiveRoomId = linkedRoomIdProp ?? autoLinkedRoomId;
 
   const roomChat = useRoomChat(effectiveRoomId, accessToken, sessionUser, linkedRoomIdProp ? undefined : ensureRoom);
+  const mentionSupport = useRoomMentionSupport(activeTeamId, effectiveRoomId, accessToken);
   const [roomInput, setRoomInput] = useState("");
 
   const router = useRouter();
@@ -325,9 +327,11 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
               boards={teamBoardsForMentions}
               users={teamMembers}
               cards={boardCardsForMentions}
+              roles={mentionSupport.roles}
+              extraMentions={mentionSupport.extraMentions}
               onSubmit={async () => {
                 if (!roomInput.trim()) return;
-                await roomChat.sendMessage(roomInput.trim());
+                await roomChat.sendMessage(mentionSupport.prepare(roomInput.trim()));
                 setRoomInput("");
               }}
               className="w-full"
@@ -337,7 +341,7 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
               type="button"
               onClick={async () => {
                 if (!roomInput.trim()) return;
-                await roomChat.sendMessage(roomInput.trim());
+                await roomChat.sendMessage(mentionSupport.prepare(roomInput.trim()));
                 setRoomInput("");
               }}
               disabled={!roomInput.trim() || roomChat.isSending}
