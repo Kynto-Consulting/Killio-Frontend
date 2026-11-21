@@ -22,3 +22,13 @@ export function nextHubAction(input: { connected: boolean; purchaseStatus: "free
   if (!input.connected) return "connect";
   return input.purchaseStatus === "free" || input.purchaseStatus === "paid" ? "import" : "checkout";
 }
+
+/** What the hub appended to the tenant URL after the buyer came back from the payment page. */
+export function parsePurchaseReturn(search: string): { purchaseId: string; status: "paid" | "free" | "pending" | "failed" | "refunded" } | null {
+  const params = new URLSearchParams(search);
+  const purchaseId = params.get("purchase");
+  const status = params.get("status");
+  if (!purchaseId || !/^[0-9A-Za-z_-]{1,64}$/.test(purchaseId)) return null;
+  if (status !== "paid" && status !== "free" && status !== "pending" && status !== "failed" && status !== "refunded") return null;
+  return { purchaseId, status };
+}

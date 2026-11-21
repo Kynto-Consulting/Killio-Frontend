@@ -153,6 +153,13 @@
     "import": "Import",
     "free": "Free",
     "redirectingPay": "Redirecting to the payment page...",
-    "connecting": "Connecting..."
+    "connecting": "Connecting...",
+    "return": {
+      "paid": "Payment received. Your pack is ready to import.",
+      "free": "Pack added. You can import it now.",
+      "pending": "Waiting for the payment confirmation...",
+      "failed": "The payment was not completed. You have not been charged for this pack.",
+      "refunded": "This purchase was refunded."
+    }
   }
 }

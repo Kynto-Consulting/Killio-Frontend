@@ -21,7 +21,7 @@ import {
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import { useSession } from "@/components/providers/session-provider";
 import { useTenant } from "@/components/providers/tenant-provider";
-import { formatPackPrice, newIdempotencyKey, nextHubAction } from "@/lib/marketplace/pricing";
+import { formatPackPrice, newIdempotencyKey, nextHubAction, parsePurchaseReturn } from "@/lib/marketplace/pricing";
 import {
   getMarketplacePackDetail,
   importMarketplacePack,
@@ -170,6 +170,7 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
   const [hubConnected, setHubConnected] = useState<boolean | null>(null);
   const [hubPurchases, setHubPurchases] = useState<Record<string, "free" | "paid">>({});
   const [hubBusy, setHubBusy] = useState(false);
+  const [purchaseReturn, setPurchaseReturn] = useState<ReturnType<typeof parsePurchaseReturn>>(null);
 
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -209,6 +210,27 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
   }, [accessToken, isTenant]);
 
   useEffect(() => { refreshHub().catch(() => undefined); }, [refreshHub]);
+
+  // Back from the payment page (tenant -> killio.dev -> MercadoPago -> killio.dev -> here): show the result and, while the
+  // payment is still "pending" (the provider notification can lag), keep refreshing the purchases for a short while.
+  useEffect(() => {
+    if (!isTenant || typeof window === "undefined") return;
+    const parsed = parsePurchaseReturn(window.location.search);
+    if (!parsed) return;
+    setPurchaseReturn(parsed);
+    window.history.replaceState(null, "", window.location.pathname);
+  }, [isTenant]);
+
+  useEffect(() => {
+    if (!purchaseReturn || purchaseReturn.status !== "pending") return;
+    let attempts = 0;
+    const timer = window.setInterval(() => {
+      attempts += 1;
+      refreshHub().catch(() => undefined);
+      if (attempts >= 10) window.clearInterval(timer);
+    }, 3000);
+    return () => window.clearInterval(timer);
+  }, [purchaseReturn, refreshHub]);
 
   const connectHub = useCallback(async () => {
     if (!accessToken) return;
@@ -410,6 +432,12 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
           <div className="mt-5 flex items-start gap-2 rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-300">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
             {error}
+          </div>
+        ) : null}
+
+        {purchaseReturn ? (
+          <div className={`mt-5 rounded-xl border px-4 py-3 text-sm ${purchaseReturn.status === "failed" ? "border-red-400/25 bg-red-500/10 text-red-600 dark:text-red-300" : "border-[#4ade80]/20 bg-[#4ade80]/10 text-[#4ade80]"}`}>
+            {t(`hub.return.${purchaseReturn.status}`)}
           </div>
         ) : null}
 

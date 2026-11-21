@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { formatPackPrice, newIdempotencyKey, nextHubAction } from "./pricing.ts";
+import { formatPackPrice, newIdempotencyKey, nextHubAction, parsePurchaseReturn } from "./pricing.ts";
 
 test("free packs and incomplete prices show as free", () => {
   assert.deepEqual(formatPackPrice({}), { kind: "free" });
@@ -30,4 +30,12 @@ test("hub action: connect first, then buy, then download", () => {
   assert.equal(nextHubAction({ connected: true, purchaseStatus: "refunded" }), "checkout");
   assert.equal(nextHubAction({ connected: true, purchaseStatus: "free" }), "import");
   assert.equal(nextHubAction({ connected: true, purchaseStatus: "paid" }), "import");
+});
+
+test("purchase return parameters are validated", () => {
+  assert.deepEqual(parsePurchaseReturn("?purchase=pu_1&status=paid"), { purchaseId: "pu_1", status: "paid" });
+  assert.equal(parsePurchaseReturn("?purchase=pu_1&status=hacked"), null);
+  assert.equal(parsePurchaseReturn("?purchase=../x&status=paid"), null);
+  assert.equal(parsePurchaseReturn("?status=paid"), null);
+  assert.equal(parsePurchaseReturn(""), null);
 });
