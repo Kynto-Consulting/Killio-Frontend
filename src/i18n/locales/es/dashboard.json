@@ -148,6 +148,12 @@
   "search": {
     "placeholder": "Buscar o escribir un comando..."
   },
+  "upgradeBanner": {
+    "title": "PRO",
+    "body": "Desbloquea la automatización con IA, salas premium y meshes personalizados.",
+    "cta": "Mejorar plan",
+    "dismiss": "Cerrar"
+  },
   "teamSwitcher": {
     "selectWorkspace": "Seleccionar espacio",
     "yourWorkspaces": "Tus espacios",

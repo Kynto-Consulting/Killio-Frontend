@@ -702,7 +702,7 @@ Team Context: ${activeTeamId}.`;
   const panelMembers = useMemo<RoomMember[]>(() => {
     const roleById = new Map(teamRoles.map((r) => [r.id, r]));
     return roomMembers.map((m) => {
-      const roles = (references.memberRoleIds.get(m.userId) ?? []).map((id) => roleById.get(id)).filter((r): r is NonNullable<typeof r> => Boolean(r));
+      const roles = (m.roleIds ?? references.memberRoleIds.get(m.userId) ?? []).map((id) => roleById.get(id)).filter((r): r is NonNullable<typeof r> => Boolean(r));
       return {
         ...m,
         roles: m.roles ?? roles,

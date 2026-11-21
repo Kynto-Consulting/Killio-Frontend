@@ -17,6 +17,8 @@ export interface TeamPermissionsState {
   permissions: string[];
   /** Highest position among my roles (drives which controls are disabled; the server still decides). */
   highestPosition: number;
+  /** Role ids I can hand out, from me/permissions (undefined on older backends). */
+  manageableRoleIds?: string[];
   isLoading: boolean;
   /** True once there is an answer (server or backup). Redirect-on-denied logic must wait for it. */
   isReady: boolean;
@@ -158,6 +160,7 @@ export function useTeamPermissions(teamId: string | null | undefined, accessToke
       roles,
       permissions: entry.data.permissions,
       highestPosition: roles.reduce((m, r) => Math.max(m, r.position), 0),
+      manageableRoleIds: entry.data.manageableRoleIds,
       isLoading: loading,
       isReady: true,
       source: entry.source,

@@ -852,23 +852,24 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
             <div className="mb-4 relative overflow-hidden rounded-xl bg-gradient-to-br from-violet-600 to-indigo-700 p-3 shadow-lg animate-in fade-in slide-in-from-bottom-4 group/banner">
               <button
                 onClick={() => dismissBanner('upgrade_to_pro')}
-                className="absolute top-2 right-2 p-1 rounded-full hover:bg-foreground/10 dark:hover:bg-white/10 text-foreground/60 dark:text-white/60 hover:text-foreground dark:hover:text-white transition-colors"
+                aria-label={tDashboard("upgradeBanner.dismiss")}
+                className="absolute top-2 right-2 p-1 rounded-full hover:bg-white/15 text-white/70 hover:text-white transition-colors"
               >
                 <Plus className="h-3 w-3 rotate-45" />
               </button>
               <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2 text-foreground dark:text-white font-bold text-xs uppercase tracking-wider">
-                  <Sparkles className="h-3.5 w-3.5 text-amber-700 dark:text-amber-300" />
-                  PRO
+                <div className="flex items-center gap-2 text-white font-bold text-xs uppercase tracking-wider">
+                  <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+                  {tDashboard("upgradeBanner.title")}
                 </div>
-                <p className="text-[11px] text-foreground/90 dark:text-white/90 leading-snug">
-                  Unlock AI automation, premium rooms & custom meshs.
+                <p className="text-[11px] text-white/90 leading-snug">
+                  {tDashboard("upgradeBanner.body")}
                 </p>
                 <button
                   onClick={() => router.push("/pricing")}
                   className="mt-1 w-full bg-white text-indigo-700 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-50 transition-colors shadow-sm"
                 >
-                  Upgrade Now
+                  {tDashboard("upgradeBanner.cta")}
                 </button>
               </div>
             </div>

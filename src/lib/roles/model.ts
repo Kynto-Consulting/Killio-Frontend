@@ -30,6 +30,8 @@ export interface Actor {
   permissions: ReadonlySet<string>;
   /** Highest position among the actor's effective roles (owner is exempt anyway). */
   highestPosition: number;
+  /** Server-resolved role ids the actor may assign; when present it replaces the position heuristic. */
+  manageableRoleIds?: ReadonlySet<string>;
 }
 
 /* ───────────────────────── Permission catalogue ───────────────────────── */
@@ -353,8 +355,9 @@ export function summarizeInvite(args: {
 /** Why a role cannot be handed out by the actor (null = can). Used for tooltips on disabled options. */
 export function assignBlockReason(actor: Actor, role: TeamRole): "owner_role" | "position" | "not_owned" | null {
   if (role.systemKey === "owner") return "owner_role";
-  if (!canManageRole(actor, role)) return "position";
   if (actor.isOwner) return null;
+  if (actor.manageableRoleIds) return actor.manageableRoleIds.has((role as TeamRole).id) ? null : "position";
+  if (!canManageRole(actor, role)) return "position";
   const blocked = Object.entries(role.permissions).some(([k, v]) => v === "allow" && permissionBlockReason(actor, role, k) !== null);
   return blocked ? "not_owned" : null;
 }
@@ -444,6 +447,8 @@ export interface MyTeamPermissions {
   isOwner: boolean;
   roles: Array<{ id: string; name: string; color: string | null; position: number }>;
   permissions: string[];
+  /** Role ids the user may hand out (server-resolved). Absent on older backends. */
+  manageableRoleIds?: string[];
 }
 
 /**

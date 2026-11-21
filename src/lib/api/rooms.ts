@@ -71,6 +71,8 @@ export interface RoomMember {
   joinedAt: string;
   /** Team roles of the person (permission engine). The panel groups by the highest one. */
   roles?: RoomMemberRole[];
+  /** Team role ids of the person, when the server sends them (GET /rooms/:id/members). */
+  roleIds?: string[];
   isBot?: boolean;
   /** Active timeout in this room. */
   mutedUntil?: string | null;
@@ -410,7 +412,10 @@ export async function addReaction(
 export async function listRoomMembers(roomId: string, accessToken: string): Promise<RoomMember[]> {
   const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/members`, { headers: authHeader(accessToken) });
   if (!res.ok) throw new Error('Failed to fetch members');
-  return res.json();
+  const raw = await res.json();
+  const list: RoomMember[] = Array.isArray(raw) ? raw : Array.isArray(raw?.members) ? raw.members : [];
+  const seen = new Set<string>();
+  return list.filter((m) => m && m.userId && !seen.has(m.userId) && seen.add(m.userId));
 }
 
 export async function updateMemberRole(

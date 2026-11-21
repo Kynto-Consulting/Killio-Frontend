@@ -319,7 +319,9 @@
     "pagination": "Paginación",
     "prev": "Anterior",
     "next": "Siguiente",
-    "page": "Página {{page}} de {{pages}}"
+    "page": "Página {{page}} de {{pages}}",
+    "bot": "BOT",
+    "botHint": "Bot de la integración"
   },
   "actions": {
     "open": "Acciones para {{name}}",
@@ -500,8 +502,44 @@
       "roles_changed": "Cambio de roles",
       "role_created": "Rol creado",
       "role_updated": "Rol editado",
-      "role_deleted": "Rol borrado",
-      "ownership_transferred": "Propiedad transferida"
+      "role_deleted": "Rol eliminado",
+      "ownership_transferred": "Propiedad transferida",
+      "member_kicked": "Miembro expulsado",
+      "member_banned": "Miembro vetado",
+      "member_unbanned": "Veto levantado",
+      "member_muted": "Miembro silenciado",
+      "member_unmuted": "Silencio quitado",
+      "member_roles_changed": "Roles del miembro cambiados",
+      "member_role_changed": "Rol del miembro cambiado",
+      "role_reordered": "Roles reordenados",
+      "group_roles_changed": "Roles del grupo cambiados",
+      "group_created": "Grupo creado",
+      "group_updated": "Grupo editado",
+      "group_deleted": "Grupo eliminado",
+      "group_members_changed": "Miembros del grupo cambiados",
+      "invite_revoked": "Invitación revocada",
+      "invite_sent": "Invitación enviada",
+      "resource_permissions_changed": "Permisos de recurso cambiados"
+    },
+    "loadMore": "Cargar más",
+    "target": "sobre {{name}}",
+    "system": "Sistema",
+    "meta": {
+      "roleIds": "Roles",
+      "roles": "Roles",
+      "addedRoleIds": "Roles añadidos",
+      "removedRoleIds": "Roles quitados",
+      "name": "Nombre",
+      "from": "De",
+      "to": "A",
+      "duration": "Duración",
+      "durationMinutes": "Minutos",
+      "groupId": "Grupo",
+      "groupName": "Grupo",
+      "roleName": "Rol",
+      "roleId": "Rol",
+      "permissions": "Permisos",
+      "resourceType": "Recurso"
     }
   },
   "overview": {

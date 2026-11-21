@@ -319,7 +319,9 @@
     "pagination": "Pagination",
     "prev": "Previous",
     "next": "Next",
-    "page": "Page {{page}} of {{pages}}"
+    "page": "Page {{page}} of {{pages}}",
+    "bot": "BOT",
+    "botHint": "Bot"
   },
   "actions": {
     "open": "Actions for {{name}}",
@@ -501,7 +503,43 @@
       "role_created": "Role created",
       "role_updated": "Role edited",
       "role_deleted": "Role deleted",
-      "ownership_transferred": "Ownership transferred"
+      "ownership_transferred": "Ownership transferred",
+      "member_kicked": "Member removed",
+      "member_banned": "Member banned",
+      "member_unbanned": "Ban lifted",
+      "member_muted": "Member muted",
+      "member_unmuted": "Member unmuted",
+      "member_roles_changed": "Member roles changed",
+      "member_role_changed": "Member role changed",
+      "role_reordered": "Roles reordered",
+      "group_roles_changed": "Group roles changed",
+      "group_created": "Group created",
+      "group_updated": "Group edited",
+      "group_deleted": "Group deleted",
+      "group_members_changed": "Group members changed",
+      "invite_revoked": "Invitation revoked",
+      "invite_sent": "Invitation sent",
+      "resource_permissions_changed": "Resource permissions changed"
+    },
+    "loadMore": "Load more",
+    "target": "on {{name}}",
+    "system": "System",
+    "meta": {
+      "roleIds": "Roles",
+      "roles": "Roles",
+      "addedRoleIds": "Added roles",
+      "removedRoleIds": "Removed roles",
+      "name": "Name",
+      "from": "From",
+      "to": "To",
+      "duration": "Duration",
+      "durationMinutes": "Minutes",
+      "groupId": "Group",
+      "groupName": "Group",
+      "roleName": "Role",
+      "roleId": "Role",
+      "permissions": "Permissions",
+      "resourceType": "Resource"
     }
   },
   "overview": {

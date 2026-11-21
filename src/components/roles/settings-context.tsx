@@ -8,7 +8,7 @@ import type { TeamPermissionsState } from "@/hooks/use-team-permissions";
 import { groupRoleIds, highestPositionOf, memberRoleIds, type Actor, type TeamRole } from "@/lib/roles/model";
 
 /** Member row as the roles-aware API returns it: legacy `role` plus (optionally) the roles array. */
-export type SettingsMember = TeamMemberSummary & { roleIds?: string[]; mutedUntil?: string | null; isMuted?: boolean };
+export type SettingsMember = TeamMemberSummary & { roleIds?: string[]; mutedUntil?: string | null; isMuted?: boolean; isBot?: boolean };
 
 export interface SettingsCtx {
   teamId: string;
@@ -48,6 +48,7 @@ export function buildActor(perms: TeamPermissionsState, roles: TeamRole[]): Acto
     isOwner: perms.isOwner,
     permissions: new Set(perms.permissions),
     highestPosition: Math.max(perms.highestPosition, fromRoles),
+    manageableRoleIds: perms.manageableRoleIds ? new Set(perms.manageableRoleIds) : undefined,
   };
 }
 

@@ -129,8 +129,8 @@ export function InvitesTab() {
 
   const rows = useMemo(() => {
     const all = [
-      ...invites.map((i) => ({ kind: "invite" as const, id: i.id, label: i.email, roleIds: i.roleIds, legacy: i.role as string, groupIds: i.groupIds, state: inviteState({ status: i.status, expiresAt: i.expiresAt ?? null }), expiresAt: i.expiresAt ?? null, uses: null as string | null, url: null as string | null })),
-      ...links.map((l) => ({ kind: "link" as const, id: l.id, label: t("invite.reusableLink"), roleIds: l.roleIds, legacy: l.role, groupIds: l.groupIds, state: inviteState({ expiresAt: l.expiresAt, maxUses: l.maxUses, useCount: l.useCount }), expiresAt: l.expiresAt, uses: l.maxUses != null ? `${l.useCount}/${l.maxUses}` : `${l.useCount}`, url: linkUrl(l) })),
+      ...invites.map((i) => ({ kind: "invite" as const, id: i.id, label: i.email, roleIds: i.roleIds, legacy: i.role as string, groupIds: i.groupIds, state: inviteState({ status: i.status, expiresAt: i.expiresAt ?? null }), expiresAt: i.expiresAt as string | null | undefined, uses: null as string | null, url: null as string | null })),
+      ...links.map((l) => ({ kind: "link" as const, id: l.id, label: t("invite.reusableLink"), roleIds: l.roleIds, legacy: l.role, groupIds: l.groupIds, state: inviteState({ expiresAt: l.expiresAt, maxUses: l.maxUses, useCount: l.useCount }), expiresAt: l.expiresAt as string | null | undefined, uses: l.maxUses != null ? `${l.useCount}/${l.maxUses}` : `${l.useCount}`, url: linkUrl(l) })),
     ];
     return filter === "all" ? all : all.filter((r) => r.state === filter);
   }, [invites, links, filter, t]);
@@ -206,7 +206,11 @@ export function InvitesTab() {
         ) : (
           <ul className="divide-y divide-border">
             {rows.map((r) => {
-              const names = (r.roleIds ?? []).map((id) => s.roles.find((x) => x.id === id)).filter((x): x is NonNullable<typeof x> => !!x);
+              let names = (r.roleIds ?? []).map((id) => s.roles.find((x) => x.id === id)).filter((x): x is NonNullable<typeof x> => !!x);
+              if (names.length === 0 && r.legacy) {
+                const sys = s.roles.find((x) => x.systemKey === r.legacy);
+                if (sys) names = [sys];
+              }
               return (
                 <li key={`${r.kind}-${r.id}`} className="flex flex-wrap items-center gap-2 py-2">
                   <div className="min-w-0 flex-1">
@@ -217,7 +221,7 @@ export function InvitesTab() {
                     </div>
                   </div>
                   <span className={cx("rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase", r.state === "active" || r.state === "pending" ? "border-emerald-500/50 text-emerald-800 dark:text-emerald-300" : "border-border text-muted-foreground")}>{t(`invite.state.${r.state}`)}</span>
-                  <span className="text-[11px] text-muted-foreground">{r.uses ? `${r.uses} · ` : ""}{r.expiresAt ? formatDate(r.expiresAt, locale) : t("invite.never")}</span>
+                  <span className="text-[11px] text-muted-foreground">{r.uses ? `${r.uses} · ` : ""}{r.expiresAt ? formatDate(r.expiresAt, locale) : r.expiresAt === null ? t("invite.never") : "—"}</span>
                   {r.url && (
                     <button type="button" className={btn} onClick={() => copy(r.id, r.url!)}>{copied === r.id ? <Check className="h-3.5 w-3.5" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}{copied === r.id ? t("invite.copied") : t("invite.copy")}</button>
                   )}

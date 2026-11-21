@@ -45,7 +45,9 @@ export function MembersTab() {
     [s.members, s.roles, s.groups, query, roleFilter, groupFilter],
   );
   useEffect(() => setPage(1), [query, roleFilter, groupFilter]);
-  const pageData = paginate(filtered, page, PAGE_SIZE);
+  // Humans first, bots after (stable otherwise).
+  const ordered = useMemo(() => [...filtered.filter((m) => !m.isBot), ...filtered.filter((m) => m.isBot)], [filtered]);
+  const pageData = paginate(ordered, page, PAGE_SIZE);
 
   return (
     <div className="space-y-3">
@@ -101,8 +103,17 @@ function MemberRow({ member, onAction }: { member: SettingsMember; onAction: (a:
   const t = useTranslations("roles");
   const { locale } = useI18n();
   const s = useSettings();
-  const eff = effectiveRoles({ userId: member.id, roleIds: member.roleIds, role: member.role }, s.roles, s.groups);
-  const groups = s.groups.filter((g) => g.memberUserIds.includes(member.id));
+  // One chip per role: a role held directly wins over the same role inherited from a group.
+  const eff = (() => {
+    const seen = new Map<string, ReturnType<typeof effectiveRoles>[number]>();
+    for (const e of effectiveRoles({ userId: member.id, roleIds: member.roleIds, role: member.role }, s.roles, s.groups)) {
+      const prev = seen.get(e.role.id);
+      if (!prev || (prev.source.kind === "group" && e.source.kind === "personal")) seen.set(e.role.id, e);
+    }
+    return [...seen.values()];
+  })();
+  const roleNames = new Set(eff.map((e) => e.role.name.trim().toLowerCase()));
+  const groups = s.groups.filter((g) => g.memberUserIds.includes(member.id) && !roleNames.has(g.name.trim().toLowerCase()));
   const muted = member.isMuted || (member.mutedUntil ? new Date(member.mutedUntil).getTime() > Date.now() : false);
   const isMe = member.id === s.userId;
 
@@ -113,11 +124,12 @@ function MemberRow({ member, onAction }: { member: SettingsMember; onAction: (a:
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="truncate text-sm font-bold text-foreground">{member.alias || member.name}</span>
+            {member.isBot && <span className="rounded-full border border-[var(--memphis-line)] bg-accent/20 px-1.5 text-[9px] font-bold uppercase text-foreground">{t("members.bot")}</span>}
             {isMe && <span className="rounded-full border border-border px-1.5 text-[9px] font-bold uppercase text-muted-foreground">{t("members.you")}</span>}
             {muted && <span className="rounded-full border border-amber-500/60 bg-amber-500/10 px-1.5 text-[9px] font-bold uppercase text-amber-800 dark:text-amber-300">{t("members.muted")}</span>}
             {member.status !== "active" && <span className="rounded-full border border-border px-1.5 text-[9px] font-bold uppercase text-muted-foreground">{member.status}</span>}
           </div>
-          <div className="truncate text-[11px] text-muted-foreground">{member.primaryEmail}</div>
+          <div className="truncate text-[11px] text-muted-foreground">{member.isBot ? t("members.botHint") : member.primaryEmail}</div>
         </div>
       </div>
       <div className="flex min-w-0 flex-wrap gap-1" aria-label={t("members.roles")}>

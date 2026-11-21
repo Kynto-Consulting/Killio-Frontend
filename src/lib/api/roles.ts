@@ -26,6 +26,7 @@ export async function getMyTeamPermissions(teamId: string, accessToken: string):
     isOwner: !!raw?.isOwner,
     roles: Array.isArray(raw?.roles) ? raw.roles.map((r: any) => ({ id: String(r.id), name: String(r.name), color: r.color ?? null, position: Number(r.position) || 0 })) : [],
     permissions: Array.isArray(raw?.permissions) ? raw.permissions.filter((p: unknown) => typeof p === "string") : [],
+    manageableRoleIds: Array.isArray(raw?.manageableRoleIds) ? raw.manageableRoleIds.map(String) : undefined,
   };
 }
 
@@ -105,29 +106,48 @@ export async function listBans(teamId: string, accessToken: string): Promise<Ban
 export const unbanMember = (teamId: string, userId: string, accessToken: string) =>
   fetchApi<unknown>(`/teams/${q(teamId)}/bans/${q(userId)}`, { method: "DELETE", accessToken });
 
-export type AuditAction = "kick" | "ban" | "unban" | "mute" | "unmute" | "roles_changed" | "role_created" | "role_updated" | "role_deleted" | "ownership_transferred" | string;
+export type AuditAction = string;
 export interface AuditEntry {
   id: string;
   action: AuditAction;
+  actorId: string | null;
   actorName: string | null;
+  targetId: string | null;
   targetName: string | null;
+  /** What else the action touched (role, group, resource...). */
+  targetType: string | null;
+  objectId: string | null;
   reason: string | null;
+  metadata: Record<string, unknown>;
   createdAt: string;
 }
-export async function listAuditLog(teamId: string, accessToken: string, opts: { action?: string; limit?: number } = {}): Promise<AuditEntry[]> {
+export interface AuditPage {
+  entries: AuditEntry[];
+  /** Pass as `before` to load older entries; null on the last page. */
+  nextBefore: string | null;
+}
+export async function listAuditLog(teamId: string, accessToken: string, opts: { action?: string; limit?: number; before?: string | null } = {}): Promise<AuditPage> {
   const qs = new URLSearchParams();
   if (opts.action) qs.set("action", opts.action);
-  qs.set("limit", String(opts.limit ?? 100));
+  if (opts.before) qs.set("before", opts.before);
+  qs.set("limit", String(opts.limit ?? 50));
   const raw = await fetchApi<any>(`/teams/${q(teamId)}/audit?${qs.toString()}`, { accessToken });
   const list = Array.isArray(raw) ? raw : Array.isArray(raw?.entries) ? raw.entries : [];
-  return list.map((e: any) => ({
+  const entries: AuditEntry[] = list.map((e: any) => ({
     id: String(e.id),
     action: String(e.action ?? ""),
-    actorName: e.actorName ?? e.actor_name ?? null,
-    targetName: e.targetName ?? e.target_name ?? null,
+    actorId: e.actor?.id ?? e.actorId ?? e.actor_user_id ?? null,
+    actorName: e.actor?.name ?? e.actorName ?? e.actor_name ?? null,
+    targetId: e.target?.id ?? e.targetUserId ?? e.target_user_id ?? null,
+    targetName: e.target?.name ?? e.targetName ?? e.target_name ?? null,
+    targetType: e.targetType ?? e.target_type ?? null,
+    objectId: e.targetId ?? e.target_id ?? null,
     reason: e.reason ?? null,
+    metadata: e.metadata && typeof e.metadata === "object" && !Array.isArray(e.metadata) ? e.metadata : {},
     createdAt: String(e.createdAt ?? e.created_at ?? ""),
   }));
+  const nextBefore = Array.isArray(raw) ? null : typeof raw?.nextBefore === "string" ? raw.nextBefore : null;
+  return { entries, nextBefore };
 }
 
 /* ── resource overrides (documents, boards, meshes) ── */

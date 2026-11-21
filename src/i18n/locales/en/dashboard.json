@@ -148,6 +148,12 @@
   "search": {
     "placeholder": "Search or type a command..."
   },
+  "upgradeBanner": {
+    "title": "PRO",
+    "body": "Unlock AI automation, premium rooms and custom meshes.",
+    "cta": "Upgrade now",
+    "dismiss": "Dismiss"
+  },
   "teamSwitcher": {
     "selectWorkspace": "Select Workspace",
     "yourWorkspaces": "Your Workspaces",

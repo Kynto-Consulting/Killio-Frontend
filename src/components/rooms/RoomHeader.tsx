@@ -166,14 +166,14 @@ export function RoomHeader({
     <header className="shrink-0 border-b-2 border-[var(--memphis-line)] bg-background/70 backdrop-blur">
       <div className="flex min-h-[48px] items-center justify-between gap-2 px-3 py-1.5 md:px-4">
         {/* Left: channel identity */}
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           {onOpenSidebar && (
             <button type="button" onClick={onOpenSidebar} aria-label={t("sidebar.open")} className={`${btn} md:hidden`}>
               <Menu className="h-4 w-4" aria-hidden />
             </button>
           )}
           <LeadIcon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1 md:flex-none">
             <h1 className="truncate text-sm font-bold leading-tight text-foreground">{title}</h1>
             {room.description && isMobile && <p className="truncate text-[11px] leading-tight text-muted-foreground">{room.description}</p>}
           </div>
@@ -194,7 +194,7 @@ export function RoomHeader({
         {/* Right: actions */}
         <div className="flex shrink-0 items-center gap-0.5">
           {!isMobile && onlineCount > 0 && (
-            <div className="mr-1.5 flex items-center -space-x-1.5" aria-label={t("header.online", { count: onlineCount })}>
+            <div className="mr-1.5 hidden items-center -space-x-1.5 sm:flex" aria-label={t("header.online", { count: onlineCount })}>
               {visibleAvatars.map((m) => (
                 <img key={m.clientId} src={getUserAvatarUrl(m.data.avatarUrl ?? undefined, m.data.email, 24)} alt="" title={m.data.displayName} className="h-6 w-6 rounded-full border-2 border-background object-cover" />
               ))}
@@ -206,7 +206,7 @@ export function RoomHeader({
           <IconButton label={t("header.search")} pressed={isSearchOpen} onClick={onToggleSearch}><Search className="h-4 w-4" aria-hidden /></IconButton>
 
           {!isMobile && (
-            <>
+            <span className="hidden items-center gap-0.5 sm:contents">
               <IconButton label={pinCount > 0 ? t("header.pinsCount", { count: pinCount }) : t("header.pins")} pressed={isPinsOpen} onClick={onTogglePins}>
                 <Pin className="h-4 w-4" aria-hidden />
                 {pinCount > 0 && <span className="absolute -right-0.5 -top-0.5 min-w-[14px] rounded-full bg-foreground px-1 text-[9px] font-bold leading-[14px] text-background">{pinCount}</span>}
@@ -218,7 +218,7 @@ export function RoomHeader({
               )}
               <IconButton label={t("header.copilot")} pressed={isAiPanelOpen} onClick={onToggleAiPanel}><Bot className="h-4 w-4" aria-hidden /></IconButton>
               <NotificationPrefButton pref={notifPref} setPref={setNotifPref} t={t} />
-            </>
+            </span>
           )}
 
           {showMembers && (
@@ -231,7 +231,7 @@ export function RoomHeader({
             <IconButton label={t("header.settings")} onClick={onOpenSettings}><Settings className="h-4 w-4" aria-hidden /></IconButton>
           )}
 
-          {isMobile && (
+          <div className={isMobile ? "contents" : "contents sm:hidden"}>
             <Overflow label={t("header.more")}>
               {(close) => (
                 <>
@@ -249,7 +249,7 @@ export function RoomHeader({
                 </>
               )}
             </Overflow>
-          )}
+            </div>
         </div>
       </div>
     </header>

@@ -1587,11 +1587,30 @@ export async function deleteCard(cardId: string, accessToken?: string): Promise<
   return res;
 }
 
+/** Accepts camelCase or snake_case; expiresAt stays undefined when the server did not send it (unknown), null when it never expires. */
+function pickExpiry(raw: any): string | null | undefined {
+  const v = raw?.expiresAt ?? raw?.expires_at ?? raw?.expiry ?? raw?.expires;
+  if (v === undefined && !("expiresAt" in (raw ?? {})) && !("expires_at" in (raw ?? {}))) return undefined;
+  return v ? new Date(v).toISOString() : null;
+}
+function pickIds(raw: any, camel: string, snake: string): string[] | undefined {
+  const v = raw?.[camel] ?? raw?.[snake];
+  return Array.isArray(v) ? v.map(String) : undefined;
+}
+
 export async function listTeamInvites(teamId: string, accessToken: string): Promise<InviteSummary[]> {
-  return request<InviteSummary[]>(`/teams/${teamId}/invites`, {
+  const raw = await request<any[]>(`/teams/${teamId}/invites`, {
     method: 'GET',
     headers: authHeaders(accessToken),
   });
+  return (Array.isArray(raw) ? raw : []).map((r) => ({
+    ...r,
+    roleIds: pickIds(r, 'roleIds', 'role_ids'),
+    groupIds: pickIds(r, 'groupIds', 'group_ids'),
+    expiresAt: pickExpiry(r),
+    deliveryStatus: r.deliveryStatus ?? r.delivery_status ?? '',
+    createdAt: r.createdAt ?? r.created_at ?? '',
+  })) as InviteSummary[];
 }
 
 export async function listTeamMembers(teamId: string, accessToken: string): Promise<TeamMemberSummary[]> {
@@ -1643,10 +1662,19 @@ export async function createInviteLink(
 }
 
 export async function listInviteLinks(teamId: string, accessToken: string): Promise<InviteLink[]> {
-  return request<InviteLink[]>(`/teams/${teamId}/invite-links`, {
+  const raw = await request<any[]>(`/teams/${teamId}/invite-links`, {
     method: 'GET',
     headers: authHeaders(accessToken),
   });
+  return (Array.isArray(raw) ? raw : []).map((r) => ({
+    ...r,
+    roleIds: pickIds(r, 'roleIds', 'role_ids'),
+    groupIds: pickIds(r, 'groupIds', 'group_ids'),
+    expiresAt: pickExpiry(r) ?? null,
+    maxUses: r.maxUses ?? r.max_uses ?? null,
+    useCount: r.useCount ?? r.use_count ?? 0,
+    createdAt: r.createdAt ?? r.created_at ?? '',
+  })) as InviteLink[];
 }
 
 export async function revokeInviteLink(teamId: string, inviteId: string, accessToken: string): Promise<{ revoked: boolean }> {
