@@ -49,6 +49,15 @@ export async function updateBot(teamId: string, botId: string, input: BotWriteIn
   return mustBot(await fetchApi<unknown>(`/teams/${q(teamId)}/bots/${q(botId)}`, { method: "PATCH", body: JSON.stringify(input), accessToken }));
 }
 
+/** Revalidates the script as a bot script and turns on bot and script (packs install bots paused). Rejects with the server's reason. */
+export async function activateBot(teamId: string, botId: string, accessToken: string): Promise<Bot> {
+  return mustBot(await fetchApi<unknown>(`/teams/${q(teamId)}/bots/${q(botId)}/activate`, { method: "POST", accessToken }));
+}
+
+export async function pauseBot(teamId: string, botId: string, accessToken: string): Promise<Bot> {
+  return mustBot(await fetchApi<unknown>(`/teams/${q(teamId)}/bots/${q(botId)}/pause`, { method: "POST", accessToken }));
+}
+
 export async function deleteBot(teamId: string, botId: string, accessToken: string): Promise<void> {
   await fetchApi<unknown>(`/teams/${q(teamId)}/bots/${q(botId)}`, { method: "DELETE", accessToken });
 }

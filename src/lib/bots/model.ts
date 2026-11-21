@@ -1,8 +1,9 @@
 /**
  * Pure model of the Bots tab: normalisers of the `/teams/:teamId/bots` answers, form/command validation, the per-room
  * tri-state of a bot and the example script. No I/O; tested in model.test.ts.
- * Contract: Killio-Backend/src/modules/bots (bots.controller.ts, bots.service.ts, bot-config.ts).
+ * Contract: Killio-Backend/src/modules/bots (bots.controller.ts, bots.service.ts, bot-config.ts, bot-commands.ts).
  */
+import { normalizeOptions, optionsPayload, validateOptions, type CommandOption, type OptionIssue } from "./options.ts";
 
 export const BOT_LIMITS = { name: 80, description: 500, avatarUrl: 2048, commandsPerBot: 50, commandName: 32, commandDescription: 200, usage: 200 } as const;
 
@@ -13,6 +14,8 @@ export interface BotCommand {
   name: string;
   description: string;
   usage: string | null;
+  /** Typed arguments (subcommands included). Empty for the old free-text commands. */
+  options: CommandOption[];
 }
 
 export interface BotRoleRef {
@@ -68,7 +71,7 @@ export function normalizeCommand(raw: unknown): BotCommand | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
   if (typeof r.name !== "string" || !r.name) return null;
-  return { name: r.name, description: typeof r.description === "string" ? r.description : "", usage: str(r.usage) };
+  return { name: r.name, description: typeof r.description === "string" ? r.description : "", usage: str(r.usage), options: normalizeOptions(r.options) };
 }
 
 export function normalizeBot(raw: unknown): Bot | null {
@@ -122,6 +125,7 @@ export interface ComposerBotCommand {
   name: string;
   description: string;
   usage?: string;
+  options: CommandOption[];
 }
 
 export function normalizeComposerCommands(raw: unknown): ComposerBotCommand[] {
@@ -138,6 +142,7 @@ export function normalizeComposerCommands(raw: unknown): ComposerBotCommand[] {
       name: x.name,
       description: typeof x.description === "string" ? x.description : "",
       usage: typeof x.usage === "string" ? x.usage : undefined,
+      options: normalizeOptions(x.options),
     });
   }
   return out;
@@ -153,6 +158,7 @@ export interface CommandDraft {
   name: string;
   description: string;
   usage?: string | null;
+  options?: CommandOption[];
 }
 
 /** One issue code per row index (`limit` is reported on the rows that go over the cap). */
@@ -169,16 +175,31 @@ export function validateCommands(list: readonly CommandDraft[]): Map<number, Com
   return issues;
 }
 
+/** Option problems per command row (the backend rejects the whole PUT on the first one, so the editor blocks saving on any). */
+export function commandOptionIssues(list: readonly CommandDraft[]): Map<number, OptionIssue[]> {
+  const out = new Map<number, OptionIssue[]>();
+  list.forEach((c, i) => {
+    const issues = validateOptions(c.options ?? []);
+    if (issues.length) out.set(i, issues);
+  });
+  return out;
+}
+
 /** Body of `PUT /teams/:id/bots/:botId/commands`. */
-export function commandsPayload(list: readonly CommandDraft[]): { commands: Array<{ name: string; description: string; usage: string | null }> } {
+export function commandsPayload(list: readonly CommandDraft[]): { commands: Array<{ name: string; description: string; usage: string | null; options: CommandOption[] }> } {
   return {
     commands: list.map((c) => ({
       name: normalizeCommandName(c.name),
       description: c.description.trim().slice(0, BOT_LIMITS.commandDescription),
       usage: c.usage?.trim() ? c.usage.trim().slice(0, BOT_LIMITS.usage) : null,
+      options: optionsPayload(c.options ?? []),
     })),
   };
 }
+
+/** Trigger types the backend stores for a script whose trigger is a bot trigger (scripts.trigger_type): only these can be bound to a bot. */
+export const BOT_SCRIPT_TRIGGER_TYPES: readonly string[] = ["room_message", "command", "interaction", "reaction_added", "message_edited", "message_deleted", "member_join", "schedule"];
+export const isBotScriptTriggerType = (t: string): boolean => BOT_SCRIPT_TRIGGER_TYPES.includes(t);
 
 export type BotFormIssue = "name_required" | "name_long" | "description_long" | "avatar_invalid";
 
@@ -285,18 +306,38 @@ export interface TemplateGraph {
 
 export const HELLO_COMMAND = "hola";
 
+export interface HelloOptionTexts {
+  name: string;
+  tone: string;
+  formal: string;
+  casual: string;
+}
+
+/** Options of the example command: `/hola nombre:Ana tono:formal` (a required text and an optional choice, in the order the backend demands). */
+export function buildHelloOptions(texts: HelloOptionTexts): CommandOption[] {
+  return [
+    { name: "nombre", description: texts.name.slice(0, 100), type: "string", required: true, maxLength: 40 },
+    { name: "tono", description: texts.tone.slice(0, 100), type: "string", choices: [{ name: texts.formal.slice(0, 100), value: "formal" }, { name: texts.casual.slice(0, 100), value: "casual" }] },
+  ];
+}
+
+/** The registered example command: `/hola` with its options. */
+export function buildHelloCommand(texts: HelloOptionTexts & { description: string }): CommandDraft {
+  return { name: HELLO_COMMAND, description: texts.description, usage: null, options: buildHelloOptions(texts) };
+}
+
 /**
- * Example: "/hola" -> the bot answers with `reply`. Trigger `killio.trigger.room_message` (commandPrefix "/hola") ->
- * `killio.room.send_message` (replies in the room that triggered it; `{authorName}` comes from the trigger payload).
- * A bot script must hold exactly one room_message trigger and only the allowed node kinds (bot-script-policy.ts).
+ * Example: `/hola nombre:Ana` -> the bot answers with `reply`. A CONNECTED graph: `killio.trigger.command` (command "hola") ->
+ * `killio.room.reply` (answers the message that invoked the command; `{options.nombre}` / `{options.tono}` come from the typed
+ * arguments the trigger emits). A bot script must hold only allowed node kinds and one trigger per kind (bot-script-policy.ts).
  */
 export function buildHelloScriptGraph(scriptId: string, newId: () => string, reply: string): TemplateGraph {
   const trigger = newId();
   const send = newId();
   return {
     nodes: [
-      { id: trigger, scriptId, nodeKind: "killio.trigger.room_message", label: "Room message", config: { commandPrefix: `/${HELLO_COMMAND}`, matchMode: "all" }, positionX: 80, positionY: 120 },
-      { id: send, scriptId, nodeKind: "killio.room.send_message", label: "Reply", config: { text: reply }, positionX: 420, positionY: 120 },
+      { id: trigger, scriptId, nodeKind: "killio.trigger.command", label: "Command", config: { command: HELLO_COMMAND }, positionX: 80, positionY: 120 },
+      { id: send, scriptId, nodeKind: "killio.room.reply", label: "Reply", config: { text: reply }, positionX: 420, positionY: 120 },
     ],
     edges: [{ id: newId(), scriptId, sourceNodeId: trigger, targetNodeId: send, sourceHandle: "output", targetHandle: "input" }],
   };

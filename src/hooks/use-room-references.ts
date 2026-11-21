@@ -40,7 +40,7 @@ export function useRoomReferences(teamId: string | null | undefined, accessToken
         setBotIds(new Set(raw.filter((m) => m?.isBot === true || m?.is_bot === true).map((m) => String(m.id))));
       }
       if (cmds.status === "fulfilled") {
-        setCommands(cmds.value.map((c) => ({ name: c.name, description: c.description, usage: c.usage, source: c.botName, botAvatarUrl: c.botAvatarUrl })));
+        setCommands(cmds.value.map((c) => ({ name: c.name, description: c.description, usage: c.usage, source: c.botName, botAvatarUrl: c.botAvatarUrl, options: c.options })));
       }
     });
     return () => { cancelled = true; };

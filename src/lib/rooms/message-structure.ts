@@ -2,6 +2,7 @@
  * Structure of a room's messages: what each message offers (edit, delete, pin, thread), simple threads, pinned list and
  * the slash-command autocomplete. Pure, tested in message-structure.test.ts.
  */
+import type { CommandOption } from "../bots/options.ts";
 
 export interface StructMessage {
   id: string;
@@ -99,6 +100,8 @@ export interface SlashCommand {
   /** `builtin` or the name of the bot that registered it. */
   source: string;
   botAvatarUrl?: string;
+  /** Typed arguments of a bot command (empty / missing: free text). */
+  options?: readonly CommandOption[];
 }
 
 export const BUILTIN_COMMANDS: readonly SlashCommand[] = [

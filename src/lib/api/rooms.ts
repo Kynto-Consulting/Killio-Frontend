@@ -1,4 +1,5 @@
 import { normalizeComposerCommands } from '@/lib/bots/model';
+import { normalizeOptions, type CommandOption } from '@/lib/bots/options';
 import { normalizePinSummary, type PinBody, type PinSummary } from '@/lib/rooms/pins';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
@@ -931,6 +932,8 @@ export interface BotCommand {
   name: string;
   description: string;
   usage?: string;
+  /** Typed arguments, with `choices`, for the composer's argument autocomplete and validation. */
+  options: CommandOption[];
 }
 
 /**
@@ -943,7 +946,7 @@ export async function listBotCommands(teamId: string, accessToken: string): Prom
     const flat = await fetch(`${API_BASE_URL}/teams/${teamId}/bots/commands`, { headers: authHeader(accessToken) });
     if (flat.ok) {
       const rows = normalizeComposerCommands(await flat.json());
-      return rows.map((c) => ({ botId: c.botId, botName: c.botName, botAvatarUrl: c.botAvatarUrl, name: c.name, description: c.description, usage: c.usage }));
+      return rows.map((c) => ({ botId: c.botId, botName: c.botName, botAvatarUrl: c.botAvatarUrl, name: c.name, description: c.description, usage: c.usage, options: c.options }));
     }
   } catch {
     // fall through to the bot list
@@ -965,6 +968,7 @@ export async function listBotCommands(teamId: string, accessToken: string): Prom
             name: c.name,
             description: typeof c.description === 'string' ? c.description : '',
             usage: typeof c.usage === 'string' ? c.usage : undefined,
+            options: normalizeOptions(c.options),
           });
         }
       }
