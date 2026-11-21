@@ -13,6 +13,9 @@ import { getProactiveSuggestion } from "@/lib/api/agent";
 import { useSession } from "@/components/providers/session-provider";
 import type { RoomControls } from "@/lib/rooms/room-controls";
 import { messageActions, type SlashCommand } from "@/lib/rooms/message-structure";
+import { newerFromOthers } from "@/lib/rooms/history";
+import { useRoomHistoryScroll } from "@/hooks/use-room-history-scroll";
+import { EdgeStatus, JumpToLatestButton, StartOfConversation, UnreadBanner, UnreadDivider, type RoomHistoryView } from "./history/HistoryParts";
 
 type TFn = (key: string, params?: Record<string, string | number>) => string;
 
@@ -83,6 +86,8 @@ interface RoomChatAreaProps {
   /** Scroll to and flash this message (from the pinned panel), then call `onJumped`. */
   jumpToMessageId?: string | null;
   onJumped?: () => void;
+  /** Paginated window over the room history (see use-room-history.ts). Without it the list behaves as before. */
+  history?: RoomHistoryView;
   t: TFn;
 }
 
@@ -93,11 +98,11 @@ function formatTypingText(users: TypingUser[], t: TFn): string {
   return t("chat.typing_many");
 }
 
-type Row = { kind: "divider"; label: string; key: string } | { kind: "message"; message: RoomMessage; showAvatar: boolean };
+type Row = { kind: "divider"; label: string; key: string } | { kind: "unread"; key: string } | { kind: "message"; message: RoomMessage; showAvatar: boolean };
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000;
 
-function buildRows(messages: RoomMessage[]): Row[] {
+function buildRows(messages: RoomMessage[], unreadBeforeId?: string | null): Row[] {
   const rows: Row[] = [];
   let lastDate = "";
   let prev: RoomMessage | null = null;
@@ -112,7 +117,9 @@ function buildRows(messages: RoomMessage[]): Row[] {
     const prevBanner = prev ? prev.type === "system" || prev.type === "call_started" || prev.type === "call_ended" : false;
     const sameAuthor = prev && prev.userId === msg.userId && prev.type === msg.type && !prevBanner && !banner;
     const close = prev ? Math.abs(new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime()) < GROUP_WINDOW_MS : false;
-    rows.push({ kind: "message", message: msg, showAvatar: newDay || !sameAuthor || !close });
+    const unreadHere = Boolean(unreadBeforeId) && msg.id === unreadBeforeId;
+    if (unreadHere) rows.push({ kind: "unread", key: "unread-divider" });
+    rows.push({ kind: "message", message: msg, showAvatar: newDay || unreadHere || !sameAuthor || !close });
     prev = msg;
   }
   return rows;
@@ -140,7 +147,7 @@ export function RoomChatArea({
   onAiTrigger, currentUserId, teamId, canPost, controls: controlsProp, channelType, muteMinutesLeft, muteReason, isAiRoom, showReadReceipts, roomName,
   documents, boards, users, roles, commands, myRoleIds, myGroupIds, botUserIds, transcripts, activeCallId, resolverContext, availableTags, onOpenCopilot, onToolApproval,
   replyTo, onReply, modelSelector, isCheckingAccess, loadError, onReload, searchQuery, onEditMessage, onDeleteMessage, onTogglePin, pinCaps, onOpenThread, threadReplies, jumpToMessageId,
-  onJumped, t,
+  onJumped, history, t,
 }: RoomChatAreaProps) {
   const { accessToken } = useSession();
   const platform = usePlatform();
@@ -150,6 +157,7 @@ export function RoomChatArea({
   const isMobile = platform === "mobile";
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
   const [viewportHeight, setViewportHeight] = useState<number | undefined>(undefined);
 
@@ -167,10 +175,26 @@ export function RoomChatArea({
   }, [isMobile]);
 
   useEffect(() => {
+    if (history) return; // the paginated list follows the present itself (use-room-history-scroll.ts)
     if (isAtBottomRef.current && !searching) {
       bottomRef.current?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth" });
     }
-  }, [messages.length, reducedMotion, searching]);
+  }, [messages.length, reducedMotion, searching, history]);
+
+  const messageIds = useMemo(() => messages.map((m) => m.id), [messages]);
+  const hs = useRoomHistoryScroll({
+    scrollRef, contentRef, enabled: Boolean(history) && !searching, ids: messageIds, view: history?.view,
+    hasMoreBefore: history?.hasMoreBefore ?? false, hasMoreAfter: history?.hasMoreAfter ?? false,
+    loadingOlder: history?.loadingOlder ?? false, loadingNewer: history?.loadingNewer ?? false,
+    olderError: history?.olderError ?? false, newerError: history?.newerError ?? false,
+    onLoadOlder: history?.onLoadOlder ?? (() => {}), onLoadNewer: history?.onLoadNewer ?? (() => {}),
+    onReadUpTo: history?.onReadUpTo, reducedMotion,
+  });
+  // The newest message the user had on screen when last at the present: the base of "N new messages".
+  const lastMessageId = messages[messages.length - 1]?.id ?? null;
+  const [seenAtPresent, setSeenAtPresent] = useState<string | null>(null);
+  useEffect(() => { if (hs.atBottom) setSeenAtPresent(lastMessageId); }, [hs.atBottom, lastMessageId]);
+  const newBelow = history ? newerFromOthers(messages, seenAtPresent, currentUserId) + history.pendingNew : 0;
 
   useEffect(() => {
     if (!jumpToMessageId) return;
@@ -192,11 +216,13 @@ export function RoomChatArea({
     const el = scrollRef.current;
     if (!el) return;
     isAtBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    if (history) hs.onScroll();
     if (isAtBottomRef.current && onMarkRead && showReadReceipts) {
       const ids = unreadFromOthers();
       if (ids.length > 0) onMarkRead(ids);
     }
-  }, [onMarkRead, showReadReceipts, unreadFromOthers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onMarkRead, showReadReceipts, unreadFromOthers, history, hs.onScroll]);
 
   useEffect(() => {
     if (isAtBottomRef.current && onMarkRead && showReadReceipts) {
@@ -206,7 +232,8 @@ export function RoomChatArea({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length]);
 
-  const rows = useMemo(() => buildRows(messages), [messages]);
+  const unreadBeforeId = history && !searching ? history.unreadAnchorId : null;
+  const rows = useMemo(() => buildRows(messages, unreadBeforeId), [messages, unreadBeforeId]);
   const typingText = formatTypingText(typingUsers, t);
 
   // Proactive suggestions (unchanged behaviour): only while the user can actually write.
@@ -244,6 +271,7 @@ export function RoomChatArea({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden" style={isMobile && viewportHeight !== undefined ? { height: viewportHeight } : undefined}>
+      <div className="relative flex min-h-0 flex-1 flex-col">
       <div
         ref={scrollRef}
         onScroll={handleScroll}
@@ -263,14 +291,24 @@ export function RoomChatArea({
             )}
           </div>
         ) : (
-          <>
+          <div ref={contentRef}>
+            {history && !searching && history.unreadAnchorId && history.unreadCount > 0 && <UnreadBanner h={history} t={t} />}
+
+            {history && !searching && history.hasMoreBefore && !isLoading && (
+              <>
+                <div ref={hs.topSentinel} aria-hidden className="h-px" />
+                <EdgeStatus edge="top" loading={history.loadingOlder} error={history.olderError} onLoad={history.onLoadOlder} t={t} />
+              </>
+            )}
+            {history && !searching && !history.hasMoreBefore && !isLoading && messages.length > 0 && <StartOfConversation t={t} />}
+
             {isLoading && (
               <div className="flex justify-center py-8" role="status" aria-label={t("chat.loading")}>
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground motion-reduce:animate-none" aria-hidden />
               </div>
             )}
 
-            {!isLoading && hasMore && !searching && (
+            {!history && !isLoading && hasMore && !searching && (
               <div className="flex justify-center py-2">
                 <button type="button" onClick={onLoadMore} className="rounded-md px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] motion-reduce:transition-none">
                   {t("chat.loadMore")}
@@ -287,6 +325,7 @@ export function RoomChatArea({
             )}
 
             {rows.map((row) => {
+              if (row.kind === "unread") return <UnreadDivider key={row.key} t={t} />;
               if (row.kind === "divider") {
                 return (
                   <div key={row.key} className="flex items-center gap-2 py-3" role="separator" aria-label={row.label}>
@@ -331,9 +370,20 @@ export function RoomChatArea({
               );
             })}
 
+            {history && !searching && history.hasMoreAfter && (
+              <>
+                <div ref={hs.bottomSentinel} aria-hidden className="h-px" />
+                <EdgeStatus edge="bottom" loading={history.loadingNewer} error={history.newerError} onLoad={history.onLoadNewer} t={t} />
+              </>
+            )}
+
             <div ref={bottomRef} />
-          </>
+          </div>
         )}
+      </div>
+      {history && !searching && !loadError && !hs.atBottom && messages.length > 0 && (
+        <JumpToLatestButton count={newBelow} busy={history.jumping} onClick={() => (history.hasMoreAfter ? history.onGoToLatest() : hs.scrollToBottom())} t={t} />
+      )}
       </div>
 
       <div className="min-h-[18px] shrink-0 px-4" aria-live="polite">

@@ -80,7 +80,7 @@
     "notifAll": "All messages",
     "notifMentions": "Mentions only",
     "notifNone": "Nothing",
-    "search": "Search the channel",
+    "search": "Search messages (Ctrl+Shift+F)",
     "searchPlaceholder": "Search the loaded messages",
     "searchResults": "{{count}} results",
     "searchLoaded": "Loaded messages",
@@ -587,7 +587,10 @@
     "rootMissing": "The original message is no longer available.",
     "inputLabel": "Reply in the thread",
     "inputPlaceholder": "Reply in the thread…",
-    "readOnly": "You cannot reply in this thread."
+    "readOnly": "You cannot reply in this thread.",
+    "loadOlder": "Load earlier replies",
+    "loadNewer": "Load later replies",
+    "loadFailed": "Replies could not be loaded."
   },
   "pins": {
     "title": "Pinned messages",
@@ -677,5 +680,130 @@
     "saving": "Saving…",
     "failed": "The chat could not be changed.",
     "unavailable": "This server cannot turn the chat off yet."
+  },
+  "history": {
+    "start": "This is the beginning of the conversation.",
+    "loadOlder": "Load earlier messages",
+    "loadNewer": "Load later messages",
+    "loadingOlder": "Loading earlier messages…",
+    "loadingNewer": "Loading later messages…",
+    "olderFailed": "Earlier messages could not be loaded.",
+    "newerFailed": "Later messages could not be loaded.",
+    "toLatest": "Jump to latest",
+    "newBelow": "{{count}} new messages",
+    "newMessages": "New messages",
+    "unreadRegion": "Unread messages",
+    "unreadSince": "{{count}} new messages since {{since}}",
+    "unreadCount": "{{count}} new messages",
+    "unreadMentions": "{{count}} mentions",
+    "jumpToUnread": "Jump to unread",
+    "markRead": "Mark as read",
+    "jump": {
+      "failed": "That message could not be shown. It may have been deleted or you may no longer have access.",
+      "unsupported": "This server cannot jump to older messages yet."
+    }
+  },
+  "search": {
+    "title": "Search messages",
+    "scopeLabel": "Search scope",
+    "scopeRoom": "This room",
+    "scopeTeam": "Whole team",
+    "sortLabel": "Sort",
+    "sortRelevance": "Relevance",
+    "sortRecent": "Most recent",
+    "inputLabel": "Search messages. Type text or operators such as from:, in:, has:",
+    "placeholder": "Search… try from:, in:, has:, before:",
+    "close": "Close search",
+    "removeFilter": "Remove filter {{filter}}",
+    "toggleExclude": "Click to include or exclude this filter",
+    "excluded": "(excluded)",
+    "suggestions": "Search suggestions",
+    "unknownAuthor": "Unknown author",
+    "unknownRoom": "Room",
+    "bot": "Bot",
+    "pinned": "Pinned message",
+    "inThread": "In a thread",
+    "resultsLabel": "Search results",
+    "warningsLabel": "Search warnings",
+    "loading": "Searching…",
+    "loadMore": "Load more results",
+    "loadingMore": "Loading…",
+    "total": "About {{count}} results (approximate)",
+    "totalCapped": "More than {{count}} results (approximate)",
+    "shown": "{{count}} results shown",
+    "me": "you",
+    "roleHint": "role",
+    "idle": {
+      "title": "Search the messages",
+      "hint": "Combine text with filters: from:ana in:general has:link before:7d. Shortcut: Ctrl+Shift+F."
+    },
+    "empty": {
+      "title": "No results",
+      "hint": "Try other words, remove a filter or widen the scope to the whole team."
+    },
+    "recent": {
+      "title": "Recent searches",
+      "remove": "Remove the search {{query}}"
+    },
+    "hint": {
+      "from": "messages from a person",
+      "mentions": "messages that mention someone",
+      "in": "in a channel",
+      "has": "with a link, file, image…",
+      "before": "before a date",
+      "after": "after a date",
+      "during": "during a day",
+      "pinned": "pinned only",
+      "is": "from a bot or a person",
+      "thread": "inside a thread"
+    },
+    "date": {
+      "today": "today",
+      "yesterday": "yesterday",
+      "7d": "7 days ago",
+      "2w": "2 weeks ago",
+      "1mo": "1 month ago",
+      "1y": "1 year ago",
+      "iso": "today's date"
+    },
+    "has": {
+      "link": "links",
+      "file": "files",
+      "image": "images",
+      "embed": "embedded content",
+      "thread": "threads",
+      "reaction": "reactions",
+      "pin": "pinned"
+    },
+    "is": {
+      "bot": "bot messages",
+      "human": "messages from people"
+    },
+    "bool": {
+      "true": "pinned only",
+      "false": "not pinned only"
+    },
+    "errors": {
+      "rateLimited": "Too many searches. Wait {{seconds}} s and try again.",
+      "retryIn": "Retry in {{seconds}} s",
+      "tooLong": "The search is too long (300 characters at most).",
+      "forbidden": "You are not allowed to search here.",
+      "invalidCursor": "The search changed. Run it again.",
+      "failed": "The search failed. Check your connection and try again."
+    },
+    "warnings": {
+      "invalid_date": "The date in {{operator}}:{{value}} is not valid. Use 2026-01-31, 7d, today or yesterday.",
+      "unknown_has_kind": "has:{{value}} does not exist. Use link, file, image, embed, thread, reaction or pin.",
+      "invalid_value": "The value of {{operator}}:{{value}} is not valid and was ignored.",
+      "invalid_thread": "The thread filter needs the id of a thread.",
+      "ignored_in_room": "The in: filter is ignored when searching a single room.",
+      "not_found": "{{operator}}:{{value}} was not found.",
+      "dropped": "The server ignored the filter {{operator}}:{{value}}.",
+      "too_many_values": "Too many values in {{operator}}: the first ones were used.",
+      "too_many_tokens": "The search has too many parts: the first ones were used.",
+      "too_many_terms": "Too many words: the first ones were used.",
+      "conflicting_dates": "The before: and after: dates contradict each other.",
+      "generic": "The server reported a problem with {{operator}}:{{value}}."
+    }
   }
 }

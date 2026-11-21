@@ -5,7 +5,6 @@ import { useRealtime } from "@/components/providers/realtime-provider";
 import { realtimeChannel } from "@/lib/realtime/channels";
 import type { IRealtimeChannel } from "@/lib/realtime/types";
 import {
-  listRoomMessages,
   sendRoomMessage,
   addReaction,
   editRoomMessage,
@@ -22,6 +21,7 @@ import {
 } from "@/lib/api/rooms";
 import { applyPinPatch, normalizePinEvent, patchesFromPinResponse, type PinBody, type PinPatch } from "@/lib/rooms/pins";
 import { usePinExpiry } from "@/hooks/use-pin-expiry";
+import { useRoomHistory } from "@/hooks/use-room-history";
 
 /** Event names the backend may use for the same fact; the first is the preferred one. */
 const EDIT_EVENTS = ["room.message.edited", "room.message.updated"] as const;
@@ -56,12 +56,14 @@ export function useRoomChat(
   /** Creates the room on demand when there is none yet (lazy thread rooms: the first message creates it). */
   ensureRoom?: () => Promise<string | null>,
   /** Every pin change (realtime event or answer of this user's own request), for lists the hook does not own. */
-  onPinPatch?: (patch: PinPatch) => void
+  onPinPatch?: (patch: PinPatch) => void,
+  /** Messages a window trim must keep (the replies of the open thread). */
+  protectMessage?: (m: RoomMessage) => boolean
 ) {
-  const [messages, setMessages] = useState<RoomMessage[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  // The loaded messages are a paginated window (see use-room-history.ts); `setMessages` keeps its React-setter shape.
+  const history = useRoomHistory({ roomId, accessToken, userId: currentUser?.id, protect: protectMessage });
+  const { messages, setMessages, receiveLive } = history;
   const [isSending, setIsSending] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
 
   const messagesRef = useRef<RoomMessage[]>([]);
@@ -78,30 +80,6 @@ export function useRoomChat(
   // useRealtime() may return null when the provider is not yet mounted.
   const realtime = useRealtime();
 
-  // Initial load (also re-run by `reload` after a failure)
-  const [loadAttempt, setLoadAttempt] = useState(0);
-  const [loadError, setLoadError] = useState<"forbidden" | "failed" | null>(null);
-  useEffect(() => {
-    if (!roomId || !accessToken) return;
-    let cancelled = false;
-    setIsLoading(true);
-    setLoadError(null);
-    listRoomMessages(roomId, accessToken, 50)
-      .then((msgs) => {
-        if (cancelled) return;
-        setMessages(msgs); // Now msgs already have the correct status from backend
-        setHasMore(msgs.length === 50);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        console.error(err);
-        setLoadError((err as { status?: number })?.status === 403 ? "forbidden" : "failed");
-      })
-      .finally(() => { if (!cancelled) setIsLoading(false); });
-    return () => { cancelled = true; };
-  }, [roomId, accessToken, loadAttempt]);
-  const reload = useCallback(() => setLoadAttempt((n) => n + 1), []);
-
   // Realtime subscription
   useEffect(() => {
     if (!roomId || !realtime) return;
@@ -113,7 +91,7 @@ export function useRoomChat(
       const raw = msg.data as RoomMessage;
       const root = threadRootOf(raw as RoomMessage & { thread_root_id?: string });
       const payload: RoomMessage = root && !raw.threadRootId ? { ...raw, threadRootId: root } : raw;
-      setMessages((prev) => {
+      receiveLive((prev) => {
         const nonceId = (payload.metadata as any)?.localBotId;
         if (nonceId) {
           const nonceIdx = prev.findIndex((m) => m.id === nonceId);
@@ -165,7 +143,7 @@ export function useRoomChat(
         }
 
         return [...prev, { ...payload, status: "sent" }];
-      });
+      }, payload.id);
 
       if (payload.userId !== currentUser?.id && currentUser?.id) {
         channel.publish("room.message.delivered", {
@@ -315,6 +293,8 @@ export function useRoomChat(
       const targetRoomId = roomId ?? (ensureRoom ? await ensureRoom() : null);
       if (!targetRoomId) return;
       setIsSending(true);
+      // Writing while looking at old messages brings the conversation back to the present first.
+      if (history.hasMoreAfter) await history.goToLatest();
       const tempId = `temp-${Date.now()}`;
       const optimistic: RoomMessage = {
         id: tempId,
@@ -357,23 +337,9 @@ export function useRoomChat(
         setIsSending(false);
       }
     },
-    [roomId, accessToken, currentUser, ensureRoom]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [roomId, accessToken, currentUser, ensureRoom, history.hasMoreAfter, history.goToLatest]
   );
-
-  const loadMore = useCallback(async () => {
-    if (!roomId || !accessToken || messages.length === 0) return;
-    const oldest = messages[0].createdAt;
-    try {
-      const older = await listRoomMessages(roomId, accessToken, 50, oldest);
-      setMessages((prev) => [
-        ...older.map((m) => ({ ...m, status: "sent" as MessageStatus })),
-        ...prev,
-      ]);
-      setHasMore(older.length === 50);
-    } catch (e) {
-      console.error(e);
-    }
-  }, [roomId, accessToken, messages]);
 
   const handleAddReaction = useCallback(
     async (messageId: string, emoji: string) => {
@@ -399,9 +365,18 @@ export function useRoomChat(
         await addReaction(roomId, messageId, emoji, accessToken, action);
       } catch (e) {
         console.error(e);
-        listRoomMessages(roomId, accessToken, 50).then((msgs) =>
-          setMessages(msgs.map((msg) => ({ ...msg, status: "sent" as MessageStatus })))
-        ).catch(() => {});
+        // undo the optimistic toggle (the list is a window: it is not replaced by a fresh page)
+        const undo: "add" | "remove" = action === "add" ? "remove" : "add";
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (m.id !== messageId) return m;
+            const reactions = { ...(m.reactions ?? {}) };
+            const users = [...(reactions[emoji] ?? [])];
+            if (undo === "add") { if (!users.includes(currentUser.id!)) reactions[emoji] = [...users, currentUser.id!]; }
+            else { reactions[emoji] = users.filter((u) => u !== currentUser.id); if (reactions[emoji].length === 0) delete reactions[emoji]; }
+            return { ...m, reactions };
+          })
+        );
       }
     },
     [roomId, accessToken, currentUser]
@@ -564,23 +539,24 @@ export function useRoomChat(
 
   return {
     messages,
-    isLoading,
+    isLoading: history.isLoading,
     isSending,
-    hasMore,
+    hasMore: history.hasMoreBefore,
     typingUsers,
     sendMessage,
     addLocalMessage,
     updateLocalMessage,
     publishMessage,
-    loadMore,
+    loadMore: history.loadOlder,
+    history,
     addReaction: handleAddReaction,
     editMessage,
     deleteMessage,
     pinMessage,
     unpinMessage,
     mergeMessages,
-    loadError,
-    reload,
+    loadError: history.loadError,
+    reload: history.reload,
     markAsRead,
     markAllAsRead,
     setTyping,

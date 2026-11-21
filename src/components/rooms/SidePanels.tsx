@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Clock, Loader2, Pin, PinOff, Send, X, MessagesSquare } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Clock, Loader2, Pin, PinOff, Send, X, MessagesSquare, RefreshCw } from "lucide-react";
+import { flashMessage } from "@/hooks/use-room-history-scroll";
 import { usePinClock } from "@/hooks/use-pin-expiry";
 import { canUnpinMessage, classifyPinError, formatPinCountdown, isPinActive, pinTimeLeft, sortPins, type PinCaps } from "@/lib/rooms/pins";
 import { parseAiMarkup } from "@/lib/ai-markup";
@@ -124,11 +125,52 @@ interface ThreadPanelProps {
   onSend: (content: string) => Promise<void>;
   renderMessage: (message: RoomMessage) => React.ReactNode;
   onClose: () => void;
+  /** Pagination of the replies (use-room-thread-history.ts). Without it the panel shows what it is given. */
+  paging?: ThreadPaging;
+  /** A reply to scroll to and highlight once it is rendered (opened from a search result). */
+  focusId?: string | null;
   t: TFn;
 }
 
+export interface ThreadPaging {
+  hasBefore: boolean;
+  hasAfter: boolean;
+  loading: boolean;
+  error: boolean;
+  loadingBefore: boolean;
+  loadingAfter: boolean;
+  beforeError: boolean;
+  afterError: boolean;
+  onLoadBefore: () => void;
+  onLoadAfter: () => void;
+  onRetry: () => void;
+}
+
+function ThreadEdge({ edge, loading, error, onLoad, t }: { edge: "before" | "after"; loading: boolean; error: boolean; onLoad: () => void; t: TFn }) {
+  const cls = "rounded-md px-2 py-1 text-[11px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]";
+  if (loading) {
+    return (
+      <div role="status" className="flex items-center justify-center gap-2 py-1.5 text-[11px] text-muted-foreground">
+        <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden />{edge === "before" ? t("history.loadingOlder") : t("history.loadingNewer")}
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col items-center py-1">
+      {error && <p role="alert" className="mb-1 text-[11px] text-destructive">{edge === "before" ? t("history.olderFailed") : t("history.newerFailed")}</p>}
+      <button type="button" onClick={onLoad} className={cls}>
+        {error && <RefreshCw className="mr-1 inline h-3 w-3" aria-hidden />}
+        {error ? t("errors.retry") : edge === "before" ? t("thread.loadOlder") : t("thread.loadNewer")}
+      </button>
+    </div>
+  );
+}
+
 /** A simple thread: the original message, its replies, and a field to answer in the thread. */
-export function ThreadPanel({ root, replies, canReply, onSend, renderMessage, onClose, t }: ThreadPanelProps) {
+export function ThreadPanel({ root, replies, canReply, onSend, renderMessage, onClose, paging, focusId, t }: ThreadPanelProps) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const keepFromBottom = useRef<number | null>(null);
+  const topSentinel = useRef<HTMLDivElement>(null);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -148,10 +190,48 @@ export function ThreadPanel({ root, replies, canReply, onSend, renderMessage, on
     }
   };
 
+  const firstId = replies[0]?.id;
+  const loadBefore = () => {
+    const el = scrollerRef.current;
+    if (el) keepFromBottom.current = el.scrollHeight - el.scrollTop;
+    paging?.onLoadBefore();
+  };
+  // Older replies were added above: keep what the user was reading where it was.
+  useLayoutEffect(() => {
+    const el = scrollerRef.current;
+    if (el && keepFromBottom.current !== null) {
+      el.scrollTop = el.scrollHeight - keepFromBottom.current;
+      keepFromBottom.current = null;
+    }
+  }, [firstId]);
+  // Scrolling to the top loads the previous page.
+  const canLoadBefore = Boolean(paging?.hasBefore && !paging.loadingBefore && !paging.beforeError && !paging.loading);
+  useEffect(() => {
+    const root = scrollerRef.current;
+    const el = topSentinel.current;
+    if (!root || !el || !canLoadBefore || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver((entries) => { if (entries.some((e) => e.isIntersecting)) loadBefore(); }, { root, rootMargin: "120px 0px 0px 0px" });
+    io.observe(el);
+    return () => io.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canLoadBefore, firstId]);
+  // Opened on a reply (search result): bring it into view and highlight it.
+  const focusedRef = useRef<string | null>(null);
+  const focusPresent = Boolean(focusId && replies.some((r) => r.id === focusId));
+  useEffect(() => {
+    if (!focusId || !focusPresent || focusedRef.current === focusId) return;
+    const el = document.getElementById(`msg-${focusId}`);
+    if (!el) return;
+    focusedRef.current = focusId;
+    el.scrollIntoView({ block: "center" });
+    flashMessage(el);
+  }, [focusId, focusPresent]);
+  useEffect(() => { focusedRef.current = null; }, [focusId]);
+
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-card/40">
       <PanelHeader title={t("thread.title")} onClose={onClose} closeLabel={t("members.close")} />
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
+      <div ref={scrollerRef} className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
         {!root ? (
           <p className="px-2 py-6 text-center text-xs text-muted-foreground">{t("thread.rootMissing")}</p>
         ) : (
@@ -160,8 +240,24 @@ export function ThreadPanel({ root, replies, canReply, onSend, renderMessage, on
             <p className="px-2 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
               <MessagesSquare className="mr-1 inline h-3 w-3" aria-hidden />{t("thread.replies", { count: replies.length })}
             </p>
-            {replies.length === 0 && <p className="px-2 py-3 text-xs text-muted-foreground">{t("thread.noReplies")}</p>}
+            {paging?.loading && replies.length === 0 && (
+              <div role="status" aria-label={t("chat.loading")} className="flex justify-center py-3"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground motion-reduce:animate-none" aria-hidden /></div>
+            )}
+            {paging?.error && (
+              <div role="alert" className="mx-2 my-2 flex items-center justify-between gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-1.5 text-xs text-destructive">
+                <span>{t("thread.loadFailed")}</span>
+                <button type="button" onClick={paging.onRetry} className="rounded-md border border-destructive/40 px-2 py-0.5 font-semibold hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">{t("errors.retry")}</button>
+              </div>
+            )}
+            {paging?.hasBefore && (
+              <>
+                <div ref={topSentinel} aria-hidden className="h-px" />
+                <ThreadEdge edge="before" loading={paging.loadingBefore} error={paging.beforeError} onLoad={loadBefore} t={t} />
+              </>
+            )}
+            {replies.length === 0 && !paging?.loading && !paging?.error && <p className="px-2 py-3 text-xs text-muted-foreground">{t("thread.noReplies")}</p>}
             <div>{replies.map((r) => <div key={r.id}>{renderMessage(r)}</div>)}</div>
+            {paging?.hasAfter && <ThreadEdge edge="after" loading={paging.loadingAfter} error={paging.afterError} onLoad={paging.onLoadAfter} t={t} />}
           </>
         )}
       </div>

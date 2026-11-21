@@ -80,7 +80,7 @@
     "notifAll": "Todos los mensajes",
     "notifMentions": "Solo menciones",
     "notifNone": "Nada",
-    "search": "Buscar en el canal",
+    "search": "Buscar mensajes (Ctrl+Mayús+F)",
     "searchPlaceholder": "Buscar en los mensajes cargados",
     "searchResults": "{{count}} resultados",
     "searchLoaded": "Mensajes cargados",
@@ -587,7 +587,10 @@
     "rootMissing": "El mensaje original ya no está disponible.",
     "inputLabel": "Responder en el hilo",
     "inputPlaceholder": "Responder en el hilo…",
-    "readOnly": "No puedes responder en este hilo."
+    "readOnly": "No puedes responder en este hilo.",
+    "loadOlder": "Cargar respuestas anteriores",
+    "loadNewer": "Cargar respuestas siguientes",
+    "loadFailed": "No se pudieron cargar las respuestas."
   },
   "pins": {
     "title": "Mensajes anclados",
@@ -677,5 +680,130 @@
     "saving": "Guardando…",
     "failed": "No se pudo cambiar el chat.",
     "unavailable": "Este servidor aún no permite desactivar el chat."
+  },
+  "history": {
+    "start": "Este es el principio de la conversación.",
+    "loadOlder": "Cargar mensajes anteriores",
+    "loadNewer": "Cargar mensajes siguientes",
+    "loadingOlder": "Cargando mensajes anteriores…",
+    "loadingNewer": "Cargando mensajes siguientes…",
+    "olderFailed": "No se pudieron cargar los mensajes anteriores.",
+    "newerFailed": "No se pudieron cargar los mensajes siguientes.",
+    "toLatest": "Ir al final",
+    "newBelow": "{{count}} mensajes nuevos",
+    "newMessages": "Nuevos mensajes",
+    "unreadRegion": "Mensajes sin leer",
+    "unreadSince": "{{count}} mensajes nuevos desde las {{since}}",
+    "unreadCount": "{{count}} mensajes nuevos",
+    "unreadMentions": "{{count}} menciones",
+    "jumpToUnread": "Saltar a no leídos",
+    "markRead": "Marcar como leído",
+    "jump": {
+      "failed": "No se pudo mostrar ese mensaje. Puede haber sido eliminado o ya no tienes acceso.",
+      "unsupported": "Este servidor aún no permite saltar a mensajes antiguos."
+    }
+  },
+  "search": {
+    "title": "Buscar mensajes",
+    "scopeLabel": "Alcance de la búsqueda",
+    "scopeRoom": "Esta sala",
+    "scopeTeam": "Todo el equipo",
+    "sortLabel": "Orden",
+    "sortRelevance": "Relevancia",
+    "sortRecent": "Más recientes",
+    "inputLabel": "Buscar mensajes. Escribe texto u operadores como de:, en:, tiene:",
+    "placeholder": "Buscar… prueba de:, en:, tiene:, antes:",
+    "close": "Cerrar búsqueda",
+    "removeFilter": "Quitar filtro {{filter}}",
+    "toggleExclude": "Clic para incluir o excluir este filtro",
+    "excluded": "(excluido)",
+    "suggestions": "Sugerencias de búsqueda",
+    "unknownAuthor": "Autor desconocido",
+    "unknownRoom": "Sala",
+    "bot": "Bot",
+    "pinned": "Mensaje fijado",
+    "inThread": "En un hilo",
+    "resultsLabel": "Resultados de la búsqueda",
+    "warningsLabel": "Avisos de la búsqueda",
+    "loading": "Buscando…",
+    "loadMore": "Cargar más resultados",
+    "loadingMore": "Cargando…",
+    "total": "Unos {{count}} resultados (aproximado)",
+    "totalCapped": "Más de {{count}} resultados (aproximado)",
+    "shown": "{{count}} resultados mostrados",
+    "me": "tú",
+    "roleHint": "rol",
+    "idle": {
+      "title": "Busca en los mensajes",
+      "hint": "Combina texto con filtros: de:ana en:general tiene:enlace antes:7d. Atajo: Ctrl+Mayús+F."
+    },
+    "empty": {
+      "title": "Sin resultados",
+      "hint": "Prueba con otras palabras, quita algún filtro o amplía el alcance a todo el equipo."
+    },
+    "recent": {
+      "title": "Búsquedas recientes",
+      "remove": "Quitar la búsqueda {{query}}"
+    },
+    "hint": {
+      "from": "mensajes de una persona",
+      "mentions": "mensajes que mencionan a alguien",
+      "in": "en un canal",
+      "has": "con enlace, archivo, imagen…",
+      "before": "antes de una fecha",
+      "after": "después de una fecha",
+      "during": "durante un día",
+      "pinned": "solo fijados",
+      "is": "de un bot o de una persona",
+      "thread": "dentro de un hilo"
+    },
+    "date": {
+      "today": "hoy",
+      "yesterday": "ayer",
+      "7d": "hace 7 días",
+      "2w": "hace 2 semanas",
+      "1mo": "hace 1 mes",
+      "1y": "hace 1 año",
+      "iso": "fecha de hoy"
+    },
+    "has": {
+      "link": "enlaces",
+      "file": "archivos",
+      "image": "imágenes",
+      "embed": "contenido incrustado",
+      "thread": "hilos",
+      "reaction": "reacciones",
+      "pin": "fijados"
+    },
+    "is": {
+      "bot": "mensajes de bots",
+      "human": "mensajes de personas"
+    },
+    "bool": {
+      "true": "solo fijados",
+      "false": "solo no fijados"
+    },
+    "errors": {
+      "rateLimited": "Demasiadas búsquedas. Espera {{seconds}} s e inténtalo de nuevo.",
+      "retryIn": "Reintentar en {{seconds}} s",
+      "tooLong": "La búsqueda es demasiado larga (máximo 300 caracteres).",
+      "forbidden": "No tienes permiso para buscar aquí.",
+      "invalidCursor": "La búsqueda cambió. Vuelve a lanzarla.",
+      "failed": "No se pudo buscar. Revisa tu conexión e inténtalo de nuevo."
+    },
+    "warnings": {
+      "invalid_date": "La fecha de {{operator}}:{{value}} no es válida. Usa 2026-01-31, 7d, hoy o ayer.",
+      "unknown_has_kind": "tiene:{{value}} no existe. Usa enlace, archivo, imagen, embed, hilo, reacción o fijado.",
+      "invalid_value": "El valor de {{operator}}:{{value}} no es válido y se ignoró.",
+      "invalid_thread": "El filtro de hilo necesita el identificador de un hilo.",
+      "ignored_in_room": "El filtro en: se ignora al buscar en una sola sala.",
+      "not_found": "No se encontró {{operator}}:{{value}}.",
+      "dropped": "El servidor ignoró el filtro {{operator}}:{{value}}.",
+      "too_many_values": "Demasiados valores en {{operator}}: se usaron los primeros.",
+      "too_many_tokens": "La búsqueda tiene demasiadas partes: se usaron las primeras.",
+      "too_many_terms": "Demasiadas palabras: se usaron las primeras.",
+      "conflicting_dates": "Las fechas antes: y después: se contradicen.",
+      "generic": "El servidor avisó de un problema con {{operator}}:{{value}}."
+    }
   }
 }

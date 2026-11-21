@@ -8,6 +8,10 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import { usePlatform } from "@/components/providers/platform-provider";
 import { useTeamPermissions } from "@/hooks/use-team-permissions";
 import { useRoomChat } from "@/hooks/use-room-chat";
+import { useThreadHistory } from "@/hooks/use-room-thread-history";
+import { windowReplies } from "@/lib/rooms/history";
+import type { SearchResult } from "@/lib/rooms/history-api";
+import { RoomSearchPanel } from "@/components/rooms/search/RoomSearchPanel";
 import { useRoomPresence } from "@/hooks/use-room-presence";
 import { useRoomCallHistory } from "@/hooks/use-room-call-history";
 import { useRoomPermissions } from "@/hooks/use-room-permissions";
@@ -18,7 +22,7 @@ import { useRoomReferences } from "@/hooks/use-room-references";
 import { useRealtimeAccessRenewal } from "@/hooks/use-room-realtime-access";
 import { useCall } from "@/components/providers/call-provider";
 import {
-  getRoom, listRoomMembers, listRoomMessages, listPinnedMessages, listActiveMutes, deleteRoomGroup, reorderRoomGroups, setRoomLayout, findOrCreateDm, unmuteTeamMember, sendAiRoomMessage, getActiveCall, getRoomPinSummary,
+  getRoom, listRoomMembers, listPinnedMessages, listActiveMutes, deleteRoomGroup, reorderRoomGroups, setRoomLayout, findOrCreateDm, unmuteTeamMember, sendAiRoomMessage, getActiveCall, getRoomPinSummary,
   type Room, type RoomCall, type RoomMember, type RoomGroup, RoomMessage,
 } from "@/lib/api/rooms";
 import { buildSidebarModel, dmDisplayName } from "@/lib/rooms/channel-layout";
@@ -129,6 +133,8 @@ export default function RoomDetailWeb() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [jumpToMessageId, setJumpToMessageId] = useState<string | null>(null);
+  const [threadFocusId, setThreadFocusId] = useState<string | null>(null);
+  const [jumpNotice, setJumpNotice] = useState<"failed" | "unsupported" | null>(null);
   const [fetchedPins, setFetchedPins] = useState<RoomMessage[]>([]);
   const [pinsLoading, setPinsLoading] = useState(false);
   const [pinsError, setPinsError] = useState<"forbidden" | "failed" | null>(null);
@@ -183,7 +189,9 @@ export default function RoomDetailWeb() {
     if (patch.pinned && isPinsOpenRef.current) setPinsReload((v) => v + 1);
   }, []);
   usePinExpiry(fetchedPins, setFetchedPins);
-  const chatHook = useRoomChat(roomId, accessToken, user, undefined, handlePinPatch);
+  // Replies of the open thread stay in memory when the history window is trimmed.
+  const protectThread = useCallback((m: RoomMessage) => Boolean(threadRootId) && (m.threadRootId === threadRootId || m.id === threadRootId), [threadRootId]);
+  const chatHook = useRoomChat(roomId, accessToken, user, undefined, handlePinPatch, protectThread);
   const presenceMembers = useRoomPresence(roomId, userInfo, accessToken);
   const { call, activeRoomId, joinRoomCall, leaveRoomCall } = useCall();
   const callHistoryHook = useRoomCallHistory(roomId, accessToken);
@@ -226,6 +234,8 @@ export default function RoomDetailWeb() {
     setSearchQuery("");
     setIsSearchOpen(false);
     setJumpToMessageId(null);
+    setThreadFocusId(null);
+    setJumpNotice(null);
     setFetchedPins([]);
     setPinSummary(null);
     setPinDialog(null);
@@ -287,16 +297,10 @@ export default function RoomDetailWeb() {
     return () => { cancelled = true; };
   }, [roomId, accessToken, membersVersion]);
 
-  // Opening a thread loads its replies (the loaded page may not hold them all).
+  // Opening a thread loads its replies in pages (the latest ones, or the ones around a search result).
   const { mergeMessages } = chatHook;
-  useEffect(() => {
-    if (!threadRootId || !accessToken || !roomId) return;
-    let cancelled = false;
-    listRoomMessages(roomId, accessToken, 100, undefined, threadRootId)
-      .then((list) => { if (!cancelled) mergeMessages(list); })
-      .catch(() => { /* the replies already loaded are shown */ });
-    return () => { cancelled = true; };
-  }, [threadRootId, roomId, accessToken, mergeMessages]);
+  const threadHistory = useThreadHistory({ roomId, rootId: threadRootId, accessToken, focusId: threadFocusId, mergeMessages });
+  useEffect(() => { if (!threadRootId) setThreadFocusId(null); }, [threadRootId]);
 
   // Pinned messages the server lists (older than the loaded page); merged with the live ones below.
   useEffect(() => {
@@ -642,6 +646,57 @@ Team Context: ${activeTeamId}.`;
   }, [openPanel]);
   const closePanels = useCallback(() => openPanel(null), [openPanel]);
 
+  // Shows a message wherever it is: loads the window around it when needed; a thread reply opens its thread.
+  const openMessage = useCallback(async (messageId: string, threadId?: string | null) => {
+    setJumpNotice(null);
+    const openThreadOn = async (rootId: string) => {
+      await chatHook.history.jumpTo(rootId); // the thread root has to be in the list
+      openPanel("thread");
+      setThreadRootId(rootId);
+      setThreadFocusId(messageId === rootId ? null : messageId);
+    };
+    if (threadId && threadId !== messageId) { await openThreadOn(threadId); return; }
+    const out = await chatHook.history.jumpTo(messageId);
+    if (out.result === "thread" && out.threadRootId) await openThreadOn(out.threadRootId);
+    else if (out.result === "unsupported") setJumpNotice("unsupported");
+    else if (out.result === "failed") setJumpNotice("failed");
+  }, [chatHook.history, openPanel]);
+
+  const handleOpenSearchResult = useCallback((r: SearchResult) => {
+    if (r.roomId !== roomId) {
+      setIsSearchOpen(false);
+      router.push(`/rooms/${r.roomId}?m=${encodeURIComponent(r.messageId)}${r.threadId ? `&t=${encodeURIComponent(r.threadId)}` : ""}`);
+      return;
+    }
+    if (isMobile) setIsSearchOpen(false);
+    void openMessage(r.messageId, r.threadId);
+  }, [roomId, router, isMobile, openMessage]);
+
+  // Arriving from a search result of another room (`?m=<message>&t=<thread>`): show the message once the room is loaded.
+  const arrivalHandled = useRef<string | null>(null);
+  useEffect(() => {
+    const m = searchParams.get("m");
+    if (!m || arrivalHandled.current === `${roomId}:${m}`) return;
+    if (isLoadingRoom || !room || room.id !== roomId || chatHook.history.status !== "ready") return;
+    arrivalHandled.current = `${roomId}:${m}`;
+    const threadParam = searchParams.get("t");
+    router.replace(`/rooms/${roomId}`);
+    void openMessage(m, threadParam);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, roomId, isLoadingRoom, room, chatHook.history.status]);
+
+  // Ctrl/Cmd+Shift+F opens the search of the room (Ctrl/Cmd+K stays with the command palette).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        setIsSearchOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   // ── Derived data for the view ──────────────────────────────────────────────
   const roomMatches = room?.id === roomId;
   const searching = searchQuery.trim().length > 0;
@@ -860,7 +915,13 @@ Team Context: ${activeTeamId}.`;
       return (
         <ThreadPanel
           root={threadRoot}
-          replies={threadReplies.get(threadRootId) ?? []}
+          replies={windowReplies(threadReplies.get(threadRootId) ?? [], threadHistory.range)}
+          paging={{
+            hasBefore: threadHistory.hasBefore, hasAfter: threadHistory.hasAfter, loading: threadHistory.loading, error: threadHistory.error,
+            loadingBefore: threadHistory.loadingBefore, loadingAfter: threadHistory.loadingAfter, beforeError: threadHistory.beforeError, afterError: threadHistory.afterError,
+            onLoadBefore: threadHistory.loadBefore, onLoadAfter: threadHistory.loadAfter, onRetry: threadHistory.retry,
+          }}
+          focusId={threadFocusId}
           canReply={controls.canReply}
           onSend={handleThreadSend}
           renderMessage={renderThreadMessage}
@@ -881,7 +942,7 @@ Team Context: ${activeTeamId}.`;
           nameOf={pinNameOf}
           onUnpin={(id) => chatHook.unpinMessage(id)}
           onChangeExpiry={(id) => setPinDialog({ id, mode: "change" })}
-          onJump={(id) => { setSearchQuery(""); setIsSearchOpen(false); setJumpToMessageId(id); if (isMobileView) closePanels(); }}
+          onJump={(id) => { setSearchQuery(""); setIsSearchOpen(false); void openMessage(id); if (isMobileView) closePanels(); }}
           onClose={closePanels}
           t={t}
         />
@@ -992,28 +1053,32 @@ Team Context: ${activeTeamId}.`;
                     onToggleAiPanel={handleToggleAiPanel}
                     onToggleMembersPanel={handleToggleMembersPanel}
                     onTogglePins={handleTogglePins}
-                    onToggleSearch={() => { setIsSearchOpen((v) => { if (v) setSearchQuery(""); return !v; }); }}
+                    onToggleSearch={() => setIsSearchOpen((v) => !v)}
                     onOpenSettings={() => setIsSettingsOpen(true)}
                     t={t}
                   />
 
                   {isSearchOpen && (
-                    <div className="flex shrink-0 items-center gap-2 border-b border-border bg-muted/30 px-3 py-1.5">
-                      <label className="sr-only" htmlFor="room-search">{t("header.search")}</label>
-                      <input
-                        id="room-search"
-                        type="search"
-                        autoFocus
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Escape") { setSearchQuery(""); setIsSearchOpen(false); } }}
-                        placeholder={t("header.searchPlaceholder")}
-                        className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]"
+                    <div className="relative z-30 h-0 shrink-0">
+                      <RoomSearchPanel
+                        roomId={roomId}
+                        roomName={roomTitle}
+                        teamId={activeTeamId}
+                        accessToken={accessToken}
+                        members={references.users.map((m) => ({ id: m.id, name: m.name, email: m.primaryEmail }))}
+                        roles={teamRoles}
+                        rooms={directory.rooms.filter((r) => r.type !== "thread").map((r) => ({ id: r.id, name: r.name, kind: r.type }))}
+                        onOpenResult={handleOpenSearchResult}
+                        onClose={() => setIsSearchOpen(false)}
+                        t={t}
                       />
-                      <span className="shrink-0 text-[11px] text-muted-foreground" role="status">{searching ? t("header.searchResults", { count: listMessages.length }) : t("header.searchLoaded")}</span>
-                      <button type="button" onClick={() => { setSearchQuery(""); setIsSearchOpen(false); }} aria-label={t("header.searchClose")} className="rounded-md p-1 text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">
-                        <X className="h-3.5 w-3.5" aria-hidden />
-                      </button>
+                    </div>
+                  )}
+
+                  {jumpNotice && (
+                    <div role="alert" className="flex shrink-0 items-center gap-2 border-b border-destructive/30 bg-destructive/5 px-3 py-1.5 text-xs text-destructive">
+                      <span className="flex-1">{t(`history.jump.${jumpNotice}`)}</span>
+                      <button type="button" onClick={() => setJumpNotice(null)} aria-label={t("members.close")} className="rounded-md p-0.5 hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]"><X className="h-3.5 w-3.5" aria-hidden /></button>
                     </div>
                   )}
 
@@ -1085,6 +1150,16 @@ Team Context: ${activeTeamId}.`;
                     threadReplies={threadReplies}
                     jumpToMessageId={jumpToMessageId}
                     onJumped={() => setJumpToMessageId(null)}
+                    history={{
+                      hasMoreBefore: chatHook.history.hasMoreBefore, hasMoreAfter: chatHook.history.hasMoreAfter,
+                      loadingOlder: chatHook.history.loadingOlder, loadingNewer: chatHook.history.loadingNewer,
+                      olderError: chatHook.history.olderError, newerError: chatHook.history.newerError, jumping: chatHook.history.jumping,
+                      pendingNew: chatHook.history.pendingNew, view: chatHook.history.view, unreadAnchorId: chatHook.history.unreadAnchorId,
+                      unreadCount: chatHook.history.readState?.unreadCount ?? 0, unreadMentions: chatHook.history.readState?.unreadMentions ?? 0,
+                      unreadCapped: chatHook.history.readState?.unreadCapped ?? false, unreadSince: chatHook.history.readState?.firstUnreadAt ?? null,
+                      onLoadOlder: chatHook.history.loadOlder, onLoadNewer: chatHook.history.loadNewer, onGoToLatest: () => void chatHook.history.goToLatest(),
+                      onReadUpTo: chatHook.history.markReadUpTo, onMarkAllRead: () => void chatHook.history.markAllRead(), onJumpToUnread: () => void chatHook.history.jumpToUnread(),
+                    }}
                     transcripts={(callHistoryHook.calls as any[]).map((c) => ({
                       callId: c.id,
                       roomId: roomId ?? "",
