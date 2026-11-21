@@ -150,12 +150,12 @@ export function PinExpiryDialog({ open, mode, message, summary, caps, onClose, o
         <p className="text-[11px] text-muted-foreground" aria-live="polite">
           {expiry === null ? t("pins.dialog.willStay") : expiry !== undefined ? t("pins.dialog.willExpire", { date: formatDate(expiry) }) : ""}
         </p>
-        {localError && <p role="alert" className="rounded-xl border border-destructive/40 bg-destructive/10 p-2.5 text-xs text-destructive">{localError}</p>}
+        {localError && <p role="alert" className="rounded-xl border border-destructive/40 bg-destructive/10 p-2.5 text-xs text-red-700 dark:text-red-300">{localError}</p>}
         {apiError && (
-          <div role="alert" className="space-y-2 rounded-xl border border-destructive/40 bg-destructive/10 p-2.5 text-xs text-destructive">
+          <div role="alert" className="space-y-2 rounded-xl border border-destructive/40 bg-destructive/10 p-2.5 text-xs text-red-700 dark:text-red-300">
             <p>{apiMessage(apiError)}</p>
             {apiError.kind === "limit" && mode === "pin" && (
-              <button type="button" onClick={() => void submit(true)} disabled={busy} className={roomGhostButton}>{t("pins.errors.replaceOldest")}</button>
+              <button type="button" onClick={() => void submit(true)} disabled={busy} className="rounded-lg border border-destructive/50 bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] disabled:opacity-50">{t("pins.errors.replaceOldest")}</button>
             )}
           </div>
         )}

@@ -69,6 +69,16 @@ test("the summary is read with its presets (names or objects) and rights", () =>
   assert.equal(normalizePinSummary(null), null);
 });
 
+test("the real server sends the presets as a map of minutes, with null for no expiry", () => {
+  const s = normalizePinSummary({
+    limit: 50, count: 1, maxDurationMinutes: 525600, presets: { "1h": 60, "24h": 1440, "7d": 10080, "30d": 43200, never: null },
+    canPin: true, canPinPermanent: true, canUnpinOthers: true, serverNow: "2026-11-21T17:28:49.778Z",
+  });
+  assert.ok(s);
+  assert.deepEqual(s.presets.map((p) => [p.id, p.minutes]), [["1h", 60], ["24h", 1440], ["7d", 10080], ["30d", 43200], ["never", null]]);
+  assert.deepEqual(pickerPresets(s, false).map((p) => p.id), ["1h", "24h", "7d", "30d"]);
+});
+
 test("the picker offers the server's presets, 'never' only with the right, nothing above the maximum", () => {
   const s = normalizePinSummary({ limit: 5, count: 0, maxDurationMinutes: 1440, presets: ["1h", "24h", "7d", "30d", "never"], canPin: true });
   assert.deepEqual(pickerPresets(s, false).map((p) => p.id), ["1h", "24h"]);

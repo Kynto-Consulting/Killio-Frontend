@@ -86,7 +86,13 @@ export function normalizePinSummary(raw: unknown): PinSummary | null {
   const r = raw as Record<string, unknown>;
   const limit = num(r.limit);
   if (limit === null) return null;
-  const presets = (Array.isArray(r.presets) ? r.presets : []).map(normalizePreset).filter((p): p is PinPresetOption => p !== null);
+  // The server sends the presets as a map `{ "1h": 60, ..., "never": null }`; a list of names or objects is accepted too.
+  const rawPresets: unknown[] = Array.isArray(r.presets)
+    ? r.presets
+    : r.presets && typeof r.presets === "object"
+      ? Object.entries(r.presets as Record<string, unknown>).map(([id, minutes]) => ({ id, minutes }))
+      : [];
+  const presets = rawPresets.map(normalizePreset).filter((p): p is PinPresetOption => p !== null);
   return {
     limit,
     count: Math.max(0, num(r.count) ?? 0),
