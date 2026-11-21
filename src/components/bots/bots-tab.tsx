@@ -8,7 +8,7 @@ import { useSettings } from "@/components/roles/settings-context";
 import { EmptyState, btn, btnPrimary, card, cx } from "@/components/roles/ui";
 import { createBot, deleteBot, listBots, updateBot } from "@/lib/api/bots";
 import { createScript, saveScriptGraph, toggleScript } from "@/lib/api/scripts";
-import { buildHelloScriptGraph, canManageBots, HELLO_COMMAND, botStatus, type Bot, type BotList } from "@/lib/bots/model";
+import { buildHelloCommand, buildHelloScriptGraph, canManageBots, HELLO_COMMAND, botStatus, type Bot, type BotList } from "@/lib/bots/model";
 import { toast } from "@/lib/toast";
 import { setBotCommands } from "@/lib/api/bots";
 import { BotAvatar, StatusChip } from "./bot-parts";
@@ -65,7 +65,7 @@ export function BotsTab() {
       await updateBot(s.teamId, bot.id, { scriptId: script.id }, s.accessToken);
       await toggleScript(script.id, s.teamId, true, s.accessToken);
       step = "commands";
-      await setBotCommands(s.teamId, bot.id, [{ name: HELLO_COMMAND, description: t("example.commandDescription"), usage: `/${HELLO_COMMAND}` }], s.accessToken);
+      await setBotCommands(s.teamId, bot.id, [buildHelloCommand({ description: t("example.commandDescription"), name: t("example.options.name"), tone: t("example.options.tone"), formal: t("example.options.formal"), casual: t("example.options.casual") })], s.accessToken);
       toast(t("example.created"), "success");
       setHelpOpen(false);
       await reload();

@@ -8,16 +8,19 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import { useSettings } from "@/components/roles/settings-context";
 import { EmptyState, RoleChip, Switch, TabBar, TriStateControl, btn, btnDanger, btnPrimary, card, cx, inputCls } from "@/components/roles/ui";
 import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
-import { setBotCommands, updateBot } from "@/lib/api/bots";
+import { activateBot, pauseBot, setBotCommands, updateBot } from "@/lib/api/bots";
 import { getRoomOverrides, listTeamRooms, setRoomOverrides, type Room, type RoomOverrideDto } from "@/lib/api/rooms";
 import { createScript, listScripts, saveScriptGraph, toggleScript, type ScriptSummary } from "@/lib/api/scripts";
 import {
-  BOT_LIMITS, BOT_ROOM_KEYS, HELLO_COMMAND, applyBotRoomStates, botBody, botRoomStates, botStatus, buildHelloScriptGraph, readOverrides, sameStates,
-  scriptEditorHref, validateBotForm, validateCommands, type Bot, type BotLimits, type BotRoomKey, type CommandDraft, type RawOverride, type TriState,
+  BOT_LIMITS, BOT_ROOM_KEYS, HELLO_COMMAND, applyBotRoomStates, botBody, botRoomStates, botStatus, buildHelloCommand, buildHelloScriptGraph, commandOptionIssues,
+  isBotScriptTriggerType, readOverrides, sameStates, scriptEditorHref, validateBotForm, validateCommands, type Bot, type BotLimits, type BotRoomKey, type CommandDraft,
+  type RawOverride, type TriState,
 } from "@/lib/bots/model";
+import { usageOf } from "@/lib/bots/options";
 import { sortRoles } from "@/lib/roles/model";
 import { toast } from "@/lib/toast";
 import { BotAvatar, StatusChip } from "./bot-parts";
+import { OptionsEditor } from "./options-editor";
 
 type Sub = "general" | "commands" | "script" | "rooms";
 
@@ -92,7 +95,24 @@ function GeneralPane({ bot, limits, onChanged, onDelete }: { bot: Bot; limits: B
           <div className="text-xs font-bold text-foreground">{t("general.active")}</div>
           <p className="text-[11px] text-muted-foreground">{t("general.activeHint")}</p>
         </div>
-        <Switch checked={bot.isActive} disabled={saving} label={t("general.active")} onChange={(v) => void run({ isActive: v }, v ? "toast.activated" : "toast.paused")} />
+        <button
+          type="button"
+          className={bot.isActive ? btn : btnPrimary}
+          disabled={saving}
+          onClick={async () => {
+            setSaving(true);
+            try {
+              onChanged(await (bot.isActive ? pauseBot : activateBot)(s.teamId, bot.id, s.accessToken));
+              toast(t(bot.isActive ? "toast.paused" : "toast.activated"), "success");
+            } catch (e) {
+              toast(e instanceof Error ? e.message : t("toast.error"), "error");
+            } finally {
+              setSaving(false);
+            }
+          }}
+        >
+          {bot.isActive ? t("general.pauseAction") : t("general.activateAction")}
+        </button>
       </div>
       <label className="block text-xs font-semibold text-foreground">
         {t("form.name")}
@@ -152,11 +172,12 @@ function CommandsPane({ bot, onChanged }: { bot: Bot; onChanged: () => Promise<v
   const [saving, setSaving] = useState(false);
   useEffect(() => setRows(initial), [initial]);
   const issues = validateCommands(rows);
+  const optionIssues = commandOptionIssues(rows);
   const dirty = JSON.stringify(rows) !== JSON.stringify(initial);
   const patch = (i: number, p: Partial<CommandDraft>) => setRows((r) => r.map((x, j) => (j === i ? { ...x, ...p } : x)));
 
   const save = async () => {
-    if (issues.size > 0 || saving) return;
+    if (issues.size > 0 || optionIssues.size > 0 || saving) return;
     setSaving(true);
     try {
       await setBotCommands(s.teamId, bot.id, rows, s.accessToken);
@@ -191,21 +212,33 @@ function CommandsPane({ bot, onChanged }: { bot: Bot; onChanged: () => Promise<v
                     <Trash2 className="h-3.5 w-3.5" aria-hidden />
                   </button>
                 </div>
-                <input aria-label={t("commands.usage")} className={cx(inputCls, "mt-2 h-8 text-xs")} value={c.usage ?? ""} maxLength={BOT_LIMITS.usage} placeholder={t("commands.usagePlaceholder")} onChange={(e) => patch(i, { usage: e.target.value })} />
+                <input aria-label={t("commands.usage")} className={cx(inputCls, "mt-2 h-8 text-xs")} value={c.usage ?? ""} maxLength={BOT_LIMITS.usage} placeholder={(c.options?.length ?? 0) > 0 ? usageOf(c.name.trim().replace(/^\//, "").toLowerCase() || t("commands.namePlaceholder"), c.options ?? []) : t("commands.usagePlaceholder")} onChange={(e) => patch(i, { usage: e.target.value })} />
                 {issue && <p role="alert" className="mt-1 text-[11px] text-red-700 dark:text-red-300">{t(`commands.errors.${issue}`)}</p>}
+                <details className="mt-2 rounded-lg border border-border" open={(c.options?.length ?? 0) > 0 && optionIssues.has(i) ? true : undefined}>
+                  <summary className="flex cursor-pointer flex-wrap items-center gap-2 px-2.5 py-1.5 text-xs font-bold text-foreground">
+                    {t("options.title")}
+                    <span className="rounded-full bg-muted px-1.5 text-[10px] font-bold text-muted-foreground">{c.options?.length ?? 0}</span>
+                    {optionIssues.has(i) && <span className="rounded-full border border-red-500/60 bg-red-500/10 px-1.5 text-[10px] font-bold text-red-700 dark:text-red-300">{t("options.problems", { count: optionIssues.get(i)?.length ?? 0 })}</span>}
+                  </summary>
+                  <div className="border-t border-border p-2.5">
+                    <p className="mb-2 text-[11px] text-muted-foreground">{t("options.intro")}</p>
+                    <OptionsEditor value={c.options ?? []} onChange={(options) => patch(i, { options })} issues={optionIssues.get(i) ?? []} commandName={c.name} />
+                  </div>
+                </details>
               </li>
             );
           })}
         </ul>
       )}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <button type="button" className={btn} disabled={rows.length >= BOT_LIMITS.commandsPerBot} onClick={() => setRows((r) => [...r, { name: "", description: "", usage: "" }])}>
+        <button type="button" className={btn} disabled={rows.length >= BOT_LIMITS.commandsPerBot} onClick={() => setRows((r) => [...r, { name: "", description: "", usage: "", options: [] }])}>
           <Plus className="h-3.5 w-3.5" aria-hidden /> {t("commands.add")}
         </button>
-        <button type="button" className={btnPrimary} disabled={!dirty || issues.size > 0 || saving} onClick={save}>
+        <button type="button" className={btnPrimary} disabled={!dirty || issues.size > 0 || optionIssues.size > 0 || saving} onClick={save}>
           {saving ? t("common.saving") : t("common.save")}
         </button>
       </div>
+      {optionIssues.size > 0 && <p role="alert" className="text-[11px] font-medium text-red-700 dark:text-red-300">{t("options.blockSave")}</p>}
       <p className="text-[11px] text-muted-foreground">{t("commands.scriptNote")}</p>
     </div>
   );
@@ -234,7 +267,7 @@ function ScriptPane({ bot, onChanged }: { bot: Bot; onChanged: () => Promise<voi
   }, [s.teamId, s.accessToken, canScripts, bot.scriptId]);
 
   const mine = bot.scriptId ? scripts?.find((x) => x.id === bot.scriptId) ?? null : null;
-  const bindable = (scripts ?? []).filter((x) => x.id !== bot.scriptId && x.triggerType === "room_message");
+  const bindable = (scripts ?? []).filter((x) => x.id !== bot.scriptId && isBotScriptTriggerType(x.triggerType));
 
   const act = async (fn: () => Promise<void>, ok: string) => {
     setBusy(true);
@@ -256,8 +289,11 @@ function ScriptPane({ bot, onChanged }: { bot: Bot; onChanged: () => Promise<voi
       await saveScriptGraph(script.id, s.teamId, buildHelloScriptGraph(script.id, () => crypto.randomUUID(), t("example.reply")) as any, s.accessToken);
       await updateBot(s.teamId, bot.id, { scriptId: script.id }, s.accessToken);
       await toggleScript(script.id, s.teamId, true, s.accessToken);
-      if (!bot.commands.some((c) => c.name === HELLO_COMMAND)) {
-        await setBotCommands(s.teamId, bot.id, [...bot.commands, { name: HELLO_COMMAND, description: t("example.commandDescription"), usage: `/${HELLO_COMMAND}` }], s.accessToken);
+      // The command carries the example options (nombre, tono) the template's reply uses. An existing /hola without options is upgraded.
+      const hello = buildHelloCommand({ description: t("example.commandDescription"), name: t("example.options.name"), tone: t("example.options.tone"), formal: t("example.options.formal"), casual: t("example.options.casual") });
+      const existing = bot.commands.find((c) => c.name === HELLO_COMMAND);
+      if (!existing || existing.options.length === 0) {
+        await setBotCommands(s.teamId, bot.id, [...bot.commands.filter((c) => c.name !== HELLO_COMMAND), hello], s.accessToken);
       }
     }, "script.created");
 
@@ -274,7 +310,7 @@ function ScriptPane({ bot, onChanged }: { bot: Bot; onChanged: () => Promise<voi
             <div className="min-w-0">
               <div className="truncate text-sm font-bold text-foreground">{mine?.name ?? t("script.unknown")}</div>
               <div className="text-[11px] text-muted-foreground">
-                {t("script.trigger")}: <code className="font-semibold">killio.trigger.room_message</code>
+                {t("script.trigger")}: <code className="font-semibold">{mine?.triggerType ?? "-"}</code>
                 {mine?.lastRunAt ? ` · ${t("script.lastRun", { status: mine.lastRunStatus ?? "-" })}` : ""}
               </div>
             </div>
