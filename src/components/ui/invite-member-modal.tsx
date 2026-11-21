@@ -7,6 +7,7 @@ import { createInvite, InviteSummary, TeamRole } from "@/lib/api/contracts";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useForm } from "@/hooks/ui";
 import { Select } from "@/components/ui/select";
+import { InviteTargets, useInviteContext } from "@/components/roles/invite-targets";
 
 /** Build a shareable accept-invite URL from either the explicit acceptUrl returned
  *  by the backend or the raw token (fallback when acceptUrl is missing). */
@@ -37,6 +38,10 @@ export function InviteMemberModal({
 }) {
   const t = useTranslations("modals");
   const [role, setRole] = useState<Exclude<TeamRole, "owner">>("member");
+  // Roles / groups (roles API). When it is not available the legacy single-role select below is used.
+  const invite = useInviteContext(isOpen ? teamId : null);
+  const [roleIds, setRoleIds] = useState<string[]>([]);
+  const [groupIds, setGroupIds] = useState<string[]>([]);
   const [invited, setInvited] = useState(false);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
@@ -54,23 +59,31 @@ export function InviteMemberModal({
       },
     },
     submit: async ({ values, reset }) => {
-      const invite = await createInvite({ email: values.email as string, role }, teamId, accessToken);
+      const created = await createInvite(
+        invite.rolesAvailable
+          ? { email: values.email as string, roleIds, groupIds }
+          : { email: values.email as string, role },
+        teamId,
+        accessToken,
+      );
       // Capture acceptUrl/token before deciding whether to surface a delivery error so
       // the user still gets a copyable link when SMTP failed/skipped.
-      const link = buildInviteLink(invite);
-      if (invite.deliveryStatus !== "sent") {
+      const link = buildInviteLink(created);
+      if (created.deliveryStatus !== "sent") {
         if (link) {
           // Make the link available even if email delivery failed.
           setInviteLink(link);
         }
         throw new Error(
-          invite.deliveryStatus === "skipped"
+          created.deliveryStatus === "skipped"
             ? t("inviteMember.deliverySkipped")
             : t("inviteMember.deliveryFailed"),
         );
       }
       setInvited(true);
       setInviteLink(link);
+      setRoleIds([]);
+      setGroupIds([]);
       reset();
       if (onInvited) await onInvited();
       // Keep modal open a bit longer when there's a copyable link so the user can grab it.
@@ -190,7 +203,20 @@ export function InviteMemberModal({
               )}
             </div>
 
-            {/* Role */}
+            {/* Roles and groups (or the legacy single role when the roles API is not available) */}
+            {invite.rolesAvailable ? (
+              <InviteTargets
+                roles={invite.roles}
+                groups={invite.groups}
+                actor={invite.actor}
+                roleIds={roleIds}
+                groupIds={groupIds}
+                onRoleIds={setRoleIds}
+                onGroupIds={setGroupIds}
+                canGroups={invite.canGroups}
+                disabled={form.isSubmitting}
+              />
+            ) : (
             <div className="space-y-2">
               <label className="text-sm font-medium">{t("inviteMember.roleLabel")}</label>
               <Select
@@ -210,6 +236,7 @@ export function InviteMemberModal({
                 ))}
               </div>
             </div>
+            )}
           </div>
 
           {form.formError && (

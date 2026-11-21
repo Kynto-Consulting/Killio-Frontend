@@ -64,6 +64,9 @@ export type InviteSummary = {
   id: string;
   email: string;
   role: TeamRole;
+  roleIds?: string[];
+  groupIds?: string[];
+  expiresAt?: string | null;
   status: string;
   deliveryStatus: string;
   createdAt: string;
@@ -115,6 +118,8 @@ export type TeamMemberSummary = {
   id: string;
   userId?: string;
   role: TeamRole;
+  /** Personal roles (roles API); absent on older servers, where `role` is the whole truth. */
+  roleIds?: string[];
   status: string;
   name: string;
   alias: string | null;
@@ -710,7 +715,11 @@ export type MeshSnapshot = {
 
 type InvitePayload = {
   email: string;
-  role: Exclude<TeamRole, 'owner'>;
+  /** Legacy system role. Optional when `roleIds` is given. */
+  role?: Exclude<TeamRole, 'owner'>;
+  /** Roles and groups the person receives on accepting (only ones the inviter may hand out). */
+  roleIds?: string[];
+  groupIds?: string[];
   /** Days until the invite link expires. -1 = never. Defaults to 3 server-side. */
   expiresInDays?: number;
 };
@@ -1610,6 +1619,8 @@ export async function createInvite(payload: InvitePayload, teamId: string, acces
 export type InviteLink = {
   id: string;
   role: string;
+  roleIds?: string[];
+  groupIds?: string[];
   reusable?: true;
   maxUses: number | null;
   useCount: number;
@@ -1621,7 +1632,7 @@ export type InviteLink = {
 
 export async function createInviteLink(
   teamId: string,
-  payload: { role: Exclude<TeamRole, 'owner'>; expiresInDays?: number; maxUses?: number | null },
+  payload: { role?: Exclude<TeamRole, 'owner'>; roleIds?: string[]; groupIds?: string[]; expiresInDays?: number; maxUses?: number | null },
   accessToken: string,
 ): Promise<InviteLink> {
   return request<InviteLink>(`/teams/${teamId}/invite-links`, {

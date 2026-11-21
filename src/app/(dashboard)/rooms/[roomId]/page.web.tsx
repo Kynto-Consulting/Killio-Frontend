@@ -6,7 +6,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { usePlatform } from "@/components/providers/platform-provider";
-import { useActiveTeamRole } from "@/hooks/use-active-team-role";
+import { useTeamPermissions } from "@/hooks/use-team-permissions";
 import { useRoomChat } from "@/hooks/use-room-chat";
 import { useRoomPresence } from "@/hooks/use-room-presence";
 import { useRoomCallHistory } from "@/hooks/use-room-call-history";
@@ -89,7 +89,8 @@ export default function RoomDetailWeb() {
   const roomId = params.roomId as string;
   const { accessToken, activeTeamId, user } = useSession();
   const realtime = useRealtime();
-  const { isAdmin } = useActiveTeamRole(activeTeamId, accessToken, user?.id);
+  const { can: canTeam } = useTeamPermissions(activeTeamId, accessToken, user?.id);
+  const isAdmin = canTeam("rooms.manage");
 
   const [room, setRoom] = useState<Room | null>(null);
   const [rooms, setRooms] = useState<Room[]>([]);

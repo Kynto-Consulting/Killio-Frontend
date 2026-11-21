@@ -2,8 +2,10 @@
 
 import { QueryFlowDialog } from "@/components/query-flow";
 import { PoweredByBadge } from "@/components/marketing/powered-by-badge";
-import Link from "next/link";
-import { BrandLogo, BrandName } from "@/components/marketing/brand-logo";
+import Link from "next/link";
+
+import { BrandLogo, BrandName } from "@/components/marketing/brand-logo";
+
 import { isPathEnabled, isScriptsGroupEnabled } from "@/lib/tenant/features";
 import { useTenant } from "@/components/providers/tenant-provider";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -22,7 +24,7 @@ import { useSession } from "@/components/providers/session-provider";
 import { useLocalWorkspace, LocalWorkspaceProvider } from "@/components/providers/local-workspace-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useCall } from "@/components/providers/call-provider";
-import { useActiveTeamRole } from "@/hooks/use-active-team-role";
+import { useTeamPermissions } from "@/hooks/use-team-permissions";
 import { UiModeProvider, useUiMode } from "@/components/providers/ui-mode-provider";
 import { isPathVisibleInMode } from "@/lib/ui-mode/ui-mode";
 import { HelpMenuItems, OnboardingHost } from "@/components/onboarding/onboarding-host";
@@ -98,7 +100,8 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
   ];
 
   const { user, activeTeamId, setActiveTeamId, accessToken, logout, accounts } = useSession();
-  const { isAdmin: canAccessScripts } = useActiveTeamRole(activeTeamId, accessToken, user?.id);
+  const { can: canTeam } = useTeamPermissions(activeTeamId, accessToken, user?.id);
+  const canAccessScripts = canTeam("scripts.manage");
   const localWs = useLocalWorkspace();
   const uiMode = useUiMode();
   const localMode = localWs.mode === "local";

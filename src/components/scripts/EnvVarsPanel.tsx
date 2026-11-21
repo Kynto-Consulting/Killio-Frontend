@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useSession } from "@/components/providers/session-provider";
-import { useActiveTeamRole } from "@/hooks/use-active-team-role";
+import { useTeamPermissions } from "@/hooks/use-team-permissions";
 import { EnvVarSummary, listEnvVars, upsertEnvVar, deleteEnvVar } from "@/lib/api/scripts";
 import { KeyRound, Plus, Trash2, Eye, EyeOff, Pencil, CheckCircle2, XCircle, Loader2, Lock } from "lucide-react";
 
@@ -24,7 +24,8 @@ const EMPTY_FORM: FormState = { key: "", value: "", description: "", isSecret: t
 export function EnvVarsPanel({ teamId, accessToken }: Props) {
   const t = useTranslations("integrations");
   const { user } = useSession();
-  const { isAdmin, isLoading: isRoleLoading } = useActiveTeamRole(teamId, accessToken, user?.id);
+  const { can: canTeam, isLoading: isRoleLoading } = useTeamPermissions(teamId, accessToken, user?.id);
+  const isAdmin = canTeam("env.manage");
 
   const [vars, setVars] = useState<EnvVarSummary[]>([]);
   const [loading, setLoading] = useState(true);

@@ -10,6 +10,8 @@ import { getUserAvatarUrl } from "@/lib/gravatar";
 import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useAsyncAction } from "@/hooks/ui";
+import { useSession } from "@/components/providers/session-provider";
+import { ResourcePermissionsPanel, ShareTabs } from "@/components/roles/resource-permissions-panel";
 
 interface MeshShareModalProps {
   isOpen: boolean;
@@ -26,6 +28,8 @@ export function MeshShareModal({
   initialVisibility = "team", accessToken,
 }: MeshShareModalProps) {
   const t = useTranslations("modals");
+  const { activeTeamId } = useSession();
+  const [shareTab, setShareTab] = useState<"share" | "permissions">("share");
   const [visibility, setVisibility] = useState<"private" | "team" | "public_link">(initialVisibility);
   const [members, setMembers] = useState<MeshMemberSummary[]>([]);
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
@@ -108,7 +112,13 @@ export function MeshShareModal({
           <p className="text-sm text-muted-foreground">{t("meshShareModal.description")}</p>
         </div>
 
-        <div className="p-4 space-y-6 max-h-[40vh] overflow-y-auto">
+        <ShareTabs active={shareTab} onChange={setShareTab} />
+        {shareTab === "permissions" && (
+          <div className="p-4" role="tabpanel" id="share-panel-permissions" aria-labelledby="share-tab-permissions">
+            <ResourcePermissionsPanel kind="mesh" id={meshId} teamId={activeTeamId} canManage={undefined} />
+          </div>
+        )}
+        <div className={`p-4 space-y-6 max-h-[40vh] overflow-y-auto ${shareTab === "permissions" ? "hidden" : ""}`}>
           {/* Invite */}
           <div className="space-y-3">
             <label className="text-sm font-medium text-foreground">{t("meshShareModal.inviteLabel")}</label>

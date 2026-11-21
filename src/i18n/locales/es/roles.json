@@ -1,0 +1,579 @@
+{
+  "loading": "Cargando...",
+  "subtitle": "Ajustes del espacio: personas, roles, grupos e invitaciones.",
+  "personalBadge": "Personal",
+  "tabs": {
+    "label": "Secciones de ajustes",
+    "overview": "Resumen",
+    "members": "Miembros",
+    "invites": "Invitaciones",
+    "roles": "Roles",
+    "groups": "Grupos",
+    "audit": "Moderación"
+  },
+  "common": {
+    "cancel": "Cancelar",
+    "save": "Guardar"
+  },
+  "toast": {
+    "error": "No se pudo completar la acción.",
+    "saved": "Cambios guardados.",
+    "created": "Rol creado.",
+    "deleted": "Rol eliminado.",
+    "reordered": "Orden actualizado.",
+    "membersUpdated": "Roles actualizados."
+  },
+  "apiUnavailable": {
+    "title": "Roles no disponibles todavía.",
+    "body": "El servidor no respondió a esta sección. Mientras tanto se usan los roles básicos."
+  },
+  "color": {
+    "none": "Sin color",
+    "custom": "Otro"
+  },
+  "tri": {
+    "allow": "Permitir",
+    "inherit": "Igual",
+    "deny": "Denegar",
+    "allowHint": "Permitir",
+    "inheritHint": "Igual: decide lo siguiente",
+    "denyHint": "Denegar"
+  },
+  "cascade": {
+    "explain": "Cómo se decide: primero se mira lo de los grupos de la persona, luego sus roles personales y por último el rol por defecto. La primera capa que no esté en «Igual» manda."
+  },
+  "group": {
+    "general": "General del espacio",
+    "members": "Miembros y moderación",
+    "content": "Contenido",
+    "rooms": "Salas y mensajes",
+    "integrations": "Integraciones y scripts",
+    "bots": "Bots",
+    "billing": "Facturación"
+  },
+  "perm": {
+    "administrator": {
+      "name": "Administrador",
+      "desc": "Puede hacer todo en el espacio, salvo lo que se le niegue arriba. Dalo con mucho cuidado."
+    },
+    "team_manage": {
+      "name": "Gestionar el espacio",
+      "desc": "Cambiar el nombre y los ajustes del espacio."
+    },
+    "roles_manage": {
+      "name": "Gestionar roles",
+      "desc": "Crear, editar y ordenar roles por debajo del suyo."
+    },
+    "groups_manage": {
+      "name": "Gestionar grupos",
+      "desc": "Crear grupos, cambiar sus miembros y sus roles."
+    },
+    "metrics_view": {
+      "name": "Ver métricas",
+      "desc": "Ver las estadísticas de uso del espacio."
+    },
+    "audit_view": {
+      "name": "Ver el registro de moderación",
+      "desc": "Consultar quién expulsó, baneó o silenció y cuándo."
+    },
+    "members_invite": {
+      "name": "Invitar personas",
+      "desc": "Enviar invitaciones y crear enlaces para entrar al espacio."
+    },
+    "invites_manage": {
+      "name": "Gestionar invitaciones",
+      "desc": "Revocar invitaciones y enlaces de otras personas."
+    },
+    "members_manage": {
+      "name": "Gestionar miembros",
+      "desc": "Ver y ajustar a los miembros del espacio (alias, estado)."
+    },
+    "members_manage_roles": {
+      "name": "Asignar roles",
+      "desc": "Dar o quitar roles a los miembros, solo los que estén por debajo del suyo."
+    },
+    "members_kick": {
+      "name": "Expulsar miembros",
+      "desc": "Sacar a alguien del espacio (puede volver con una invitación)."
+    },
+    "members_ban": {
+      "name": "Banear miembros",
+      "desc": "Expulsar y bloquear que vuelva a entrar."
+    },
+    "members_mute": {
+      "name": "Silenciar miembros",
+      "desc": "Impedir temporalmente que alguien escriba."
+    },
+    "boards_create": {
+      "name": "Crear tableros",
+      "desc": "Crear tableros nuevos en el espacio."
+    },
+    "documents_create": {
+      "name": "Crear documentos",
+      "desc": "Crear documentos nuevos en el espacio."
+    },
+    "meshes_create": {
+      "name": "Crear mallas",
+      "desc": "Crear mallas (lienzos) nuevas."
+    },
+    "folders_manage": {
+      "name": "Gestionar carpetas",
+      "desc": "Crear y reorganizar carpetas."
+    },
+    "content_manage_all": {
+      "name": "Gestionar todo el contenido",
+      "desc": "Ver y gestionar todos los tableros y documentos, también los privados de otras personas."
+    },
+    "marketplace_import": {
+      "name": "Importar del marketplace",
+      "desc": "Instalar paquetes del marketplace en el espacio."
+    },
+    "rooms_create": {
+      "name": "Crear salas",
+      "desc": "Crear salas de chat nuevas."
+    },
+    "rooms_manage": {
+      "name": "Gestionar salas",
+      "desc": "Editar, archivar y organizar las salas del espacio."
+    },
+    "room_view": {
+      "name": "Ver salas",
+      "desc": "Ver las salas y leer sus mensajes."
+    },
+    "room_post": {
+      "name": "Escribir en salas",
+      "desc": "Enviar mensajes en las salas."
+    },
+    "room_react": {
+      "name": "Reaccionar",
+      "desc": "Reaccionar a los mensajes."
+    },
+    "room_call": {
+      "name": "Hacer llamadas",
+      "desc": "Iniciar o unirse a llamadas de voz y vídeo."
+    },
+    "room_record": {
+      "name": "Grabar llamadas",
+      "desc": "Grabar las llamadas de una sala."
+    },
+    "room_invite": {
+      "name": "Invitar a salas",
+      "desc": "Añadir personas a una sala."
+    },
+    "room_pin": {
+      "name": "Fijar mensajes",
+      "desc": "Fijar y desfijar mensajes importantes."
+    },
+    "room_manage_messages": {
+      "name": "Gestionar mensajes",
+      "desc": "Borrar mensajes de otras personas."
+    },
+    "room_mention_everyone": {
+      "name": "Mencionar a todos",
+      "desc": "Usar @everyone para avisar a toda la sala."
+    },
+    "room_manage": {
+      "name": "Gestionar una sala",
+      "desc": "Cambiar nombre, tema y permisos de una sala."
+    },
+    "integrations_manage": {
+      "name": "Gestionar integraciones",
+      "desc": "Conectar y configurar integraciones externas."
+    },
+    "scripts_manage": {
+      "name": "Gestionar scripts",
+      "desc": "Crear, editar y publicar scripts y automatizaciones."
+    },
+    "scripts_run": {
+      "name": "Ejecutar scripts",
+      "desc": "Lanzar scripts manualmente."
+    },
+    "env_manage": {
+      "name": "Gestionar variables secretas",
+      "desc": "Ver y cambiar variables de entorno y secretos de los scripts."
+    },
+    "sql_manage": {
+      "name": "Gestionar conexiones SQL",
+      "desc": "Añadir y quitar conexiones a bases de datos."
+    },
+    "sql_query": {
+      "name": "Consultar con SQL",
+      "desc": "Lanzar consultas sobre las conexiones disponibles."
+    },
+    "bots_manage": {
+      "name": "Gestionar bots",
+      "desc": "Crear y configurar bots del espacio."
+    },
+    "billing_manage": {
+      "name": "Gestionar facturación",
+      "desc": "Ver y cambiar el plan, los pagos y los créditos."
+    }
+  },
+  "permissions": {
+    "search": "Buscar permisos",
+    "noMatches": "Ningún permiso coincide."
+  },
+  "block": {
+    "locked": "Solo lectura.",
+    "owner_role": "El rol Owner es fijo: nadie lo edita ni lo asigna.",
+    "position": "Este rol está al mismo nivel o por encima del tuyo.",
+    "not_owned": "No puedes conceder un permiso que tú no tienes.",
+    "owner_only": "Solo el propietario puede tocar este permiso.",
+    "noRolesManage": "No tienes permiso para gestionar roles.",
+    "noAssign": "No puedes asignar este rol.",
+    "assign": {
+      "owner_role": "Fijo",
+      "position": "Por encima de ti",
+      "not_owned": "Tiene permisos que no tienes"
+    },
+    "member": {
+      "self": "No puedes hacerlo sobre ti misma o mismo.",
+      "target_owner": "Nadie actúa sobre el propietario.",
+      "position": "Su rol más alto es igual o superior al tuyo.",
+      "no_permission": "Te falta el permiso «{{permission}}»."
+    }
+  },
+  "picker": {
+    "label": "Roles",
+    "noRoles": "No hay roles."
+  },
+  "list": {
+    "title": "Jerarquía de roles",
+    "hint": "Arriba = más alto. Arrastra o usa las flechas para reordenar.",
+    "create": "Crear rol",
+    "newName": "Nuevo rol",
+    "copyName": "{{name}} (copia)",
+    "default": "Todos",
+    "members": "{{count}} personas",
+    "moveUp": "Subir {{name}}",
+    "moveDown": "Bajar {{name}}",
+    "readOnly": "Solo quien gestiona roles puede reordenarlos."
+  },
+  "editor": {
+    "pick": "Elige un rol para editarlo.",
+    "tabs": "Ajustes del rol",
+    "display": "Visualización",
+    "permissions": "Permisos",
+    "members": "Miembros",
+    "system": "Del sistema",
+    "systemNote": "Es un rol del sistema: puedes cambiarle nombre, color y permisos, pero no borrarlo.",
+    "ownerNote": "El propietario lo puede todo y este rol no se edita. Para cambiar de propietario usa «Transferir propiedad» en Resumen.",
+    "duplicate": "Duplicar",
+    "delete": "Borrar",
+    "unsaved": "Hay cambios sin guardar.",
+    "saved": "Todo guardado.",
+    "reset": "Restablecer",
+    "save": "Guardar cambios",
+    "saving": "Guardando..."
+  },
+  "display": {
+    "name": "Nombre",
+    "nameHelp": "De 1 a 40 caracteres. No puede contener < > [ ].",
+    "nameInvalid": "El nombre debe tener de 1 a 40 caracteres y no puede contener < > [ ].",
+    "color": "Color",
+    "mentionable": "Se puede mencionar",
+    "mentionableHelp": "Cualquiera podrá avisar a quienes tienen este rol con @.",
+    "preview": "Así se verá"
+  },
+  "delete": {
+    "title": "Borrar rol",
+    "description": "Quienes tengan este rol lo perderán. Esta acción no se puede deshacer."
+  },
+  "roleMembers": {
+    "none": "Nadie tiene este rol directamente.",
+    "remove": "Quitar",
+    "viaGroup": "Por un grupo",
+    "add": "Añadir personas al rol",
+    "search": "Buscar personas",
+    "addShort": "Añadir",
+    "noCandidates": "No hay personas para añadir."
+  },
+  "sim": {
+    "title": "Simulador de permisos",
+    "help": "Elige a una persona y mira qué puede hacer y por qué. Es una aproximación con los datos de esta pantalla: el servidor tiene la última palabra.",
+    "pick": "Elegir persona",
+    "can": "Puede",
+    "cannot": "No puede",
+    "fromOwner": "Es el propietario",
+    "fromNone": "Ninguna capa lo permite",
+    "from": {
+      "group": "por el grupo con rol «{{role}}»",
+      "personal": "por su rol «{{role}}»",
+      "default": "por el rol por defecto «{{role}}»"
+    }
+  },
+  "members": {
+    "search": "Buscar por nombre o correo",
+    "filterRole": "Filtrar por rol",
+    "filterGroup": "Filtrar por grupo",
+    "allRoles": "Todos los roles",
+    "allGroups": "Todos los grupos",
+    "count": "{{shown}} de {{total}} personas",
+    "empty": "Nadie coincide con el filtro.",
+    "you": "Tú",
+    "muted": "Silenciado",
+    "roles": "Roles",
+    "viaGroup": "Por el grupo {{group}}",
+    "personal": "Rol personal",
+    "joined": "Desde {{date}}",
+    "pagination": "Paginación",
+    "prev": "Anterior",
+    "next": "Siguiente",
+    "page": "Página {{page}} de {{pages}}"
+  },
+  "actions": {
+    "open": "Acciones para {{name}}",
+    "roles": "Cambiar roles",
+    "mute": "Silenciar",
+    "kick": "Expulsar",
+    "ban": "Banear",
+    "alias": "Editar alias",
+    "leave": "Salir del espacio",
+    "none": "Sin acciones"
+  },
+  "legacyRole": {
+    "admin": "Admin",
+    "member": "Miembro",
+    "viewer": "Lector",
+    "guest": "Invitado",
+    "owner": "Owner"
+  },
+  "rolesDialog": {
+    "title": "Roles de {{name}}",
+    "help": "Solo puedes asignar roles por debajo del tuyo.",
+    "fromGroups": "También tiene, por sus grupos:"
+  },
+  "moderation": {
+    "title": {
+      "kick": "Expulsar a {{name}}",
+      "ban": "Banear a {{name}}",
+      "mute": "Silenciar a {{name}}"
+    },
+    "help": {
+      "kick": "Sale del espacio, pero puede volver con una invitación.",
+      "ban": "Sale del espacio y no podrá volver a entrar por invitación hasta que levantes el baneo.",
+      "mute": "No podrá escribir mientras dure el silencio."
+    },
+    "confirm": {
+      "kick": "Expulsar",
+      "ban": "Banear",
+      "mute": "Silenciar"
+    },
+    "done": {
+      "kick": "{{name}} fue expulsado.",
+      "ban": "{{name}} fue baneado.",
+      "mute": "{{name}} fue silenciado.",
+      "unmute": "{{name}} ya puede escribir."
+    },
+    "duration": "Duración",
+    "durations": {
+      "10m": "10 minutos",
+      "1h": "1 hora",
+      "1d": "1 día",
+      "1w": "1 semana",
+      "forever": "Hasta que se levante"
+    },
+    "unmute": "Quitar silencio",
+    "reason": "Motivo (opcional)",
+    "reasonPlaceholder": "¿Por qué?",
+    "reasonHelp": "Queda en el registro de moderación."
+  },
+  "alias": {
+    "title": "Alias en el espacio",
+    "help": "El nombre con el que se le ve en este espacio.",
+    "clear": "Quitar alias"
+  },
+  "leave": {
+    "title": "Salir del espacio",
+    "body": "Perderás el acceso a este espacio. ¿Seguro?",
+    "confirm": "Salir"
+  },
+  "invite": {
+    "byEmail": "Invitar por correo",
+    "emailPlaceholder": "correo@ejemplo.com",
+    "roles": "Roles",
+    "groups": "Grupos",
+    "groupsNeedPermission": "Para añadir grupos necesitas el permiso de gestionar grupos.",
+    "summaryTitle": "Esto recibirá quien acepte",
+    "summaryDefault": "Solo el rol por defecto:",
+    "summaryGroups": "Entrará en los grupos: {{groups}}.",
+    "summaryNote": "Nunca baja el rol de quien ya es miembro.",
+    "viaGroupRole": "Llega por un grupo",
+    "expiry": "Caduca",
+    "days": "{{n}} días",
+    "never": "Nunca",
+    "neverWarning": "Un enlace que no caduca sigue siendo válido aunque lo olvides: revócalo cuando ya no haga falta.",
+    "send": "Enviar invitación",
+    "sending": "Enviando...",
+    "sent": "Invitación enviada.",
+    "deliverySkipped": "La invitación se creó, pero el correo no se envió (sin servidor de correo).",
+    "deliveryFailed": "La invitación se creó, pero falló el envío del correo.",
+    "link": "Enlace reutilizable",
+    "linkHelp": "Cualquiera con el enlace entra con los roles y grupos que elijas.",
+    "maxUses": "Máximo de usos",
+    "unlimited": "Sin límite",
+    "generate": "Crear y copiar enlace",
+    "generating": "Creando...",
+    "linkCreated": "Enlace creado y copiado.",
+    "reusableLink": "Enlace reutilizable",
+    "listTitle": "Invitaciones y enlaces",
+    "filter": "Filtrar por estado",
+    "empty": "No hay nada que mostrar.",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "revoke": "Revocar",
+    "state": {
+      "all": "Todas",
+      "pending": "Pendiente",
+      "active": "Activo",
+      "used": "Usada",
+      "expired": "Caducada",
+      "revoked": "Revocada"
+    },
+    "personal": "Un espacio personal no admite invitaciones.",
+    "noPermission": "Tu rol no puede invitar personas a este espacio."
+  },
+  "groups": {
+    "title": "Grupos",
+    "hint": "Conjuntos de personas con nombre. Pueden tener roles que todos sus miembros heredan.",
+    "search": "Buscar grupos",
+    "new": "Nuevo grupo",
+    "pick": "Elige un grupo.",
+    "emptyTitle": "Aún no hay grupos",
+    "emptyBody": "Crea uno para mencionar, compartir y dar roles a varias personas a la vez.",
+    "emptyReadOnly": "Quien gestiona grupos puede crearlos.",
+    "tabs": "Ajustes del grupo",
+    "general": "General",
+    "members": "Miembros",
+    "roles": "Roles",
+    "resources": "Accesos",
+    "name": "Nombre",
+    "nameHelp": "De 1 a 40 caracteres. No puede contener < > [ ].",
+    "mention": "Mención",
+    "mentionHelp": "Se genera a partir del nombre.",
+    "description": "Descripción",
+    "create": "Crear grupo",
+    "delete": "Borrar",
+    "deleteTitle": "Borrar grupo",
+    "deleteDescription": "Sus miembros pierden lo que recibían por el grupo.",
+    "searchPeople": "Buscar personas",
+    "addAll": "Añadir visibles",
+    "removeAll": "Quitar visibles",
+    "selected": "{{count}} seleccionadas",
+    "rolesHelp": "Todas las personas del grupo reciben estos roles. Los permisos del grupo se evalúan primero.",
+    "resourcesHelp": "Tableros y documentos compartidos con este grupo.",
+    "resourcesNone": "Sin accesos que mostrar",
+    "resourcesNoneBody": "Comparte un tablero o documento con el grupo desde su menú de compartir.",
+    "resourceType": {
+      "board": "Tablero",
+      "document": "Documento",
+      "mesh": "Malla"
+    },
+    "toast": {
+      "created": "Grupo creado.",
+      "updated": "Grupo actualizado.",
+      "deleted": "Grupo eliminado.",
+      "membersSaved": "Miembros guardados.",
+      "rolesSaved": "Roles del grupo guardados."
+    }
+  },
+  "audit": {
+    "bansTitle": "Personas baneadas",
+    "noBans": "No hay baneos.",
+    "bannedOn": "Baneado el {{date}}",
+    "by": "por {{name}}",
+    "reason": "Motivo: {{reason}}",
+    "unban": "Levantar baneo",
+    "unbanTitle": "Levantar el baneo de {{name}}",
+    "unbanBody": "Podrá volver a entrar con una invitación.",
+    "unbanned": "{{name}} ya no está baneado.",
+    "logTitle": "Registro de moderación",
+    "filter": "Filtrar por acción",
+    "allActions": "Todas las acciones",
+    "empty": "Todavía no hay registros.",
+    "action": {
+      "kick": "Expulsión",
+      "ban": "Baneo",
+      "unban": "Baneo levantado",
+      "mute": "Silencio",
+      "unmute": "Silencio quitado",
+      "roles_changed": "Cambio de roles",
+      "role_created": "Rol creado",
+      "role_updated": "Rol editado",
+      "role_deleted": "Rol borrado",
+      "ownership_transferred": "Propiedad transferida"
+    }
+  },
+  "overview": {
+    "space": "El espacio",
+    "name": "Nombre",
+    "noRename": "Solo quien gestiona el espacio puede cambiar el nombre.",
+    "personal": "Un espacio personal no se puede renombrar.",
+    "renamed": "Nombre guardado.",
+    "description": "Descripción",
+    "plan": "Plan",
+    "members": "Miembros",
+    "myRole": "Tu rol y lo que puedes hacer",
+    "owner": "Propietario",
+    "noRoles": "Sin roles propios: se aplica el rol por defecto.",
+    "myPermissionsHelp": "Lo decide el servidor según tus roles y grupos.",
+    "fallback": "No se pudo consultar tus permisos: se muestran los básicos de tu rol.",
+    "ownerAll": "Eres el propietario: puedes hacerlo todo.",
+    "nothing": "Por ahora no tienes permisos especiales.",
+    "danger": "Zona de peligro",
+    "dangerOwnerOnly": "Solo el propietario puede transferir o borrar el espacio.",
+    "transfer": "Transferir propiedad",
+    "transferHelp": "La persona elegida pasa a ser la única propietaria y tú quedas como administradora o administrador.",
+    "transferBtn": "Transferir...",
+    "transferTitle": "Transferir propiedad",
+    "transferWarn": "Perderás el control total del espacio. Solo la nueva persona propietaria podrá devolvértelo.",
+    "transferTo": "Nueva persona propietaria",
+    "transferPick": "Elegir persona",
+    "typeName": "Escribe «{{name}}» para confirmar",
+    "transferConfirm": "Transferir propiedad",
+    "transferred": "{{name}} es ahora la propietaria o propietario.",
+    "delete": "Borrar el espacio",
+    "deleteHelp": "Se borran sus tableros, documentos y miembros. No se puede deshacer.",
+    "deleteBtn": "Borrar espacio",
+    "deleteTitle": "Borrar el espacio",
+    "deleteWarn": "Esta acción borra todo el contenido del espacio y no se puede deshacer."
+  },
+  "resource": {
+    "tab": "Permisos",
+    "share": "Compartir",
+    "tabs": "Compartir y permisos",
+    "intro": "Ajusta quién puede ver, comentar, editar o gestionar. «Igual» deja que decida lo siguiente: miembro, grupo, rol y por último todos.",
+    "mine": "Tu permiso aquí",
+    "level": {
+      "manage": "Puedes gestionarlo",
+      "edit": "Puedes editarlo",
+      "comment": "Puedes comentar",
+      "view": "Solo puedes verlo",
+      "none": "Sin acceso"
+    },
+    "everyone": "Todas las personas del espacio",
+    "subjectType": {
+      "everyone": "Todos",
+      "role": "Rol",
+      "group": "Grupo",
+      "member": "Persona"
+    },
+    "add": "Añadir",
+    "search": "Buscar rol, grupo o persona",
+    "noResults": "Sin resultados.",
+    "remove": "Quitar {{name}}",
+    "empty": "Sin ajustes especiales: se usa el acceso normal.",
+    "save": "Guardar permisos",
+    "saved": "Permisos guardados.",
+    "unsaved": "Hay cambios sin guardar.",
+    "reset": "Descartar",
+    "readOnly": "Solo quien gestiona este elemento puede cambiar los permisos.",
+    "unavailable": "Los permisos detallados todavía no están disponibles en este servidor.",
+    "perm": {
+      "resource_view": "Ver",
+      "resource_comment": "Comentar",
+      "resource_edit": "Editar",
+      "resource_manage": "Gestionar"
+    }
+  }
+}

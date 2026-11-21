@@ -58,6 +58,8 @@ import enFileOptions from "@/i18n/locales/en/file-options.json";
 import esFileOptions from "@/i18n/locales/es/file-options.json";
 import enQueryFlow from "@/i18n/locales/en/query-flow.json";
 import esQueryFlow from "@/i18n/locales/es/query-flow.json";
+import enRoles from "@/i18n/locales/en/roles.json";
+import esRoles from "@/i18n/locales/es/roles.json";
 import enOnboarding from "@/i18n/locales/en/onboarding.json";
 import esOnboarding from "@/i18n/locales/es/onboarding.json";
 
@@ -73,7 +75,7 @@ export const NAMESPACES = [
   "history", "board-detail", "document-detail", "notifications",
   "landing", "legal", "integrations", "pricing", "marketplace", "rooms", "mesh",
   "share-local", "vault", "groups", "board-filters", "kql",
-  "file-options", "query-flow", "onboarding",
+  "file-options", "query-flow", "onboarding", "roles",
 ] as const;
 
 export type Namespace = (typeof NAMESPACES)[number];
@@ -117,6 +119,7 @@ const dictionaries: Record<Locale, LocaleMessages> = {
     "file-options": enFileOptions,
     "query-flow": enQueryFlow,
     onboarding: enOnboarding,
+    roles: enRoles,
   },
   es: {
     common: esCommon,
@@ -150,6 +153,7 @@ const dictionaries: Record<Locale, LocaleMessages> = {
     "file-options": esFileOptions,
     "query-flow": esQueryFlow,
     onboarding: esOnboarding,
+    roles: esRoles,
   },
 };
 

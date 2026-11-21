@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
-import { useActiveTeamRole } from "@/hooks/use-active-team-role";
+import { useTeamPermissions } from "@/hooks/use-team-permissions";
 import { listTeamMetrics, type TeamMetricsResponse, type TeamMetricsTrend } from "@/lib/api/contracts";
 
 const WINDOW_OPTIONS = [7, 30, 90] as const;
@@ -172,7 +172,9 @@ export function WorkspaceMetricsDashboard() {
   const { locale } = useI18n();
   const t = useTranslations("dashboard");
   const { user, accessToken, activeTeamId } = useSession();
-  const { role, isAdmin, isLoading: isRoleLoading } = useActiveTeamRole(activeTeamId, accessToken, user?.id);
+  const { can: canTeam, isReady: roleReady, isLoading: isRoleLoading } = useTeamPermissions(activeTeamId, accessToken, user?.id);
+  const isAdmin = canTeam("metrics.view");
+  const role = roleReady ? "resolved" : null;
 
   const [windowDays, setWindowDays] = useState<WindowDays>(30);
   const [metrics, setMetrics] = useState<TeamMetricsResponse | null>(null);

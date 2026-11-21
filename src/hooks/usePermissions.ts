@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { getBoardMembers, listTeamMembers } from "@/lib/api/contracts";
+import { getMyResourcePermissions } from "@/lib/api/roles";
 import {
   getEffectiveBoardRole,
   canEditCards,
@@ -88,6 +89,27 @@ export function usePermissions(
     if (teamId === null || teamId === undefined) {
       setState(LOADING);
       return;
+    }
+
+    // Preferred: permissions already resolved by the server (roles, groups, overrides). If the endpoint is
+    // missing or fails we fall back to the client-side computation below, which never grants more than before.
+    try {
+      const perms = new Set(await getMyResourcePermissions("board", boardId, accessToken));
+      if (perms.has("resource.view")) {
+        const canEditNow = perms.has("resource.edit") || perms.has("resource.manage");
+        const canManageNow = perms.has("resource.manage");
+        setState({
+          effectiveRole: canManageNow ? "admin" : canEditNow ? "member" : "viewer",
+          canEdit: canEditNow,
+          canComment: canEditNow || perms.has("resource.comment"),
+          canManageBoard: canManageNow,
+          isReadOnly: !canEditNow,
+          loading: false,
+        });
+        return;
+      }
+    } catch {
+      /* fall through to the legacy computation */
     }
 
     try {
