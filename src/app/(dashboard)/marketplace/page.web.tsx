@@ -381,9 +381,9 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
               </select>
             </label>
             {!isTenant ? (
-              <Link href="/marketplace/profile" className={SECONDARY_BTN}>
+              <Link href="/marketplace/profile" className={SECONDARY_BTN} aria-label={t("gallery.sellerProfile")} title={t("gallery.sellerProfile")}>
                 <Store className="h-4 w-4" aria-hidden="true" />
-                {t("gallery.sellerProfile")}
+                <span className="hidden sm:inline">{t("gallery.sellerProfile")}</span>
               </Link>
             ) : null}
           </div>

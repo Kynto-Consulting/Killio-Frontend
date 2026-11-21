@@ -131,7 +131,7 @@ export function PackCard({ pack, footer }: { pack: MarketplacePack; footer?: Rea
           <PriceBadge pack={pack} className="absolute right-3 top-3 shadow-[2px_2px_0_0_var(--cover-ink)]" />
         </div>
         <div className="flex flex-1 flex-col gap-2 p-4">
-          <h3 className="line-clamp-1 text-[17px] font-black leading-tight tracking-tight text-foreground">{pack.title}</h3>
+          <h3 className="line-clamp-2 text-[17px] font-black leading-tight tracking-tight text-foreground">{pack.title}</h3>
           <p className="line-clamp-2 min-h-[2.6em] text-[13px] leading-snug text-foreground/70">{pack.summary ?? t("empty.noSummary")}</p>
           <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-1 text-[12px] font-semibold text-foreground/70">
             {pack.category ? <CategoryChip slug={pack.category} /> : null}

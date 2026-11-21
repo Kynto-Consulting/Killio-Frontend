@@ -253,7 +253,7 @@ export function relatedPacks<T extends PackLike>(packs: T[], current: { id: stri
 }
 
 /* ── assets ── */
-export const ASSET_ORDER = ["document", "board", "mesh", "script"] as const;
+export const ASSET_ORDER = ["document", "board", "mesh", "script", "card_template", "tag_group", "group"] as const;
 export type AssetLike = { assetType: string; logicalKey: string; displayName: string | null; orderIndex: number };
 
 export function groupAssets<T extends AssetLike>(assets: T[]): Array<{ type: string; count: number; items: Array<{ name: string; asset: T }> }> {
@@ -334,4 +334,24 @@ export function slugifyCategory(raw: string): string {
 export function parseInstallParam(search: string): string | null {
   const id = new URLSearchParams(search).get("install");
   return id && /^[0-9A-Za-z_-]{1,64}$/.test(id) ? id : null;
+}
+
+/* ── readable texts coming from pack authors ── */
+/** "Panel financiero ({{moneda}})" -> "Panel financiero (USD)", using the default value of each field; unknown ones are dropped. */
+export function resolvePlaceholderText(text: string, defaults: Record<string, unknown>): string {
+  return text
+    .replace(/\{\{\s*([^{}\s]+)\s*\}\}/g, (_m, key: string) => {
+      const value = defaults[key];
+      return value === undefined || value === null ? "" : String(value);
+    })
+    .replace(/\s{2,}/g, " ")
+    .replace(/\(\s*\)/g, "")
+    .trim();
+}
+
+/** "meta_ahorro_pct" -> "Meta ahorro pct"; "org:nombre" -> "Nombre". Used only when the pack gives no readable label. */
+export function humanizeFieldKey(key: string): string {
+  const leaf = key.includes(":") ? key.slice(key.lastIndexOf(":") + 1) : key;
+  const spaced = leaf.replace(/[_-]+/g, " ").trim();
+  return spaced ? spaced.charAt(0).toUpperCase() + spaced.slice(1) : key;
 }

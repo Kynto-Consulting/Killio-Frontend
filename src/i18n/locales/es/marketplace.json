@@ -103,7 +103,10 @@
     "document": "Documentos",
     "board": "Kanban",
     "mesh": "Mesh",
-    "script": "Scripts"
+    "script": "Scripts",
+    "card_template": "Plantillas de tarjeta",
+    "tag_group": "Grupos de etiquetas",
+    "group": "Grupos"
   },
   "import": {
     "destinationTeam": "Workspace de destino",

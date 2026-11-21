@@ -3,8 +3,7 @@ import test from "node:test";
 
 import {
   addTag, categoriesFromPacks, coverFamily, filterPacks, generateCover, groupAssets, KNOWN_CATEGORIES, MAX_TAGS, moveItem,
-  parseInstallParam, relatedPacks, slugifyCategory, sortPacks, validateCategory, validateImageFile, validateImageUrl,
-} from "./presentation.ts";
+  parseInstallParam, relatedPacks, slugifyCategory, sortPacks, validateCategory, validateImageFile, validateImageUrl, resolvePlaceholderText, humanizeFieldKey } from "./presentation.ts";
 
 const packs = [
   { id: "a", title: "Control de gastos", summary: "Presupuesto mensual", category: "finanzas", tags: ["ahorro", "Café"], authorName: "Ana", updatedAt: "2026-01-02", pricingType: "paid" as const, priceAmountMinor: 900, currency: "USD" },
@@ -145,4 +144,25 @@ test("globals.css defines exactly the cover tokens of both modes", () => {
 
 test("generated covers never use fixed backgrounds", () => {
   for (const cat of [...KNOWN_CATEGORIES, "otra"]) assert.match(generateCover("x", cat).background, /^var\(--cover-bg-/);
+});
+
+test("placeholders in names are replaced by their default value, unknown ones disappear", () => {
+  assert.equal(resolvePlaceholderText("Panel financiero ({{moneda}})", { moneda: "USD" }), "Panel financiero (USD)");
+  assert.equal(resolvePlaceholderText("Panel ({{desconocido}})", {}), "Panel");
+  assert.equal(resolvePlaceholderText("Sin campos", { a: 1 }), "Sin campos");
+});
+
+test("field keys become readable labels", () => {
+  assert.equal(humanizeFieldKey("meta_ahorro_pct"), "Meta ahorro pct");
+  assert.equal(humanizeFieldKey("org:nombre"), "Nombre");
+  assert.equal(humanizeFieldKey("moneda"), "Moneda");
+});
+
+test("new asset types are grouped after the classic ones", () => {
+  const groups = groupAssets([
+    { assetType: "group", logicalKey: "g", displayName: "Aprobadores", orderIndex: 0 },
+    { assetType: "document", logicalKey: "d", displayName: "Panel", orderIndex: 0 },
+    { assetType: "card_template", logicalKey: "c", displayName: "Plantilla", orderIndex: 0 },
+  ]);
+  assert.deepEqual(groups.map((g) => g.type), ["document", "card_template", "group"]);
 });

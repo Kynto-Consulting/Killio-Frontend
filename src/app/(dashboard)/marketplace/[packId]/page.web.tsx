@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertCircle, ChevronRight, FileText, GitBranch, Globe, Layout, Package, RefreshCcw, SlidersHorizontal, Tag, User, Zap } from "lucide-react";
+import { AlertCircle, ChevronRight, FileText, GitBranch, Globe, Layout, LayoutTemplate, Package, RefreshCcw, SlidersHorizontal, Tag, User, Users, Zap } from "lucide-react";
 
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import { useSession } from "@/components/providers/session-provider";
@@ -12,7 +12,7 @@ import { PackGallery } from "@/components/marketplace/pack-gallery";
 import { PackDocument } from "@/components/marketplace/pack-document";
 import { CategoryChip, FOCUS_RING, HARD_SHADOW_HOVER, MemphisIllustration, PackCard, PackCover, PriceBadge } from "@/components/marketplace/pack-ui";
 import { formatPackPrice, nextHubAction } from "@/lib/marketplace/pricing";
-import { groupAssets, relatedPacks } from "@/lib/marketplace/presentation";
+import { groupAssets, humanizeFieldKey, relatedPacks, resolvePlaceholderText } from "@/lib/marketplace/presentation";
 import {
   getHubPackDetail,
   getHubStatus,
@@ -25,13 +25,13 @@ import {
   MarketplacePackDetail,
 } from "@/lib/api/marketplace";
 
-const ASSET_ICONS: Record<MarketplaceAssetType, React.ElementType> = { document: FileText, board: Layout, mesh: GitBranch, script: Zap };
+const ASSET_ICONS: Record<string, React.ElementType> = { document: FileText, board: Layout, mesh: GitBranch, script: Zap, card_template: LayoutTemplate, tag_group: Tag, group: Users };
 const PRIMARY_BTN = `inline-flex items-center justify-center gap-2 rounded-xl border-2 border-foreground bg-[hsl(var(--accent-ink))] px-5 py-3 text-sm font-extrabold text-[hsl(var(--accent-ink-fg))] ${HARD_SHADOW_HOVER} ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-40`;
 const SECONDARY_BTN = `inline-flex items-center justify-center gap-2 rounded-xl border-2 border-foreground bg-background px-3 py-2 text-[13px] font-bold text-foreground ${HARD_SHADOW_HOVER} ${FOCUS_RING}`;
 
 function placeholderLabel(p: { placeholderKey: string; validation?: Record<string, unknown> }): string {
   const leaf = p.validation?.leafKey;
-  return typeof leaf === "string" && leaf.trim() ? leaf.trim() : p.placeholderKey;
+  return typeof leaf === "string" && leaf.trim() ? leaf.trim() : humanizeFieldKey(p.placeholderKey);
 }
 
 function Section({ title, icon: Icon, children }: { title: string; icon?: React.ElementType; children: React.ReactNode }) {
@@ -118,6 +118,7 @@ export function MarketplaceDetailView({ packId, compact = false }: { packId: str
   const localization = detail?.selectedLocalization ?? null;
   const groups = useMemo(() => groupAssets(detail?.assets ?? []), [detail]);
   const placeholders = detail?.placeholders ?? [];
+  const placeholderDefaults = Object.fromEntries(placeholders.map((p) => [p.placeholderKey, p.defaultValue]));
 
   const actionLabel = useMemo(() => {
     if (!pack) return "";
@@ -235,7 +236,7 @@ export function MarketplaceDetailView({ packId, compact = false }: { packId: str
               <div className="space-y-4">
                 <ul className="flex flex-wrap gap-2" aria-label={t("detail.includesSummary")}>
                   {groups.map((g) => {
-                    const Icon = ASSET_ICONS[g.type as MarketplaceAssetType] ?? FileText;
+                    const Icon = ASSET_ICONS[g.type] ?? FileText;
                     return (
                       <li key={g.type} className="inline-flex items-center gap-1.5 rounded-full border-2 border-foreground px-3 py-1 text-[13px] font-bold text-foreground">
                         <Icon className="h-3.5 w-3.5" aria-hidden="true" />
@@ -245,7 +246,7 @@ export function MarketplaceDetailView({ packId, compact = false }: { packId: str
                   })}
                 </ul>
                 {groups.map((g) => {
-                  const Icon = ASSET_ICONS[g.type as MarketplaceAssetType] ?? FileText;
+                  const Icon = ASSET_ICONS[g.type] ?? FileText;
                   return (
                     <div key={g.type}>
                       <h3 className="mb-1.5 text-[12px] font-extrabold uppercase tracking-wider text-foreground/60">{t(`assetTypes.${g.type}`)}</h3>
@@ -253,7 +254,7 @@ export function MarketplaceDetailView({ packId, compact = false }: { packId: str
                         {g.items.map((item) => (
                           <li key={`${g.type}-${item.asset.logicalKey}`} className="flex items-center gap-2 text-sm text-foreground">
                             <Icon className="h-3.5 w-3.5 shrink-0 text-foreground/60" aria-hidden="true" />
-                            <span className="min-w-0 truncate">{item.name}</span>
+                            <span className="min-w-0 truncate">{resolvePlaceholderText(item.name, placeholderDefaults)}</span>
                           </li>
                         ))}
                       </ul>
