@@ -1,8 +1,7 @@
 "use client";
 
-// Service worker lifecycle helper. When a new SW activates (after the user
-// reloads the tab post-deploy), `controllerchange` fires — reload once so the
-// page is served by the new SW immediately. Without this the user can stay
+// Service worker lifecycle helper. When a new SW activates after a deploy, `controllerchange` fires — reload
+// (at a safe moment: not while typing or in a call) so the page is served by the new SW immediately. Without this the user can stay
 // stuck on a stale SW for hours/days, which is exactly what made all the
 // offline fixes "not work" — the browser kept the old sw.js.
 
@@ -13,12 +12,42 @@ export function SwUpdater() {
   React.useEffect(() => {
     if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
     let reloaded = false;
-    const onCtrlChange = () => {
+    let pendingTimer: number | null = null;
+    // Reloading under someone typing or in a call would lose their work, so the reload waits for a safe moment:
+    // the tab is hidden, or nobody is editing a field and no call media is playing. It never loops: at most one
+    // automatic reload every 30 s.
+    const isEditing = () => {
+      const el = document.activeElement as HTMLElement | null;
+      return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
+    };
+    const hasLiveMedia = () => Array.from(document.querySelectorAll<HTMLMediaElement>("video,audio")).some((m) => !!m.srcObject && !m.paused);
+    const safeToReload = () => document.visibilityState === "hidden" || (!isEditing() && !hasLiveMedia());
+    const recentlyReloaded = () => {
+      try {
+        const last = Number(sessionStorage.getItem("killio_sw_last_reload") ?? 0);
+        return Date.now() - last < 30_000;
+      } catch { return false; }
+    };
+    const reloadWhenSafe = () => {
       if (reloaded) return;
+      if (recentlyReloaded()) return;
+      if (!safeToReload()) {
+        if (pendingTimer == null) {
+          pendingTimer = window.setInterval(() => {
+            if (!safeToReload()) return;
+            if (pendingTimer != null) window.clearInterval(pendingTimer);
+            pendingTimer = null;
+            reloadWhenSafe();
+          }, 5000);
+        }
+        return;
+      }
       reloaded = true;
+      try { sessionStorage.setItem("killio_sw_last_reload", String(Date.now())); } catch { /* noop */ }
       // Give the new SW a tick to settle before reload.
       setTimeout(() => window.location.reload(), 50);
     };
+    const onCtrlChange = () => reloadWhenSafe();
     const onMessage = (ev: MessageEvent) => {
       if (ev.data?.type === "killio:warm-cache") {
         // New SW just activated — reset the warm-cache marker so warmCache()
@@ -60,10 +89,12 @@ export function SwUpdater() {
     // Long-lived tabs would otherwise sit on a stale SW for up to 24h. Poll
     // for a new sw.js every 15 min AND whenever the tab regains focus, so a
     // fresh deploy is picked up promptly and the cache renews on every update.
-    const interval = window.setInterval(checkForUpdate, 15 * 60 * 1000);
+    const interval = window.setInterval(checkForUpdate, 5 * 60 * 1000);
     const onVisible = () => { if (document.visibilityState === "visible") checkForUpdate(); };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", checkForUpdate);
+    window.addEventListener("online", checkForUpdate);
+    window.addEventListener("pageshow", checkForUpdate);
 
     // 404 self-heal: if any /_next/static asset 404s in this page, the
     // active SW precache is stale — wipe caches + unregister + reload.
@@ -90,8 +121,11 @@ export function SwUpdater() {
       navigator.serviceWorker.removeEventListener("message", onMessage);
       window.removeEventListener("error", onError, true);
       window.clearInterval(interval);
+      if (pendingTimer != null) window.clearInterval(pendingTimer);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", checkForUpdate);
+      window.removeEventListener("online", checkForUpdate);
+      window.removeEventListener("pageshow", checkForUpdate);
     };
   }, []);
   return null;
