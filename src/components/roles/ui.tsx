@@ -9,27 +9,27 @@ import { ROLE_COLOR_PRESETS, isHexColor, triStateVisual, type TriState } from "@
 
 export const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(" ");
 
-/** Sober Corporate Memphis: hard soft-line border and a small offset shadow, both from theme tokens. */
-export const card = "rounded-xl border border-[var(--memphis-line)] bg-card shadow-[2px_2px_0_var(--memphis-shadow)]";
+/** Soft surfaces shared with the document dialogs: thin border, no offset shadow. */
+export const card = "rounded-xl border border-border bg-card";
 export const inputCls =
-  "h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60";
+  "h-9 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground/60 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50";
 export const btn =
-  "inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[var(--memphis-line)] bg-card px-3 text-xs font-semibold text-foreground transition-colors hover:bg-accent/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-input bg-background px-4 text-xs font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50";
 export const btnPrimary =
-  "inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[var(--memphis-line)] bg-primary px-3 text-xs font-bold text-primary-foreground shadow-[2px_2px_0_var(--memphis-shadow)] transition-transform hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none motion-reduce:transition-none motion-reduce:hover:translate-y-0";
+  "inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50";
 export const btnDanger =
-  "inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-red-500/60 bg-red-500/10 px-3 text-xs font-bold text-red-700 transition-colors hover:bg-red-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-300";
+  "inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-red-600 px-5 text-xs font-semibold text-white transition-colors hover:bg-red-600/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/50 disabled:cursor-not-allowed disabled:opacity-50";
 
 export function RoleChip({ name, color, onRemove, removeLabel, title, muted }: { name: string; color: string | null; onRemove?: () => void; removeLabel?: string; title?: string; muted?: boolean }) {
   return (
     <span
       title={title}
-      className={cx("inline-flex max-w-full items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-semibold text-foreground", muted ? "border-dashed border-border opacity-80" : "border-[var(--memphis-line)]")}
+      className={cx("inline-flex max-w-full items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-semibold text-foreground", muted && "border-dashed opacity-80")}
     >
       <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full border border-black/20" style={{ background: color ?? "hsl(var(--muted-foreground))" }} />
       <span className="truncate">{name}</span>
       {onRemove && (
-        <button type="button" onClick={onRemove} aria-label={removeLabel} className="-mr-1 rounded-full p-0.5 text-muted-foreground hover:bg-accent/20 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <button type="button" onClick={onRemove} aria-label={removeLabel} className="-mr-1 rounded-full p-0.5 text-muted-foreground hover:bg-accent/20 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
           <X className="h-3 w-3" />
         </button>
       )}
@@ -66,7 +66,7 @@ export function TriStateControl({ value, onChange, disabled, label, reason }: { 
       aria-label={label}
       aria-disabled={disabled || undefined}
       title={reason ?? undefined}
-      className={cx("inline-flex shrink-0 overflow-hidden rounded-lg border border-[var(--memphis-line)]", disabled && "opacity-50")}
+      className={cx("inline-flex shrink-0 overflow-hidden rounded-lg border border-border", disabled && "opacity-50")}
     >
       {opts.map((s) => {
         const v = triStateVisual(s);
@@ -92,7 +92,7 @@ export function TriStateControl({ value, onChange, disabled, label, reason }: { 
                 onChange(opts[Math.max(0, i - 1)]);
               }
             }}
-            className={cx("flex h-7 w-8 items-center justify-center text-sm font-bold transition-colors focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed motion-reduce:transition-none", tone(s, active), s !== "allow" && "border-l border-[var(--memphis-line)]")}
+            className={cx("flex h-7 w-8 items-center justify-center text-sm font-bold transition-colors focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed motion-reduce:transition-none", tone(s, active), s !== "allow" && "border-l border-border")}
           >
             {v.glyph}
           </button>
@@ -111,9 +111,9 @@ export function Switch({ checked, onChange, label, disabled }: { checked: boolea
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={cx("relative h-5 w-9 shrink-0 rounded-full border border-[var(--memphis-line)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 motion-reduce:transition-none", checked ? "bg-emerald-500/60" : "bg-muted")}
+      className={cx("relative h-5 w-9 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50 motion-reduce:transition-none", checked ? "bg-primary" : "bg-muted-foreground/30")}
     >
-      <span className={cx("absolute top-0.5 h-3.5 w-3.5 rounded-full bg-foreground transition-all motion-reduce:transition-none", checked ? "left-[18px]" : "left-0.5")} />
+      <span className={cx("absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all motion-reduce:transition-none", checked ? "left-[18px]" : "left-0.5")} />
     </button>
   );
 }
@@ -123,13 +123,13 @@ export function ColorField({ value, onChange, label, disabled }: { value: string
   const id = useId();
   return (
     <div>
-      <span id={id} className="mb-1 block text-xs font-semibold text-foreground">{label}</span>
+      <span id={id} className="mb-1 block text-xs font-medium text-muted-foreground">{label}</span>
       <div role="group" aria-labelledby={id} className="flex flex-wrap items-center gap-1.5">
-        <button type="button" disabled={disabled} onClick={() => onChange(null)} aria-label={t("color.none")} title={t("color.none")} className={cx("flex h-6 w-6 items-center justify-center rounded-full border text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", value === null ? "border-foreground ring-2 ring-ring" : "border-border")}>
+        <button type="button" disabled={disabled} onClick={() => onChange(null)} aria-label={t("color.none")} title={t("color.none")} className={cx("flex h-6 w-6 items-center justify-center rounded-full border text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40", value === null ? "border-foreground ring-2 ring-ring" : "border-border")}>
           <X className="h-3 w-3" />
         </button>
         {ROLE_COLOR_PRESETS.map((c) => (
-          <button key={c} type="button" disabled={disabled} aria-label={c} aria-pressed={value?.toLowerCase() === c.toLowerCase()} onClick={() => onChange(c)} className={cx("h-6 w-6 rounded-full border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", value?.toLowerCase() === c.toLowerCase() ? "border-foreground ring-2 ring-ring" : "border-border")} style={{ background: c }} />
+          <button key={c} type="button" disabled={disabled} aria-label={c} aria-pressed={value?.toLowerCase() === c.toLowerCase()} onClick={() => onChange(c)} className={cx("h-6 w-6 rounded-full border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40", value?.toLowerCase() === c.toLowerCase() ? "border-foreground ring-2 ring-ring" : "border-border")} style={{ background: c }} />
         ))}
         <label className="ml-1 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
           <input type="color" disabled={disabled} value={isHexColor(value) ? value : "#2F6FED"} onChange={(e) => onChange(e.target.value.toUpperCase())} aria-label={t("color.custom")} className="h-6 w-8 cursor-pointer rounded border border-border bg-transparent p-0" />
@@ -141,7 +141,7 @@ export function ColorField({ value, onChange, label, disabled }: { value: string
 }
 
 /** Accessible modal: Esc closes, focus moves in and returns to the opener, Tab stays inside. */
-export function Dialog({ title, onClose, children, footer, busy, wide }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; busy?: boolean; wide?: boolean }) {
+export function Dialog({ title, onClose, children, footer, busy, wide, icon, subtitle, tone }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; busy?: boolean; wide?: boolean; icon?: ReactNode; subtitle?: string; tone?: "danger" }) {
   const ref = useRef<HTMLDivElement>(null);
   const titleId = useId();
   useEffect(() => {
@@ -172,15 +172,19 @@ export function Dialog({ title, onClose, children, footer, busy, wide }: { title
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-center bg-background/80 p-0 backdrop-blur-sm sm:items-center sm:p-4" onKeyDown={onKeyDown}>
       <div className="fixed inset-0" aria-hidden onClick={() => !busy && onClose()} />
-      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={titleId} className={cx(card, "relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-b-none sm:rounded-b-xl", wide ? "sm:max-w-2xl" : "sm:max-w-md")}>
-        <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-          <h2 id={titleId} className="min-w-0 truncate text-sm font-bold text-foreground">{title}</h2>
-          <button type="button" data-close disabled={busy} onClick={onClose} aria-label="Close" className="rounded-md p-1 text-muted-foreground hover:bg-accent/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={titleId} className={cx("relative flex max-h-[92vh] w-full animate-in flex-col overflow-hidden rounded-t-2xl border border-border bg-card shadow-2xl duration-200 zoom-in-95 sm:rounded-2xl", wide ? "sm:max-w-2xl" : "sm:max-w-md")}>
+        <div className="flex items-start gap-3 border-b border-border/60 p-5">
+          {icon && <div aria-hidden className={cx("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl [&>svg]:h-5 [&>svg]:w-5", tone === "danger" ? "bg-red-500/10 text-red-600 dark:text-red-400" : "bg-primary/10 text-primary")}>{icon}</div>}
+          <div className="min-w-0 flex-1">
+            <h2 id={titleId} className="text-base font-semibold leading-tight text-foreground">{title}</h2>
+            {subtitle && <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>}
+          </div>
+          <button type="button" data-close disabled={busy} onClick={onClose} aria-label="Close" className="shrink-0 rounded-md p-1 text-muted-foreground opacity-70 transition-opacity hover:bg-accent hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="space-y-3 overflow-y-auto px-4 py-3">{children}</div>
-        {footer && <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border px-4 py-3">{footer}</div>}
+        <div className="space-y-4 overflow-y-auto p-5">{children}</div>
+        {footer && <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border/60 px-5 py-4">{footer}</div>}
       </div>
     </div>
   );
@@ -213,7 +217,7 @@ export function TabBar({ tabs, active, onChange, label, idPrefix = "settings" }:
     e.preventDefault();
   };
   return (
-    <div role="tablist" aria-label={label} onKeyDown={onKeyDown} className="-mx-1 flex max-w-full shrink-0 gap-1 overflow-x-auto overflow-y-hidden border-b border-border px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div role="tablist" aria-label={label} onKeyDown={onKeyDown} className="-mx-1 flex max-w-full shrink-0 gap-1 overflow-x-auto overflow-y-hidden border-b border-border/60 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {tabs.map((tab) => {
         const on = tab.id === active;
         return (
@@ -229,11 +233,11 @@ export function TabBar({ tabs, active, onChange, label, idPrefix = "settings" }:
             aria-controls={`${idPrefix}-panel-${tab.id}`}
             tabIndex={on ? 0 : -1}
             onClick={() => onChange(tab.id)}
-            className={cx("-mb-px flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none", on ? "border-[var(--memphis-line)] text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}
+            className={cx("-mb-px flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none", on ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}
           >
             {tab.icon}
             {tab.label}
-            {tab.badge != null && tab.badge !== "" && <span className="rounded-full border border-border bg-muted px-1.5 text-[10px] font-bold">{tab.badge}</span>}
+            {tab.badge != null && tab.badge !== "" && <span className="rounded-full bg-muted px-1.5 text-[10px] font-semibold">{tab.badge}</span>}
           </button>
         );
       })}
@@ -255,7 +259,7 @@ export function EmptyState({ title, body, icon }: { title: string; body?: string
 export function ApiNotice({ message }: { message: string }) {
   const t = useTranslations("roles");
   return (
-    <div role="status" className="rounded-xl border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-xs text-foreground">
+    <div role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-foreground">
       <strong className="font-bold">{t("apiUnavailable.title")}</strong> {t("apiUnavailable.body")}
       <span className="mt-1 block text-[11px] text-muted-foreground">{message}</span>
     </div>

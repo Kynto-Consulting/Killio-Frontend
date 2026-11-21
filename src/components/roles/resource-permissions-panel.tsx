@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, X } from "lucide-react";
+import { AlertTriangle, Plus, X } from "lucide-react";
 
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
@@ -144,7 +144,7 @@ export function ResourcePermissionsPanel({ kind, id, teamId, canManage }: { kind
         <div className="relative">
           <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("resource.search")} aria-label={t("resource.search")} className={inputCls} />
           {query.trim() && (
-            <ul className="absolute z-10 mt-1 max-h-52 w-full overflow-y-auto rounded-lg border border-[var(--memphis-line)] bg-card shadow-[2px_2px_0_var(--memphis-shadow)]">
+            <ul className="absolute z-10 mt-1 max-h-52 w-full overflow-y-auto rounded-lg border border-border bg-card shadow-lg">
               {candidates.length === 0 && <li className="px-3 py-2 text-xs text-muted-foreground">{t("resource.noResults")}</li>}
               {candidates.map((o) => {
                 const n = nameOf(o);
@@ -170,7 +170,7 @@ export function ResourcePermissionsPanel({ kind, id, teamId, canManage }: { kind
         </div>
       )}
 
-      <ul className="divide-y divide-border overflow-hidden rounded-xl border border-[var(--memphis-line)] bg-card">
+      <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
         {draft.map((o) => {
           const key = overrideKey(o);
           const n = nameOf(o);
@@ -226,6 +226,8 @@ export function ResourcePermissionsPanel({ kind, id, teamId, canManage }: { kind
       )}
       {pendingDanger && (
         <Dialog
+          icon={<AlertTriangle />}
+          tone="danger"
           title={t("catalog.dangerConfirmTitle", { name: text.nameOfKey(catalog, pendingDanger.subject) })}
           onClose={() => setPendingDanger(null)}
           footer={
@@ -246,7 +248,7 @@ function MyLevel({ perms }: { perms: string[] }) {
   const t = useTranslations("roles");
   const level = resourceLevel(perms);
   return (
-    <div className="flex items-center justify-between gap-2 rounded-lg border border-dashed border-[var(--memphis-line)] bg-muted/30 px-3 py-2" role="status">
+    <div className="flex items-center justify-between gap-2 rounded-lg border border-dashed border-border bg-muted/30 px-3 py-2" role="status">
       <span className="text-xs font-semibold text-muted-foreground">{t("resource.mine")}</span>
       <span className="text-sm font-bold text-foreground">{t(`resource.level.${level}`)}</span>
     </div>
@@ -272,7 +274,7 @@ export function ShareTabs({ active, onChange }: { active: "share" | "permissions
           onKeyDown={(e) => {
             if (e.key === "ArrowRight" || e.key === "ArrowLeft") onChange(active === "share" ? "permissions" : "share");
           }}
-          className={cx("-mb-px border-b-2 px-3 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", active === id ? "border-[var(--memphis-line)] text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}
+          className={cx("-mb-px border-b-2 px-3 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", active === id ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}
         >
           {label}
         </button>

@@ -80,7 +80,7 @@ export function OverviewTab({ onRenamed }: { onRenamed: (name: string) => void }
         <section className={cx(card, "space-y-3 p-3")} aria-labelledby="ov-me">
           <h2 id="ov-me" className="text-sm font-bold text-foreground">{t("overview.myRole")}</h2>
           <div className="flex flex-wrap gap-1.5">
-            {isOwner && <span className="inline-flex items-center gap-1 rounded-full border border-[var(--memphis-line)] px-2 py-0.5 text-[11px] font-bold"><Crown className="h-3 w-3" aria-hidden />{t("overview.owner")}</span>}
+            {isOwner && <span className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[11px] font-bold"><Crown className="h-3 w-3" aria-hidden />{t("overview.owner")}</span>}
             {myRoles.map((r) => <RoleChip key={r.id} name={r.name} color={r.color} />)}
             {!isOwner && myRoles.length === 0 && <span className="text-xs text-muted-foreground">{t("overview.noRoles")}</span>}
           </div>
@@ -168,7 +168,7 @@ function TransferDialog({ teamName, onClose }: { teamName: string; onClose: () =
   };
 
   return (
-    <Dialog title={t("overview.transferTitle")} onClose={onClose} busy={busy} footer={<><button type="button" className={btn} onClick={onClose} disabled={busy}>{t("common.cancel")}</button><button type="button" className={btnDanger} onClick={run} disabled={!ok || busy}>{t("overview.transferConfirm")}</button></>}>
+    <Dialog icon={<Crown />} tone="danger" title={t("overview.transferTitle")} onClose={onClose} busy={busy} footer={<><button type="button" className={btn} onClick={onClose} disabled={busy}>{t("common.cancel")}</button><button type="button" className={btnDanger} onClick={run} disabled={!ok || busy}>{t("overview.transferConfirm")}</button></>}>
       <p className="text-xs text-muted-foreground">{t("overview.transferWarn")}</p>
       <label className="block">
         <span className="mb-1 block text-xs font-semibold text-foreground">{t("overview.transferTo")}</span>
@@ -210,7 +210,7 @@ function DeleteDialog({ teamName, onClose }: { teamName: string; onClose: () => 
     }
   };
   return (
-    <Dialog title={t("overview.deleteTitle")} onClose={onClose} busy={busy} footer={<><button type="button" className={btn} onClick={onClose} disabled={busy}>{t("common.cancel")}</button><button type="button" className={btnDanger} onClick={run} disabled={busy || !confirmationMatches(typed, teamName)}>{t("overview.deleteBtn")}</button></>}>
+    <Dialog icon={<Trash2 />} tone="danger" title={t("overview.deleteTitle")} onClose={onClose} busy={busy} footer={<><button type="button" className={btn} onClick={onClose} disabled={busy}>{t("common.cancel")}</button><button type="button" className={btnDanger} onClick={run} disabled={busy || !confirmationMatches(typed, teamName)}>{t("overview.deleteBtn")}</button></>}>
       <p className="text-xs text-muted-foreground">{t("overview.deleteWarn")}</p>
       <label className="block">
         <span className="mb-1 block text-xs font-semibold text-foreground">{t("overview.typeName", { name: teamName })}</span>

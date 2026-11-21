@@ -124,7 +124,7 @@ function MemberRow({ member, onAction }: { member: SettingsMember; onAction: (a:
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="truncate text-sm font-bold text-foreground">{member.alias || member.name}</span>
-            {member.isBot && <span className="rounded-full border border-[var(--memphis-line)] bg-accent/20 px-1.5 text-[9px] font-bold uppercase text-foreground">{t("members.bot")}</span>}
+            {member.isBot && <span className="rounded-full border border-border bg-accent/20 px-1.5 text-[9px] font-bold uppercase text-foreground">{t("members.bot")}</span>}
             {isMe && <span className="rounded-full border border-border px-1.5 text-[9px] font-bold uppercase text-muted-foreground">{t("members.you")}</span>}
             {muted && <span className="rounded-full border border-amber-500/60 bg-amber-500/10 px-1.5 text-[9px] font-bold uppercase text-amber-800 dark:text-amber-300">{t("members.muted")}</span>}
             {member.status !== "active" && <span className="rounded-full border border-border px-1.5 text-[9px] font-bold uppercase text-muted-foreground">{member.status}</span>}
@@ -186,7 +186,7 @@ function MemberMenu({ member, onAction }: { member: SettingsMember; onAction: (a
           <div className="fixed inset-0 z-40" aria-hidden onClick={() => setOpen(false)} />
           <div
             role="menu"
-            className="absolute right-0 z-50 mt-1 w-64 overflow-hidden rounded-xl border border-[var(--memphis-line)] bg-card py-1 shadow-[2px_2px_0_var(--memphis-shadow)]"
+            className="absolute right-0 z-50 mt-1 w-64 overflow-hidden rounded-xl border border-border bg-card py-1 shadow-lg"
             onKeyDown={(e) => {
               if (e.key === "Escape") {
                 setOpen(false);
@@ -255,7 +255,7 @@ function RolesDialog({ member, onClose }: { member: SettingsMember; onClose: () 
   const eff = effectiveRoles({ userId: member.id, roleIds: member.roleIds, role: member.role }, s.roles, s.groups).filter((e) => e.source.kind === "group");
 
   return (
-    <Dialog title={t("rolesDialog.title", { name: member.alias || member.name })} onClose={onClose} busy={busy} footer={<><button type="button" className={btn} onClick={onClose} disabled={busy}>{t("common.cancel")}</button><button type="button" className={btnPrimary} onClick={save} disabled={busy || !changed}>{t("common.save")}</button></>}>
+    <Dialog icon={<ShieldCheck />} title={t("rolesDialog.title", { name: member.alias || member.name })} onClose={onClose} busy={busy} footer={<><button type="button" className={btn} onClick={onClose} disabled={busy}>{t("common.cancel")}</button><button type="button" className={btnPrimary} onClick={save} disabled={busy || !changed}>{t("common.save")}</button></>}>
       <p className="text-xs text-muted-foreground">{t("rolesDialog.help")}</p>
       {hasRoles ? (
         <RolePicker roles={s.roles} value={ids} onChange={setIds} actor={s.actor} disabled={busy} />
@@ -318,6 +318,8 @@ function ModerationDialog({ member, action, onClose }: { member: SettingsMember;
 
   return (
     <Dialog
+      icon={<Gavel />}
+      tone={action === "mute" ? undefined : "danger"}
       title={t(`moderation.title.${action}`, { name })}
       onClose={onClose}
       busy={busy}
@@ -368,7 +370,7 @@ function AliasDialog({ member, onClose }: { member: SettingsMember; onClose: () 
     }
   };
   return (
-    <Dialog title={t("alias.title")} onClose={onClose} busy={busy} footer={<>{member.alias && <button type="button" className={btn} onClick={() => save(null)} disabled={busy}>{t("alias.clear")}</button>}<button type="button" className={btn} onClick={onClose} disabled={busy}>{t("common.cancel")}</button><button type="button" className={btnPrimary} onClick={() => save(alias.trim() || null)} disabled={busy}>{t("common.save")}</button></>}>
+    <Dialog icon={<Pencil />} title={t("alias.title")} onClose={onClose} busy={busy} footer={<>{member.alias && <button type="button" className={btn} onClick={() => save(null)} disabled={busy}>{t("alias.clear")}</button>}<button type="button" className={btn} onClick={onClose} disabled={busy}>{t("common.cancel")}</button><button type="button" className={btnPrimary} onClick={() => save(alias.trim() || null)} disabled={busy}>{t("common.save")}</button></>}>
       <p className="text-xs text-muted-foreground">{t("alias.help")}</p>
       <input value={alias} maxLength={60} onChange={(e) => setAlias(e.target.value)} onKeyDown={(e) => e.key === "Enter" && save(alias.trim() || null)} aria-label={t("alias.title")} className={inputCls} />
     </Dialog>
@@ -390,7 +392,7 @@ function LeaveDialog({ member, onClose }: { member: SettingsMember; onClose: () 
     }
   };
   return (
-    <Dialog title={t("leave.title")} onClose={onClose} busy={busy} footer={<><button type="button" className={btn} onClick={onClose} disabled={busy}>{t("common.cancel")}</button><button type="button" className={btnDanger} onClick={leave} disabled={busy}>{t("leave.confirm")}</button></>}>
+    <Dialog icon={<LogOut />} tone="danger" title={t("leave.title")} onClose={onClose} busy={busy} footer={<><button type="button" className={btn} onClick={onClose} disabled={busy}>{t("common.cancel")}</button><button type="button" className={btnDanger} onClick={leave} disabled={busy}>{t("leave.confirm")}</button></>}>
       <p className="text-sm text-foreground">{t("leave.body")}</p>
     </Dialog>
   );

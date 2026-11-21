@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Gavel } from "lucide-react";
 
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import { listAuditLog, listBans, unbanMember, type AuditEntry, type BanEntry } from "@/lib/api/roles";
@@ -158,7 +159,7 @@ export function AuditTab() {
       </section>
 
       {unbanning && (
-        <Dialog title={t("audit.unbanTitle", { name: unbanning.name })} onClose={() => setUnbanning(null)} busy={busy} footer={<><button type="button" className={btn} onClick={() => setUnbanning(null)} disabled={busy}>{t("common.cancel")}</button><button type="button" className={btnPrimary} onClick={unban} disabled={busy}>{t("audit.unban")}</button></>}>
+        <Dialog icon={<Gavel />} title={t("audit.unbanTitle", { name: unbanning.name })} onClose={() => setUnbanning(null)} busy={busy} footer={<><button type="button" className={btn} onClick={() => setUnbanning(null)} disabled={busy}>{t("common.cancel")}</button><button type="button" className={btnPrimary} onClick={unban} disabled={busy}>{t("audit.unban")}</button></>}>
           <p className="text-sm text-foreground">{t("audit.unbanBody")}</p>
         </Dialog>
       )}

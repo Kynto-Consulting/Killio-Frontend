@@ -135,7 +135,7 @@ export function RolesTab() {
                     onDragOver={(e) => dragId && e.preventDefault()}
                     onDrop={() => drop(r.id)}
                     onDragEnd={() => setDragId(null)}
-                    className={cx("flex items-center gap-1 rounded-lg border px-1.5 py-1", active ? "border-[var(--memphis-line)] bg-accent/15" : "border-transparent hover:bg-accent/10", dragId === r.id && "opacity-50")}
+                    className={cx("flex items-center gap-1 rounded-lg border px-1.5 py-1", active ? "border-primary/40 bg-primary/5" : "border-transparent hover:bg-accent/10", dragId === r.id && "opacity-50")}
                   >
                     <span className={cx("shrink-0 text-muted-foreground", movable ? "cursor-grab" : "opacity-30")} aria-hidden>
                       {pinned ? <Lock className="h-3.5 w-3.5" /> : <GripVertical className="h-3.5 w-3.5" />}
@@ -285,7 +285,7 @@ function RoleEditor({ role, canEdit, onDuplicate, onDelete }: { role: TeamRole; 
       </div>
 
       {(sub !== "members") && manageable && (
-        <div className="mt-3 flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--memphis-line)] bg-card px-3 py-2">
+        <div className="mt-3 flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2">
           <span className="text-xs text-muted-foreground" role="status">{dirty ? t("editor.unsaved") : t("editor.saved")}</span>
           <div className="flex gap-1.5">
             <button type="button" className={btn} disabled={!dirty || saving} onClick={reset}>{t("editor.reset")}</button>

@@ -65,7 +65,7 @@ export function GroupsTab() {
           <ul className="space-y-1">
             {visible.map((g) => (
               <li key={g.id}>
-                <button type="button" aria-current={g.id === selected ? "true" : undefined} onClick={() => setSelected(g.id)} className={cx("flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", g.id === selected ? "border-[var(--memphis-line)] bg-accent/15" : "border-transparent hover:bg-accent/10")}>
+                <button type="button" aria-current={g.id === selected ? "true" : undefined} onClick={() => setSelected(g.id)} className={cx("flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", g.id === selected ? "border-border bg-accent/15" : "border-transparent hover:bg-accent/10")}>
                   <span aria-hidden className="h-3 w-3 shrink-0 rounded-full border border-black/20" style={{ background: g.color ?? "hsl(var(--muted-foreground))" }} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold text-foreground">{g.name}</span>

@@ -171,7 +171,7 @@ function TeamsPageInner() {
             <h1 className="flex items-center gap-2 text-xl font-extrabold tracking-tight text-foreground">
               <span className="truncate">{team?.name ?? tt("title")}</span>
               {personal && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-[var(--memphis-line)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                <span className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
                   <Lock className="h-3 w-3" aria-hidden /> {t("personalBadge")}
                 </span>
               )}

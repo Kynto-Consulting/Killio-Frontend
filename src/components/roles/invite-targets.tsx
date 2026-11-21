@@ -56,7 +56,7 @@ export function InviteTargets({ roles, groups, actor, roleIds, groupIds, onRoleI
           </ul>
         </div>
       )}
-      <div className="rounded-lg border border-dashed border-[var(--memphis-line)] bg-muted/30 px-3 py-2" aria-live="polite">
+      <div className="rounded-lg border border-dashed border-border bg-muted/30 px-3 py-2" aria-live="polite">
         <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{t("invite.summaryTitle")}</div>
         <div className="flex flex-wrap items-center gap-1">
           {summary.usesDefault ? (

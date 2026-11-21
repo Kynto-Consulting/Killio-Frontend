@@ -131,7 +131,7 @@ export function RolePermissionsEditor({ role, value, onChange, actor, locked, lo
 
       {sections.map((s) => (
         <section key={s.provider.id} aria-labelledby={`perm-provider-${s.provider.id}`} className="space-y-3">
-          <header className="flex flex-wrap items-center gap-2 border-b border-[var(--memphis-line)] pb-1">
+          <header className="flex flex-wrap items-center gap-2 border-b border-border pb-1">
             <h3 id={`perm-provider-${s.provider.id}`} className="text-sm font-bold text-foreground">{prov.label(s.provider)}</h3>
             <OriginBadge providerId={s.provider.id} />
             {s.provider.version && <span className="text-[10px] text-muted-foreground">v{s.provider.version}</span>}
@@ -140,7 +140,7 @@ export function RolePermissionsEditor({ role, value, onChange, actor, locked, lo
           {s.groups.map((g) => (
             <div key={g.id} role="group" aria-label={text.group(g.id, g.label)}>
               <h4 className="mb-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{text.group(g.id, g.label)}</h4>
-              <ul className="divide-y divide-border overflow-hidden rounded-xl border border-[var(--memphis-line)] bg-card">
+              <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
                 {g.permissions.map((d) => {
                   const reason = reasonText(d.key);
                   const state = triStateOf(value, d.key);
@@ -191,6 +191,8 @@ export function RolePermissionsEditor({ role, value, onChange, actor, locked, lo
 
       {pending && pendingDef && (
         <Dialog
+          icon={<AlertTriangle />}
+          tone="danger"
           title={t("catalog.dangerConfirmTitle", { name: text.name(pendingDef) })}
           onClose={() => setPending(null)}
           footer={
