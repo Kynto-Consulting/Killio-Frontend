@@ -13,6 +13,7 @@
 
 import Ably from "ably";
 import type { IRealtimeProviderV2, PresenceEvent, PresenceMember } from "./realtime.interface";
+import { RenewalCoordinator, watchChannelFailures } from "./ably-recovery";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -26,6 +27,8 @@ const ABLY_ACTION_MAP: Record<string, PresenceEvent["event"] | undefined> = {
 
 export class AblyRealtimeProvider implements IRealtimeProviderV2 {
   private readonly _client: Ably.Realtime;
+  private readonly _renewal: RenewalCoordinator;
+  private readonly _watched = new Map<string, () => void>();
 
   constructor(accessToken: string, _apiUrl?: string) {
     const apiBase = _apiUrl ?? API;
@@ -48,6 +51,27 @@ export class AblyRealtimeProvider implements IRealtimeProviderV2 {
     this._client.connection.on("failed", () => {
       console.error("[AblyRealtimeProvider] connection failed");
     });
+
+    this._renewal = new RenewalCoordinator(() => this._client.auth.authorize());
+  }
+
+  /** Re-issues the token so rooms created / shared after it was signed become reachable. */
+  renewAuth(): Promise<boolean> {
+    return this._renewal.renew();
+  }
+
+  /** The channel, watched once for capability refusals (40160/40161): renew the token and re-attach. */
+  private channel(name: string): Ably.RealtimeChannel {
+    const ch = this._client.channels.get(name);
+    if (!this._watched.has(name)) {
+      this._watched.set(
+        name,
+        watchChannelFailures(ch as any, () => this._renewal.renew(), {
+          onGiveUp: (error) => console.error(`[AblyRealtimeProvider] channel ${name} refused after renewing the token`, error),
+        }),
+      );
+    }
+    return ch;
   }
 
   // ── Messaging ──────────────────────────────────────────────────────────────
@@ -57,7 +81,7 @@ export class AblyRealtimeProvider implements IRealtimeProviderV2 {
     eventName: string,
     callback: (data: unknown) => void
   ): () => void {
-    const ch = this._client.channels.get(channelName);
+    const ch = this.channel(channelName);
     const wrapped = (msg: Ably.Message) => callback(msg.data);
     ch.subscribe(eventName, wrapped);
     return () => {
@@ -71,7 +95,7 @@ export class AblyRealtimeProvider implements IRealtimeProviderV2 {
     channelName: string,
     callback: (eventName: string, data: unknown) => void
   ): () => void {
-    const ch = this._client.channels.get(channelName);
+    const ch = this.channel(channelName);
     const wrapped = (msg: Ably.Message) => callback(msg.name ?? "", msg.data);
     ch.subscribe(wrapped);
     return () => {
@@ -86,7 +110,7 @@ export class AblyRealtimeProvider implements IRealtimeProviderV2 {
     eventName: string,
     data: unknown
   ): Promise<void> {
-    await this._client.channels.get(channelName).publish(eventName, data);
+    await this.channel(channelName).publish(eventName, data);
   }
 
   // ── Presence ───────────────────────────────────────────────────────────────
@@ -95,18 +119,18 @@ export class AblyRealtimeProvider implements IRealtimeProviderV2 {
     channelName: string,
     data?: Record<string, unknown>
   ): Promise<void> {
-    await this._client.channels.get(channelName).presence.enter(data as any);
+    await this.channel(channelName).presence.enter(data as any);
   }
 
   async leavePresence(channelName: string): Promise<void> {
-    await this._client.channels.get(channelName).presence.leave();
+    await this.channel(channelName).presence.leave();
   }
 
   subscribePresence(
     channelName: string,
     callback: (event: PresenceEvent) => void
   ): () => void {
-    const ch = this._client.channels.get(channelName);
+    const ch = this.channel(channelName);
     const handler = (member: Ably.PresenceMessage) => {
       const action = member.action ?? "";
       const mapped = ABLY_ACTION_MAP[action];
@@ -129,7 +153,7 @@ export class AblyRealtimeProvider implements IRealtimeProviderV2 {
   }
 
   async getPresenceMembers(channelName: string): Promise<PresenceMember[]> {
-    const members = await this._client.channels.get(channelName).presence.get();
+    const members = await this.channel(channelName).presence.get();
     return members.map((m: any) => ({
       userId: m.clientId as string,
       metadata: m.data as Record<string, unknown> | undefined,
@@ -139,6 +163,8 @@ export class AblyRealtimeProvider implements IRealtimeProviderV2 {
   // ── Lifecycle ──────────────────────────────────────────────────────────────
 
   disconnect(): void {
+    this._watched.forEach((stop) => stop());
+    this._watched.clear();
     this._client.close();
   }
 }

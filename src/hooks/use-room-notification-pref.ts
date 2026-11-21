@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { getRoomNotificationPref, setRoomNotificationPref, RoomNotificationPref } from "@/lib/api/rooms";
 import { useSession } from "@/components/providers/session-provider";
+import { setRoomMutedLocally } from "@/hooks/use-room-unread";
 
 export function useRoomNotificationPref(roomId: string) {
   const { accessToken } = useSession();
@@ -13,7 +14,10 @@ export function useRoomNotificationPref(roomId: string) {
     if (!roomId || !accessToken) return;
     setIsLoading(true);
     getRoomNotificationPref(roomId, accessToken)
-      .then(setPrefState)
+      .then((p) => {
+        setPrefState(p);
+        setRoomMutedLocally(roomId, p === "none");
+      })
       .catch(() => {
         // Silently fall back to default; backend may not be ready
       })
@@ -25,9 +29,11 @@ export function useRoomNotificationPref(roomId: string) {
       if (!accessToken) return;
       // Optimistic update
       setPrefState(newPref);
+      setRoomMutedLocally(roomId, newPref === "none");
       try {
         const confirmed = await setRoomNotificationPref(roomId, newPref, accessToken);
         setPrefState(confirmed);
+        setRoomMutedLocally(roomId, confirmed === "none");
       } catch {
         // Revert is not strictly necessary since the value is best-effort,
         // but we can silently ignore errors here.

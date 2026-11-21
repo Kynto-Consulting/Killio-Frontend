@@ -1,122 +1,252 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import NextLink from "next/link";
-import { Plus, Hash, Link2, MessageSquare, Loader2, ChevronDown, ChevronRight, FolderOpen, X, Sparkles } from "lucide-react";
+import {
+  ArrowDown, ArrowUp, BellOff, ChevronDown, ChevronRight, FileText, FolderPlus, GripVertical, Hash, Layout, List, Megaphone,
+  MoreHorizontal, Network, Pencil, Plus, Search, Sparkles, StickyNote, Trash2, X, MessageSquare,
+} from "lucide-react";
+import { getUserAvatarUrl } from "@/lib/gravatar";
+import type { DmPeer } from "@/hooks/use-room-directory";
 import type { Room, RoomGroup } from "@/lib/api/rooms";
+import {
+  buildSidebarModel, categoryOrder, dmDisplayName, isSectionCollapsed, moveCategory, reorderCategory,
+  type LayoutRoom,
+} from "@/lib/rooms/channel-layout";
 
-type TFn = (key: string) => string;
+type TFn = (key: string, params?: Record<string, string | number>) => string;
+
+/** A room plus the counters the sidebar shows (see useRoomUnread). */
+export type SidebarRoom = Room & { unreadCount?: number; mentionCount?: number; muted?: boolean };
+
+export interface SidebarMemberOption {
+  id: string;
+  name: string;
+  email?: string;
+  avatarUrl?: string | null;
+}
 
 interface RoomSidebarProps {
-  rooms: Room[];
+  rooms: SidebarRoom[];
   groups: RoomGroup[];
   activeRoomId: string | null;
   isLoading: boolean;
+  /** The room list could not be loaded. */
+  hasError?: boolean;
+  onRetry?: () => void;
   canCreate: boolean;
-  onSelectRoom: (roomId: string) => void;
+  /** Rename / reorder / delete categories and edit their permissions. */
+  canManage?: boolean;
+  /** Real titles of documents and boards by `type:id`, so a document chat is not shown as `doc-4f2a1b`. */
+  entityTitles?: Record<string, string>;
+  peers?: Record<string, DmPeer | null>;
+  selfNames?: Array<string | null | undefined>;
+  members?: SidebarMemberOption[];
+  currentUserId?: string;
+  /** Kept for older callers; rows are links, so selecting needs no handler. */
+  onSelectRoom?: (roomId: string) => void;
   onCreateRoom: (groupId?: string) => void;
   onCreateGroup?: () => void;
+  onEditGroup?: (group: RoomGroup) => void;
+  onDeleteGroup?: (group: RoomGroup) => void;
+  onReorderGroups?: (orderedIds: string[]) => void;
+  onOpenDirectMessage?: (userId: string) => void;
   onClose?: () => void;
   t: TFn;
 }
 
-function RoomItem({ room, isActive }: { room: Room; isActive: boolean }) {
-  const icon =
-    room.type === "channel" ? (
-      <Hash className="w-3.5 h-3.5 shrink-0 opacity-60" />
-    ) : room.type === "thread" ? (
-      <Link2 className="w-3.5 h-3.5 shrink-0 opacity-60" />
-    ) : (
-      <MessageSquare className="w-3.5 h-3.5 shrink-0 opacity-60" />
+const COLLAPSE_KEY = "killio:rooms:collapsed";
+
+const ENTITY_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
+  document: FileText,
+  board: Layout,
+  mesh: Network,
+  list: List,
+  card: StickyNote,
+};
+
+function loadCollapsed(): Record<string, boolean> {
+  try {
+    const raw = window.localStorage.getItem(COLLAPSE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+function Badges({ unread, mentions, t }: { unread: number; mentions: number; t: TFn }) {
+  if (mentions > 0) {
+    return (
+      <span className="ml-auto shrink-0 rounded-full bg-rose-600 px-1.5 text-[10px] font-bold leading-4 text-white" aria-label={t("sidebar.mentionsCount", { count: mentions })}>
+        @{mentions > 99 ? "99+" : mentions}
+      </span>
     );
+  }
+  if (unread > 0) {
+    return <span className="ml-auto h-2 w-2 shrink-0 rounded-full bg-foreground" aria-label={t("sidebar.unreadMessages", { count: unread })} />;
+  }
+  return null;
+}
+
+function RoomItem({ room, title, isActive, peer, t }: { room: SidebarRoom; title: string; isActive: boolean; peer?: DmPeer | null; t: TFn }) {
+  const unread = room.muted ? 0 : room.unreadCount ?? 0;
+  const mentions = room.mentionCount ?? 0; // a mention still shows in a silenced room
+  const Icon = room.type === "dm" ? MessageSquare : room.linkedEntityType ? ENTITY_ICON[room.linkedEntityType] ?? Hash : room.channelType === "announcement" ? Megaphone : Hash;
+  const bold = unread > 0 || mentions > 0;
 
   return (
     <Link
       href={`/rooms/${room.id}`}
-      className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
-        isActive
-          ? "bg-accent/20 text-accent font-semibold"
-          : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
-      }`}
+      aria-current={isActive ? "page" : undefined}
+      title={room.description ? `${title} · ${room.description}` : title}
+      className={`group/row flex min-h-[30px] items-center gap-2 rounded-lg px-2 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] motion-reduce:transition-none ${
+        isActive ? "bg-muted font-semibold text-foreground" : bold ? "font-semibold text-foreground hover:bg-muted/60" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+      } ${room.muted && !isActive ? "opacity-55" : ""}`}
     >
-      {room.emoji ? (
-        <span className="text-xs shrink-0">{room.emoji}</span>
+      {room.type === "dm" && peer ? (
+        <img src={getUserAvatarUrl(peer.avatarUrl, peer.email, 20)} alt="" className="h-5 w-5 shrink-0 rounded-full border border-border object-cover" />
+      ) : room.emoji && room.type === "channel" ? (
+        <span className="w-4 shrink-0 text-center text-xs" aria-hidden>{room.emoji}</span>
       ) : (
-        icon
+        <Icon className="h-4 w-4 shrink-0 opacity-70" />
       )}
-      <span className="truncate">{room.name}</span>
+      <span className="truncate">{title}</span>
+      {room.muted && <BellOff className="h-3 w-3 shrink-0 opacity-70" aria-label={t("sidebar.muted")} />}
+      <Badges unread={unread} mentions={mentions} t={t} />
     </Link>
   );
 }
 
-interface ChannelGroupSectionProps {
-  group: RoomGroup | null; // null = ungrouped
-  rooms: Room[];
-  activeRoomId: string | null;
-  canCreate: boolean;
-  onCreateRoom: (groupId?: string) => void;
+interface SectionHeaderProps {
+  id: string;
+  label: React.ReactNode;
+  collapsed: boolean;
+  onToggle: () => void;
+  unread?: number;
+  mentions?: number;
+  count?: number;
+  actions?: React.ReactNode;
+  onKeyDown?: (e: React.KeyboardEvent) => void;
+  dragProps?: React.HTMLAttributes<HTMLDivElement>;
   t: TFn;
 }
 
-function ChannelGroupSection({ group, rooms, activeRoomId, canCreate, onCreateRoom, t }: ChannelGroupSectionProps) {
-  const [collapsed, setCollapsed] = useState(false);
+function SectionHeader({ id, label, collapsed, onToggle, unread = 0, mentions = 0, count, actions, onKeyDown, dragProps, t }: SectionHeaderProps) {
+  return (
+    <div className="group/header flex items-center gap-1 px-1 py-0.5" {...dragProps}>
+      <button
+        type="button"
+        onClick={onToggle}
+        onKeyDown={onKeyDown}
+        aria-expanded={!collapsed}
+        aria-controls={id}
+        className="flex min-w-0 flex-1 items-center gap-1 rounded-md px-1 py-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] motion-reduce:transition-none"
+      >
+        {collapsed ? <ChevronRight className="h-3 w-3 shrink-0" aria-hidden /> : <ChevronDown className="h-3 w-3 shrink-0" aria-hidden />}
+        <span className="truncate">{label}</span>
+        {typeof count === "number" && <span className="ml-1 text-[10px] font-semibold tabular-nums opacity-60">{count}</span>}
+        {collapsed && <Badges unread={unread} mentions={mentions} t={t} />}
+      </button>
+      <div className="flex shrink-0 items-center opacity-100 md:opacity-0 md:group-hover/header:opacity-100 md:focus-within:opacity-100">{actions}</div>
+    </div>
+  );
+}
 
-  const label = group
-    ? `${group.emoji ? group.emoji + " " : ""}${group.name}`
-    : t("sidebar.channels");
+const iconButton =
+  "flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] motion-reduce:transition-none";
 
-  // The VAULT group doubles as a route: a sparkle button opens /rooms/vault,
-  // a full-page Killio assistant (chat with the AI directly).
-  const isVault = (group?.name ?? "").trim().toLowerCase() === "vault";
+function CategoryMenu({ group, index, total, onMove, onEdit, onDelete, t }: {
+  group: RoomGroup; index: number; total: number;
+  onMove: (dir: -1 | 1) => void; onEdit: () => void; onDelete: () => void; t: TFn;
+}) {
+  const [open, setOpen] = useState(false);
+  const [confirm, setConfirm] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const menuId = useId();
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setConfirm(false); } };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { setOpen(false); setConfirm(false); } };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
+  }, [open]);
+
+  const item = "flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted focus-visible:bg-muted focus-visible:outline-none disabled:opacity-40";
 
   return (
-    <div className="mb-1">
-      {/* Group header */}
-      <div className="flex items-center justify-between px-2 py-1 group/header">
-        <button
-          onClick={() => setCollapsed((v) => !v)}
-          className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors min-w-0 flex-1"
-        >
-          {collapsed ? (
-            <ChevronRight className="w-3 h-3 shrink-0" />
-          ) : (
-            <ChevronDown className="w-3 h-3 shrink-0" />
-          )}
-          <span className="truncate">{label}</span>
-        </button>
-        <div className="flex items-center gap-1">
-          {isVault && (
-            <NextLink
-              href="/rooms/vault"
-              title={t("sidebar.openKillioChat")}
-              className="w-4 h-4 flex items-center justify-center rounded text-cyan-500 hover:text-cyan-400 transition-colors"
-            >
-              <Sparkles className="w-3 h-3" />
-            </NextLink>
-          )}
-          {canCreate && (
-            <button
-              onClick={() => onCreateRoom(group?.id)}
-              title={t("sidebar.createChannel")}
-              className="w-4 h-4 flex items-center justify-center rounded text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover/header:opacity-100"
-            >
-              <Plus className="w-3 h-3" />
-            </button>
-          )}
+    <div ref={ref} className="relative">
+      <button type="button" className={iconButton} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuId : undefined} aria-label={t("category.menu", { name: group.name })} title={t("category.menu", { name: group.name })} onClick={() => setOpen((v) => !v)}>
+        <MoreHorizontal className="h-3.5 w-3.5" aria-hidden />
+      </button>
+      {open && (
+        <div id={menuId} role="menu" className="absolute right-0 top-full z-50 mt-1 w-48 overflow-hidden rounded-xl border-2 border-[var(--memphis-line)] bg-popover py-1 shadow-[3px_3px_0_0_var(--memphis-shadow)]">
+          <button role="menuitem" className={item} onClick={() => { setOpen(false); onEdit(); }}><Pencil className="h-3.5 w-3.5" aria-hidden />{t("category.edit")}</button>
+          <button role="menuitem" className={item} disabled={index === 0} onClick={() => { onMove(-1); setOpen(false); }}><ArrowUp className="h-3.5 w-3.5" aria-hidden />{t("category.moveUp")}</button>
+          <button role="menuitem" className={item} disabled={index === total - 1} onClick={() => { onMove(1); setOpen(false); }}><ArrowDown className="h-3.5 w-3.5" aria-hidden />{t("category.moveDown")}</button>
+          <button
+            role="menuitem"
+            className={`${item} text-destructive`}
+            onClick={() => { if (!confirm) { setConfirm(true); return; } setOpen(false); setConfirm(false); onDelete(); }}
+          >
+            <Trash2 className="h-3.5 w-3.5" aria-hidden />{confirm ? t("category.confirmDelete") : t("category.delete")}
+          </button>
         </div>
-      </div>
+      )}
+    </div>
+  );
+}
 
-      {/* Rooms in group */}
-      {!collapsed && (
-        <div className="pl-2">
-          {rooms.length === 0 ? (
-            <p className="px-2 py-1 text-xs text-muted-foreground/50 italic">{t("sidebar.noChannels")}</p>
-          ) : (
-            rooms.map((r) => (
-              <RoomItem key={r.id} room={r} isActive={r.id === activeRoomId} />
-            ))
-          )}
+function NewDirectMessage({ members, currentUserId, onPick, t }: { members: SidebarMemberOption[]; currentUserId?: string; onPick: (userId: string) => void; t: TFn }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+  const panelId = useId();
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
+  }, [open]);
+
+  const list = useMemo(() => {
+    const q = norm(query.trim());
+    return members.filter((m) => m.id !== currentUserId && (!q || norm(m.name).includes(q) || norm(m.email ?? "").includes(q))).slice(0, 30);
+  }, [members, currentUserId, query]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" className={iconButton} aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? panelId : undefined} aria-label={t("sidebar.createDM")} title={t("sidebar.createDM")} onClick={() => setOpen((v) => !v)}>
+        <Plus className="h-3.5 w-3.5" aria-hidden />
+      </button>
+      {open && (
+        <div id={panelId} role="dialog" aria-label={t("sidebar.createDM")} className="absolute right-0 top-full z-50 mt-1 w-56 rounded-xl border-2 border-[var(--memphis-line)] bg-popover p-2 shadow-[3px_3px_0_0_var(--memphis-shadow)]">
+          <input
+            autoFocus
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t("sidebar.dmSearch")}
+            aria-label={t("sidebar.dmSearch")}
+            className="mb-1 w-full rounded-lg border border-border bg-background px-2 py-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]"
+          />
+          <ul className="max-h-56 overflow-y-auto">
+            {list.length === 0 && <li className="px-2 py-2 text-xs text-muted-foreground">{t("sidebar.dmNobody")}</li>}
+            {list.map((m) => (
+              <li key={m.id}>
+                <button type="button" onClick={() => { setOpen(false); setQuery(""); onPick(m.id); }} className="flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left text-xs hover:bg-muted focus-visible:bg-muted focus-visible:outline-none">
+                  <img src={getUserAvatarUrl(m.avatarUrl ?? undefined, m.email, 20)} alt="" className="h-5 w-5 rounded-full border border-border object-cover" />
+                  <span className="truncate">{m.name}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>
@@ -124,147 +254,256 @@ function ChannelGroupSection({ group, rooms, activeRoomId, canCreate, onCreateRo
 }
 
 export function RoomSidebar({
-  rooms,
-  groups,
-  activeRoomId,
-  isLoading,
-  canCreate,
-  onSelectRoom: _onSelectRoom,
-  onCreateRoom,
-  onCreateGroup,
-  onClose,
-  t,
+  rooms, groups, activeRoomId, isLoading, hasError, onRetry, canCreate, canManage: canManageProp, entityTitles = {}, peers = {}, selfNames = [], members = [],
+  currentUserId, onCreateRoom, onCreateGroup, onEditGroup, onDeleteGroup, onReorderGroups, onOpenDirectMessage, onClose, t,
 }: RoomSidebarProps) {
-  const channels = rooms.filter((r) => r.type === "channel");
-  const threads = rooms.filter((r) => r.type === "thread");
-  const dms = rooms.filter((r) => r.type === "dm");
-  const [linkedCollapsed, setLinkedCollapsed] = useState(false);
+  // Callers that do not tell the difference (older pages) get the old rule: whoever can create channels manages categories.
+  const canManage = canManageProp ?? canCreate;
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [filter, setFilter] = useState("");
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState<string | null>(null);
+  const [announce, setAnnounce] = useState("");
 
-  // Sort groups by sortOrder
-  const sortedGroups = [...groups].sort((a, b) => a.sortOrder - b.sortOrder);
+  useEffect(() => { setCollapsed(loadCollapsed()); }, []);
 
-  // Channels without a group
-  const ungroupedChannels = channels.filter(
-    (r) => !r.groupId || !groups.find((g) => g.id === r.groupId)
+  const toggle = useCallback((key: string, defaultCollapsed = false) => {
+    setCollapsed((prev) => {
+      const next = { ...prev, [key]: !isSectionCollapsed(prev, key, defaultCollapsed) };
+      try { window.localStorage.setItem(COLLAPSE_KEY, JSON.stringify(next)); } catch { /* storage blocked: not remembered */ }
+      return next;
+    });
+  }, []);
+
+  const q = norm(filter.trim());
+  const entityTitle = useCallback(
+    (r: SidebarRoom) => (r.linkedEntityType && r.linkedEntityId ? entityTitles[`${r.linkedEntityType}:${r.linkedEntityId}`] : undefined) ?? r.name,
+    [entityTitles],
   );
+  const dmTitle = useCallback((r: SidebarRoom) => dmDisplayName(r, selfNames, peers[r.id]?.name), [selfNames, peers]);
+  const titleOf = useCallback((r: SidebarRoom) => (r.type === "dm" ? dmTitle(r) : r.linkedEntityType || r.type === "thread" ? entityTitle(r) : r.name), [dmTitle, entityTitle]);
+
+  const visible = useMemo(
+    () => (q ? rooms.filter((r) => norm(titleOf(r)).includes(q)) : rooms).map((r) => ({ ...r, position: r.sortOrder ?? null })),
+    [rooms, q, titleOf],
+  );
+  const model = useMemo(() => buildSidebarModel<SidebarRoom>(visible as (SidebarRoom & LayoutRoom)[], groups.map((g) => ({ id: g.id, name: g.name, emoji: g.emoji, sortOrder: g.sortOrder }))), [visible, groups]);
+  const order = useMemo(() => categoryOrder(groups.map((g) => ({ id: g.id, name: g.name, sortOrder: g.sortOrder }))), [groups]);
+
+  const commitOrder = useCallback((next: string[], movedId: string, movedName: string) => {
+    if (next.join("|") === order.join("|")) return;
+    onReorderGroups?.(next);
+    setAnnounce(t("category.moved", { name: movedName, position: next.indexOf(movedId) + 1 }));
+  }, [onReorderGroups, order, t]);
+
+  const move = (group: RoomGroup, dir: -1 | 1) => {
+    const next = moveCategory(order, group.id, dir);
+    onReorderGroups?.(next);
+    setAnnounce(t("category.moved", { name: group.name, position: next.indexOf(group.id) + 1 }));
+  };
+
+  // An entity type with no translation (script, folder, ...) falls under "Other" instead of showing a key.
+  const typeLabel = (entityType: string) => {
+    const key = `sidebar.entityType.${entityType}`;
+    const label = t(key);
+    return label === key ? t("sidebar.entityType.other") : label;
+  };
+
+  const hasAnyRoom = rooms.length > 0;
+  const filtering = q.length > 0;
+  const nothingMatches = filtering && model.categories.every((c) => c.rooms.length === 0) && model.entityGroups.length === 0 && model.directMessages.length === 0;
 
   return (
-    <aside className="w-64 md:w-56 shrink-0 border-r border-border/60 bg-card/30 flex flex-col overflow-hidden h-full">
-      {/* Header */}
-      <div className="px-3 py-3 border-b border-border/40 shrink-0 flex items-center justify-between">
-        <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-          {t("title")}
-        </span>
-        <div className="flex items-center gap-1">
-          {canCreate && onCreateGroup && (
-            <button
-              onClick={onCreateGroup}
-              title={t("sidebar.createGroup")}
-              className="w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <FolderOpen className="w-3.5 h-3.5" />
+    <aside className="flex h-full w-64 shrink-0 flex-col overflow-hidden border-r-2 border-[var(--memphis-line)] bg-card/40 md:w-60" aria-label={t("title")}>
+      <div className="flex shrink-0 items-center justify-between gap-1 border-b border-border px-3 py-2.5">
+        <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t("title")}</h2>
+        <div className="flex items-center gap-0.5">
+          {canCreate && (
+            <button type="button" onClick={() => onCreateRoom()} className={iconButton} aria-label={t("sidebar.createChannel")} title={t("sidebar.createChannel")}>
+              <Plus className="h-3.5 w-3.5" aria-hidden />
             </button>
           )}
-          {/* Mobile close button */}
+          {canManage && onCreateGroup && (
+            <button type="button" onClick={onCreateGroup} className={iconButton} aria-label={t("sidebar.createGroup")} title={t("sidebar.createGroup")}>
+              <FolderPlus className="h-3.5 w-3.5" aria-hidden />
+            </button>
+          )}
           {onClose && (
-            <button
-              onClick={onClose}
-              className="md:hidden w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="Close sidebar"
-            >
-              <X className="w-4 h-4" />
+            <button type="button" onClick={onClose} className={`${iconButton} md:hidden`} aria-label={t("sidebar.close")}>
+              <X className="h-4 w-4" aria-hidden />
             </button>
           )}
         </div>
       </div>
 
-      {/* Lists */}
-      <div className="flex-1 overflow-y-auto py-3 px-2">
+      {hasAnyRoom && (
+        <div className="shrink-0 px-2 pt-2">
+          <label className="relative block">
+            <span className="sr-only">{t("sidebar.filter")}</span>
+            <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            <input
+              type="search"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder={t("sidebar.filter")}
+              className="w-full rounded-lg border border-border bg-background py-1 pl-7 pr-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]"
+            />
+          </label>
+        </div>
+      )}
+
+      <nav className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 py-2" aria-label={t("sidebar.channels")}>
+        <div className="sr-only" role="status" aria-live="polite">{announce}</div>
+
         {isLoading ? (
-          <div className="flex justify-center py-6">
-            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+          <div className="space-y-2 px-1 py-2" role="status" aria-label={t("sidebar.loading")}>
+            {[0, 1, 2, 3, 4].map((i) => <div key={i} className="h-6 animate-pulse rounded-lg bg-muted motion-reduce:animate-none" style={{ width: `${60 + ((i * 13) % 35)}%` }} />)}
+          </div>
+        ) : hasError ? (
+          <div role="alert" className="m-1 rounded-xl border-2 border-[var(--memphis-line)] p-3 text-center text-xs">
+            <p className="mb-2 text-muted-foreground">{t("sidebar.loadError")}</p>
+            {onRetry && <button type="button" onClick={onRetry} className="rounded-lg border border-border px-3 py-1 font-semibold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">{t("errors.retry")}</button>}
           </div>
         ) : (
           <>
-            {/* Ungrouped channels (always shown first if any exist, or if no groups) */}
-            {(sortedGroups.length === 0 || ungroupedChannels.length > 0) && (
-              <ChannelGroupSection
-                group={null}
-                rooms={ungroupedChannels}
-                activeRoomId={activeRoomId}
-                canCreate={canCreate}
-                onCreateRoom={onCreateRoom}
-                t={t}
-              />
+            {!hasAnyRoom && (
+              <div className="m-1 rounded-xl border-2 border-dashed border-border p-3 text-center text-xs text-muted-foreground">
+                <p className="font-semibold text-foreground">{t("emptyState.title")}</p>
+                <p className="mt-1">{canCreate ? t("sidebar.emptyCanCreate") : t("sidebar.emptyNoCreate")}</p>
+              </div>
             )}
+            {nothingMatches && <p className="px-2 py-3 text-center text-xs text-muted-foreground">{t("sidebar.noMatches")}</p>}
 
-            {/* Named groups */}
-            {sortedGroups.map((group) => (
-              <ChannelGroupSection
-                key={group.id}
-                group={group}
-                rooms={channels.filter((r) => r.groupId === group.id)}
-                activeRoomId={activeRoomId}
-                canCreate={canCreate}
-                onCreateRoom={onCreateRoom}
-                t={t}
-              />
-            ))}
+            {/* Channels, by category */}
+            {model.categories.map((section) => {
+              if (filtering && section.rooms.length === 0) return null;
+              const group = section.category;
+              const key = group ? `cat:${group.id}` : "cat:none";
+              const isCollapsed = !filtering && isSectionCollapsed(collapsed, key);
+              const realGroup = group ? groups.find((g) => g.id === group.id) : undefined;
+              const orderIndex = group ? order.indexOf(group.id) : -1;
+              const isVault = (group?.name ?? "").trim().toLowerCase() === "vault";
+              const listId = `section-${key}`;
+              const draggable = Boolean(canManage && group && onReorderGroups && !filtering);
 
-            {/* Linked threads (boards, docs, meshes) — collapsible */}
-            {threads.length > 0 && (
-              <div className="mb-1 mt-2">
-                <button
-                  onClick={() => setLinkedCollapsed((v) => !v)}
-                  className="w-full px-2 py-1 flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+              return (
+                <section
+                  key={key}
+                  className={`mb-1 rounded-lg ${dragOver === group?.id && dragId !== group?.id ? "ring-2 ring-[hsl(var(--accent-ink))]" : ""}`}
+                  onDragOver={draggable ? (e) => { if (dragId) { e.preventDefault(); setDragOver(group!.id); } } : undefined}
+                  onDragLeave={draggable ? () => setDragOver((cur) => (cur === group?.id ? null : cur)) : undefined}
+                  onDrop={draggable ? (e) => {
+                    e.preventDefault();
+                    if (dragId && group && dragId !== group.id) commitOrder(reorderCategory(order, dragId, group.id), dragId, groups.find((g) => g.id === dragId)?.name ?? "");
+                    setDragId(null); setDragOver(null);
+                  } : undefined}
                 >
-                  {linkedCollapsed ? (
-                    <ChevronRight className="w-3 h-3 shrink-0" />
-                  ) : (
-                    <ChevronDown className="w-3 h-3 shrink-0" />
+                  <SectionHeader
+                    id={listId}
+                    t={t}
+                    collapsed={isCollapsed}
+                    onToggle={() => toggle(key)}
+                    label={group ? `${group.emoji ? `${group.emoji} ` : ""}${group.name}` : t("sidebar.channels")}
+                    unread={section.unread}
+                    mentions={section.mentions}
+                    onKeyDown={draggable ? (e) => {
+                      if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown") && realGroup) {
+                        e.preventDefault();
+                        move(realGroup, e.key === "ArrowUp" ? -1 : 1);
+                      }
+                    } : undefined}
+                    dragProps={draggable ? {
+                      draggable: true,
+                      onDragStart: (e) => { setDragId(group!.id); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", group!.id); },
+                      onDragEnd: () => { setDragId(null); setDragOver(null); },
+                    } : undefined}
+                    actions={
+                      <>
+                        {draggable && <span className="hidden h-6 w-4 cursor-grab items-center justify-center text-muted-foreground md:flex" aria-hidden><GripVertical className="h-3 w-3" /></span>}
+                        {isVault && (
+                          <Link href="/rooms/vault" className={`${iconButton} text-cyan-500 hover:text-cyan-400`} aria-label={t("sidebar.openKillioChat")} title={t("sidebar.openKillioChat")}>
+                            <Sparkles className="h-3.5 w-3.5" aria-hidden />
+                          </Link>
+                        )}
+                        {canCreate && (
+                          <button type="button" onClick={() => onCreateRoom(group?.id)} className={iconButton} aria-label={t("sidebar.createChannelIn", { name: group?.name ?? t("sidebar.channels") })} title={t("sidebar.createChannel")}>
+                            <Plus className="h-3.5 w-3.5" aria-hidden />
+                          </button>
+                        )}
+                        {canManage && realGroup && onEditGroup && onDeleteGroup && (
+                          <CategoryMenu group={realGroup} index={orderIndex} total={order.length} onMove={(d) => move(realGroup, d)} onEdit={() => onEditGroup(realGroup)} onDelete={() => onDeleteGroup(realGroup)} t={t} />
+                        )}
+                      </>
+                    }
+                  />
+                  {!isCollapsed && (
+                    <ul id={listId} className="space-y-px pl-1">
+                      {section.rooms.length === 0 ? (
+                        <li className="px-2 py-1 text-xs italic text-muted-foreground/70">{t("sidebar.noChannels")}</li>
+                      ) : section.rooms.map((r) => (
+                        <li key={r.id}><RoomItem room={r} title={r.name} isActive={r.id === activeRoomId} t={t} /></li>
+                      ))}
+                    </ul>
                   )}
-                  <span className="text-[10px] font-bold uppercase tracking-widest">
-                    {t("sidebar.linked")}
-                  </span>
-                  <span className="ml-auto text-[10px] tabular-nums opacity-60">{threads.length}</span>
-                </button>
-                {!linkedCollapsed && (
-                  <div className="pl-2">
-                    {threads.map((r) => (
-                      <RoomItem key={r.id} room={r} isActive={r.id === activeRoomId} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+                </section>
+              );
+            })}
 
-            {/* DMs */}
-            {dms.length > 0 && (
-              <div className="mb-1 mt-2">
-                <div className="px-2 py-1 flex items-center justify-between group/dmheader">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                    {t("sidebar.directMessages")}
-                  </span>
-                  {canCreate && (
-                    <button
-                      onClick={() => onCreateRoom(undefined)}
-                      title={t("sidebar.createDM")}
-                      className="w-4 h-4 flex items-center justify-center rounded text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover/dmheader:opacity-100"
-                    >
-                      <Plus className="w-3 h-3" />
-                    </button>
+            {/* Documents and boards: their own section, collapsed by default */}
+            {model.entityGroups.length > 0 && (() => {
+              const key = "entities";
+              const isCollapsed = !filtering && isSectionCollapsed(collapsed, key, true);
+              const total = model.entityGroups.reduce((n, g) => n + g.rooms.length, 0);
+              const unread = model.entityGroups.reduce((n, g) => n + g.unread, 0);
+              const mentions = model.entityGroups.reduce((n, g) => n + g.mentions, 0);
+              return (
+                <section className="mb-1 mt-3 border-t border-border pt-2">
+                  <SectionHeader id="section-entities" t={t} collapsed={isCollapsed} onToggle={() => toggle(key, true)} label={t("sidebar.entityRooms")} count={total} unread={unread} mentions={mentions} />
+                  {!isCollapsed && (
+                    <div id="section-entities" className="pl-1">
+                      {model.entityGroups.map((g) => {
+                        const Icon = ENTITY_ICON[g.entityType] ?? Hash;
+                        return (
+                          <div key={g.entityType} className="mb-1">
+                            <div className="flex items-center gap-1.5 px-2 pb-0.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+                              <Icon className="h-3 w-3" aria-hidden />{typeLabel(g.entityType)}
+                            </div>
+                            <ul className="space-y-px">
+                              {g.rooms.map((r) => <li key={r.id}><RoomItem room={r} title={entityTitle(r)} isActive={r.id === activeRoomId} t={t} /></li>)}
+                            </ul>
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
-                </div>
-                <div className="pl-2">
-                  {dms.map((r) => (
-                    <RoomItem key={r.id} room={r} isActive={r.id === activeRoomId} />
-                  ))}
-                </div>
-              </div>
+                </section>
+              );
+            })()}
+
+            {/* Direct messages */}
+            {(model.directMessages.length > 0 || (onOpenDirectMessage && members.length > 1 && !filtering)) && (
+              <section className="mb-1 mt-3 border-t border-border pt-2">
+                <SectionHeader
+                  id="section-dms"
+                  t={t}
+                  collapsed={!filtering && isSectionCollapsed(collapsed, "dms")}
+                  onToggle={() => toggle("dms")}
+                  label={t("sidebar.directMessages")}
+                  unread={model.directMessages.reduce((n, r) => n + (r.muted ? 0 : r.unreadCount ?? 0), 0)}
+                  mentions={model.directMessages.reduce((n, r) => n + (r.mentionCount ?? 0), 0)}
+                  actions={onOpenDirectMessage && members.length > 1 ? <NewDirectMessage members={members} currentUserId={currentUserId} onPick={onOpenDirectMessage} t={t} /> : undefined}
+                />
+                {(filtering || !isSectionCollapsed(collapsed, "dms")) && (
+                  <ul id="section-dms" className="space-y-px pl-1">
+                    {model.directMessages.length === 0 && <li className="px-2 py-1 text-xs italic text-muted-foreground/70">{t("sidebar.noDMs")}</li>}
+                    {model.directMessages.map((r) => <li key={r.id}><RoomItem room={r} title={dmTitle(r)} peer={peers[r.id]} isActive={r.id === activeRoomId} t={t} /></li>)}
+                  </ul>
+                )}
+              </section>
             )}
           </>
         )}
-      </div>
+      </nav>
     </aside>
   );
 }

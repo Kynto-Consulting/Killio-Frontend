@@ -1,50 +1,73 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Menu } from "lucide-react";
 
 interface RoomsLayoutProps {
   sidebar: (onClose: () => void) => React.ReactNode;
-  children: React.ReactNode;
+  /** Receives `openSidebar`, so the channel header can hold the menu button on phones (no extra bar). */
+  children: React.ReactNode | ((api: { openSidebar: () => void }) => React.ReactNode);
+  /** Label of the drawer for screen readers (already translated). */
+  drawerLabel?: string;
 }
 
-export function RoomsLayout({ sidebar, children }: RoomsLayoutProps) {
+/**
+ * Two columns on desktop (channel bar + content); on phones the channel bar is a drawer. The drawer closes with Escape or
+ * a tap outside, and the page behind it is not reachable while it is open.
+ */
+export function RoomsLayout({ sidebar, children, drawerLabel = "Channels" }: RoomsLayoutProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setDrawerOpen(false), []);
+  const open = useCallback(() => setDrawerOpen(true), []);
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setDrawerOpen(false); };
+    document.addEventListener("keydown", onKey);
+    const frame = requestAnimationFrame(() => drawerRef.current?.querySelector<HTMLElement>("a[href], button, input")?.focus());
+    return () => { document.removeEventListener("keydown", onKey); cancelAnimationFrame(frame); };
+  }, [drawerOpen]);
 
   return (
-    <div className="flex h-full overflow-hidden relative">
-      {/* Mobile overlay */}
+    <div className="relative flex h-full overflow-hidden">
       {drawerOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/60 md:hidden backdrop-blur-sm"
-          onClick={() => setDrawerOpen(false)}
-        />
+        <button type="button" tabIndex={-1} aria-hidden className="fixed inset-0 z-40 cursor-default bg-black/50 md:hidden" onClick={close} />
       )}
 
-      {/* Sidebar — slide-in drawer on mobile, static panel on desktop */}
       <div
+        ref={drawerRef}
+        role={drawerOpen ? "dialog" : undefined}
+        aria-modal={drawerOpen ? true : undefined}
+        aria-label={drawerOpen ? drawerLabel : undefined}
         className={[
           "fixed inset-y-0 left-0 z-50 md:static md:z-auto md:translate-x-0",
-          "transition-transform duration-300 ease-in-out md:transition-none",
+          "transition-transform duration-200 ease-out motion-reduce:transition-none md:transition-none",
           drawerOpen ? "translate-x-0" : "-translate-x-full",
         ].join(" ")}
       >
-        {sidebar(() => setDrawerOpen(false))}
+        {sidebar(close)}
       </div>
 
-      {/* Main content */}
-      <div className="flex flex-1 flex-col overflow-hidden min-w-0">
-        {/* Mobile top bar with hamburger */}
-        <div className="md:hidden flex items-center gap-3 px-3 py-2.5 border-b border-border/40 bg-background/80 backdrop-blur shrink-0">
-          <button
-            onClick={() => setDrawerOpen(true)}
-            className="flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/10 transition-colors"
-            aria-label="Open rooms menu"
-          >
-            <Menu className="w-4 h-4" />
-          </button>
-        </div>
-        {children}
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        {typeof children === "function" ? (
+          children({ openSidebar: open })
+        ) : (
+          <>
+            {/* Plain children (pages without their own header): a slim bar holds the menu button on phones. */}
+            <div className="flex shrink-0 items-center gap-3 border-b border-border/40 bg-background/80 px-3 py-2 md:hidden">
+              <button
+                type="button"
+                onClick={open}
+                aria-label={drawerLabel}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] motion-reduce:transition-none"
+              >
+                <Menu className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
+            {children}
+          </>
+        )}
       </div>
     </div>
   );

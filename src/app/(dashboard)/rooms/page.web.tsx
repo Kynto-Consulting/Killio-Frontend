@@ -1,74 +1,73 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MessageSquare, Plus } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
-import { listTeamRooms, type Room } from "@/lib/api/rooms";
+import { useActiveTeamRole } from "@/hooks/use-active-team-role";
+import { useRoomDirectory } from "@/hooks/use-room-directory";
 import { CreateRoomModal } from "@/components/rooms/CreateRoomModal";
-import { apiCache, CACHE_TTL, cacheKey } from "@/lib/api-cache";
 import { SkeletonRoomRow } from "@/components/ui/skeleton";
+import { buildSidebarModel, type LayoutRoom } from "@/lib/rooms/channel-layout";
 
+/** `/rooms`: opens the first channel (the one the channel bar lists first); with no rooms it explains what to do. */
 export default function RoomsPageWeb() {
   const t = useTranslations("rooms");
   const router = useRouter();
-  const { accessToken, activeTeamId } = useSession();
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { accessToken, activeTeamId, user } = useSession();
+  const { isAdmin } = useActiveTeamRole(activeTeamId, accessToken, user?.id);
+  const directory = useRoomDirectory(activeTeamId, accessToken, user?.id, isAdmin);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
+  const firstRoomId = useMemo(() => {
+    if (directory.isLoading || directory.rooms.length === 0) return null;
+    const model = buildSidebarModel(directory.rooms as (typeof directory.rooms[number] & LayoutRoom)[], directory.groups.map((g) => ({ id: g.id, name: g.name, emoji: g.emoji, sortOrder: g.sortOrder })));
+    const channel = model.categories.flatMap((c) => c.rooms)[0];
+    return (channel ?? model.entityGroups[0]?.rooms[0] ?? model.directMessages[0])?.id ?? null;
+  }, [directory.isLoading, directory.rooms, directory.groups]);
+
   useEffect(() => {
-    if (!accessToken || !activeTeamId) return;
-    const key = cacheKey.rooms(activeTeamId);
+    if (firstRoomId) router.replace(`/rooms/${firstRoomId}`);
+  }, [firstRoomId, router]);
 
-    // Show cached rooms instantly
-    const cached = apiCache.get<Room[]>(key);
-    if (cached) {
-      setRooms(cached);
-      setIsLoading(false);
-      if (cached.length > 0) {
-        router.replace(`/rooms/${cached[0].id}`);
-        return;
-      }
-    } else {
-      setIsLoading(true);
-    }
-
-    listTeamRooms(activeTeamId, accessToken)
-      .then((fetched) => {
-        apiCache.set(key, fetched, CACHE_TTL.ROOMS);
-        setRooms(fetched);
-        if (fetched.length > 0) {
-          router.replace(`/rooms/${fetched[0].id}`);
-        }
-      })
-      .catch(console.error)
-      .finally(() => setIsLoading(false));
-  }, [accessToken, activeTeamId, router]);
-
-  if (isLoading) {
+  if (directory.isLoading || firstRoomId) {
     return (
-      <div className="flex h-full flex-col divide-y divide-border">
-        {[1,2,3,4,5].map(i => <SkeletonRoomRow key={i} />)}
+      <div className="flex h-full flex-col divide-y divide-border" role="status" aria-label={t("sidebar.loading")}>
+        {[1, 2, 3, 4, 5].map((i) => <SkeletonRoomRow key={i} />)}
       </div>
     );
   }
 
+  if (directory.error) {
+    return (
+      <div role="alert" className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
+        <p className="text-sm text-muted-foreground">{t("sidebar.loadError")}</p>
+        <button type="button" onClick={directory.refresh} className="rounded-lg border-2 border-[var(--memphis-line)] px-3 py-1.5 text-xs font-bold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">
+          {t("errors.retry")}
+        </button>
+      </div>
+    );
+  }
+
+  const canCreate = directory.capabilities.canCreateChannels;
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
-      <div className="w-14 h-14 rounded-full bg-accent/10 flex items-center justify-center">
-        <MessageSquare className="w-7 h-7 text-accent" />
+      <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-[var(--memphis-line)] bg-muted/40">
+        <MessageSquare className="h-7 w-7" aria-hidden />
       </div>
-      <h2 className="text-xl font-semibold">{t("emptyState.title")}</h2>
-      <p className="text-sm text-muted-foreground max-w-xs">{t("emptyState.description")}</p>
-      <button
-        onClick={() => setIsCreateOpen(true)}
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-medium hover:bg-accent/90 transition-colors"
-      >
-        <Plus className="w-4 h-4" />
-        {t("emptyState.createButton")}
-      </button>
+      <h2 className="text-xl font-bold">{t("emptyState.title")}</h2>
+      <p className="max-w-xs text-sm text-muted-foreground">{canCreate ? t("emptyState.description") : t("sidebar.emptyNoCreate")}</p>
+      {canCreate && (
+        <button
+          type="button"
+          onClick={() => setIsCreateOpen(true)}
+          className="inline-flex items-center gap-2 rounded-xl border-2 border-[var(--memphis-line)] bg-[hsl(var(--accent-ink))] px-4 py-2 text-sm font-bold text-[hsl(var(--accent-ink-fg))] shadow-[2px_2px_0_0_var(--memphis-shadow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] focus-visible:ring-offset-2"
+        >
+          <Plus className="h-4 w-4" aria-hidden />
+          {t("emptyState.createButton")}
+        </button>
+      )}
 
       {activeTeamId && accessToken && (
         <CreateRoomModal
@@ -76,7 +75,9 @@ export default function RoomsPageWeb() {
           onClose={() => setIsCreateOpen(false)}
           teamId={activeTeamId}
           accessToken={accessToken}
-          rooms={rooms}
+          groups={directory.groups}
+          rooms={directory.rooms}
+          canEditPermissions={directory.capabilities.canManageChannels}
           onCreated={(roomId) => router.push(`/rooms/${roomId}`)}
           t={t}
         />

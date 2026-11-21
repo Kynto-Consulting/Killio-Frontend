@@ -23,6 +23,8 @@ export interface ResolverContext {
   users?: WorkspaceMemberLike[];
   /** Team user groups, for `@[group:id:Name]` pills (colour + member count). */
   groups?: Array<{ id: string; name: string; color?: string | null; memberCount?: number }>;
+  /** Team roles, for `@[role:id:Name]` pills in room messages (colour of the role). */
+  roles?: Array<{ id: string; name: string; color?: string | null }>;
   /**
    * Opt in to `{ type: 'kql' }` parts for `@[kql:mode.script:label]` tokens (rendered with KqlPill).
    * Callers that do not know that part type leave this unset and keep seeing the raw token text.
@@ -512,7 +514,7 @@ export class ReferenceResolver {
    */
   static renderRich(text: string, _context: ResolverContext): (string | any)[] {
     const context = _context;
-    const parts = text.split(/(@\[ext:[^\]]+\]|@\[(?:doc|board|mesh|card|user|group|folder|room|thread|transcript|event|kql):[^\]]+\]|[$#]\[[^\]]+\])/g);
+    const parts = text.split(/(@\[ext:[^\]]+\]|@\[(?:doc|board|mesh|card|user|group|role|everyone|folder|room|thread|transcript|event|kql):[^\]]+\]|[$#]\[[^\]]+\])/g);
 
     const resolvedParts = parts.map((part, i) => {
       // Extension reference: @[ext:provider:kind:externalId:label] → app pill.
@@ -525,6 +527,14 @@ export class ReferenceResolver {
         const spec = context.renderKql ? parseKqlPillToken(part) : null;
         if (spec) return { type: 'kql', script: spec.script, mode: spec.mode, label: spec.label, token: part, key: i };
         return part;
+      }
+      // Room mentions of a role or of everyone: coloured pill, no entity behind it.
+      const roleMatch = part.match(/@\[(role|everyone):([^:\]]+)(?::([^\]]*))?\]/);
+      if (roleMatch) {
+        const [, kind, rid, label] = roleMatch;
+        if (kind === "everyone") return { type: 'mention', mentionType: 'everyone', id: 'everyone', name: label || 'everyone', key: i, color: null };
+        const role = context.roles?.find((r) => r.id === rid);
+        return { type: 'mention', mentionType: 'role', id: rid, name: String(role?.name || label || 'role'), key: i, color: role?.color ?? null };
       }
       const match = part.match(/@\[(doc|board|mesh|card|user|group|folder|room|thread|transcript|event):([^:\]]+)(?::([^\]]+))?\]/);
       if (match) {
