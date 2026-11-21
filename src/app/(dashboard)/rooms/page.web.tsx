@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { MessageSquare, Plus } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
-import { useActiveTeamRole } from "@/hooks/use-active-team-role";
+import { useTeamPermissions } from "@/hooks/use-team-permissions";
 import { useRoomDirectory } from "@/hooks/use-room-directory";
 import { CreateRoomModal } from "@/components/rooms/CreateRoomModal";
 import { SkeletonRoomRow } from "@/components/ui/skeleton";
@@ -16,7 +16,8 @@ export default function RoomsPageWeb() {
   const t = useTranslations("rooms");
   const router = useRouter();
   const { accessToken, activeTeamId, user } = useSession();
-  const { isAdmin } = useActiveTeamRole(activeTeamId, accessToken, user?.id);
+  const { can: canTeam } = useTeamPermissions(activeTeamId, accessToken, user?.id);
+  const isAdmin = canTeam("rooms.manage");
   const directory = useRoomDirectory(activeTeamId, accessToken, user?.id, isAdmin);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 

@@ -85,8 +85,9 @@ test("slash candidates: built-ins plus bot commands, prefix first, duplicates co
 
 test("pinned list merges loaded and fetched, loaded copy wins, unpinning removes", async () => {
   const { mergePinned, filterMessagesByText } = await import("./message-structure.ts");
-  const a = { id: "a", userId: "u", type: "text", createdAt: "1", pinnedAt: "2026-11-21T10:00:00Z" };
-  const b = { id: "b", userId: "u", type: "text", createdAt: "2", pinnedAt: "2026-11-21T12:00:00Z" };
+  type Pin = { id: string; userId: string; type: string; createdAt: string; pinnedAt: string | null; content?: string };
+  const a: Pin = { id: "a", userId: "u", type: "text", createdAt: "1", pinnedAt: "2026-11-21T10:00:00Z" };
+  const b: Pin = { id: "b", userId: "u", type: "text", createdAt: "2", pinnedAt: "2026-11-21T12:00:00Z" };
   const merged = mergePinned([{ ...a, content: "live" }], [a, b]);
   assert.deepEqual(merged.map((m) => m.id), ["b", "a"]);
   assert.equal(merged.find((m) => m.id === "a")?.content, "live");

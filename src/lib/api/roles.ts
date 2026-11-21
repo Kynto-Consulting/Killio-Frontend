@@ -118,7 +118,7 @@ export async function listAuditLog(teamId: string, accessToken: string, opts: { 
   const qs = new URLSearchParams();
   if (opts.action) qs.set("action", opts.action);
   qs.set("limit", String(opts.limit ?? 100));
-  const raw = await fetchApi<any>(`/teams/${q(teamId)}/audit-log?${qs.toString()}`, { accessToken });
+  const raw = await fetchApi<any>(`/teams/${q(teamId)}/audit?${qs.toString()}`, { accessToken });
   const list = Array.isArray(raw) ? raw : Array.isArray(raw?.entries) ? raw.entries : [];
   return list.map((e: any) => ({
     id: String(e.id),

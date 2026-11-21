@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Globe, Megaphone, Lock, Trash2, Users, UserRound, Shield, AlertTriangle } from "lucide-react";
-import { TriStateToggle } from "./TriStateToggle";
+import { TriStateControl } from "@/components/roles/ui";
 import { roomField, roomGhostButton, roomPrimaryButton } from "./RoomModalShell";
 import type { RoomSubjects } from "@/hooks/use-room-subjects";
 import {
@@ -58,7 +58,6 @@ export function PermissionOverridesEditor({ drafts, onChange, subjects, isLoadin
     return [everyone as OverrideDraft, ...drafts.filter((d) => d.subjectType !== "everyone")];
   }, [drafts]);
 
-  const stateLabels = { allow: t("perm.allow"), inherit: t("perm.inherit"), deny: t("perm.deny") };
 
   const addable = useMemo(() => {
     const present = new Set(drafts.map(subjectKey));
@@ -205,11 +204,10 @@ export function PermissionOverridesEditor({ drafts, onChange, subjects, isLoadin
                         <div className="truncate text-xs font-medium">{t(`perm.keys.${k}`)}</div>
                         <div className="truncate text-[11px] text-muted-foreground">{t(`perm.keyHints.${k}`)}</div>
                       </div>
-                      <TriStateToggle
+                      <TriStateControl
                         value={stateOf(draft, k)}
                         onChange={(next: TriState) => onChange(setState(drafts, draft, k, next))}
                         label={`${t(`perm.keys.${k}`)}: ${info.label}`}
-                        labels={stateLabels}
                         disabled={disabled}
                       />
                     </div>

@@ -15,7 +15,6 @@ export { CreateRoomGroupModal } from "./CreateRoomGroupModal";
 export { ChannelSettingsModal } from "./ChannelSettingsModal";
 export { CategorySettingsModal } from "./CategorySettingsModal";
 export { PermissionOverridesEditor } from "./PermissionOverridesEditor";
-export { TriStateToggle } from "./TriStateToggle";
 export { MuteMemberModal } from "./MuteMemberModal";
 export { PinnedPanel, ThreadPanel } from "./SidePanels";
 export { EntityChatToggle } from "./EntityChatToggle";
