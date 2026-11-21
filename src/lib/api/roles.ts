@@ -27,6 +27,7 @@ export async function getMyTeamPermissions(teamId: string, accessToken: string):
     roles: Array.isArray(raw?.roles) ? raw.roles.map((r: any) => ({ id: String(r.id), name: String(r.name), color: r.color ?? null, position: Number(r.position) || 0 })) : [],
     permissions: Array.isArray(raw?.permissions) ? raw.permissions.filter((p: unknown) => typeof p === "string") : [],
     manageableRoleIds: Array.isArray(raw?.manageableRoleIds) ? raw.manageableRoleIds.map(String) : undefined,
+    invitableRoleIds: Array.isArray(raw?.invitableRoleIds) ? raw.invitableRoleIds.map(String) : undefined,
   };
 }
 

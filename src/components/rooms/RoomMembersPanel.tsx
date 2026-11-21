@@ -61,6 +61,13 @@ function MemberRow({ member, isOnline, isInCall, isYou, canModerate, isMuted, on
           {isMuted && <Clock className="h-3 w-3 shrink-0 text-amber-600" aria-label={t("members.muted")} />}
         </div>
         <span className="block text-[10px] text-muted-foreground">
+          {(member.inheritedRoles ?? []).length > 0 && (
+            <span className="mr-1 inline-flex flex-wrap gap-0.5 align-middle" title={t("members.inherited")}>
+              {member.inheritedRoles!.map((r) => (
+                <span key={r.id} className="rounded border border-dashed border-border px-1 text-[9px] font-semibold text-muted-foreground">{r.name}</span>
+              ))}
+            </span>
+          )}
           {isInCall ? t("members.inCall") : isOnline ? t("members.online") : member.isBot ? t("members.botLabel") : t("members.offline")}
         </span>
       </div>

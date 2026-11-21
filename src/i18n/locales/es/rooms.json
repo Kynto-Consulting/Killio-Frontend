@@ -299,6 +299,7 @@
     "empty": "Nadie tiene acceso a este canal todavía.",
     "muted": "Silenciado",
     "botLabel": "Bot",
+    "inherited": "Heredado de un grupo",
     "message": "Mensaje directo",
     "actions": "Acciones para {{name}}",
     "visibilityNote": "Aquí aparecen las personas que pueden ver este canal.",

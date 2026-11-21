@@ -73,6 +73,10 @@ export interface RoomMember {
   roles?: RoomMemberRole[];
   /** Team role ids of the person, when the server sends them (GET /rooms/:id/members). */
   roleIds?: string[];
+  /** Subset of roleIds that comes from groups (shown as inherited). */
+  inheritedRoleIds?: string[];
+  /** Resolved by the page from inheritedRoleIds. */
+  inheritedRoles?: RoomMemberRole[];
   isBot?: boolean;
   /** Active timeout in this room. */
   mutedUntil?: string | null;

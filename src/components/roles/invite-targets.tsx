@@ -8,7 +8,7 @@ import { useTeamGroups } from "@/hooks/use-team-groups";
 import { useTeamPermissions } from "@/hooks/use-team-permissions";
 import { useTeamRoles } from "@/hooks/use-team-roles";
 import type { TeamGroup } from "@/lib/api/groups";
-import { summarizeInvite, type Actor, type TeamRole } from "@/lib/roles/model";
+import { inviteActor, summarizeInvite, type Actor, type TeamRole } from "@/lib/roles/model";
 import { buildActor } from "./settings-context";
 import { RolePicker } from "./role-picker";
 import { RoleChip, cx } from "./ui";

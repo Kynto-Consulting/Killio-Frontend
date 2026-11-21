@@ -32,7 +32,12 @@ export interface Actor {
   highestPosition: number;
   /** Server-resolved role ids the actor may assign; when present it replaces the position heuristic. */
   manageableRoleIds?: ReadonlySet<string>;
+  /** Server-resolved role ids the actor may hand out when INVITING (authority for the invite picker only). */
+  invitableRoleIds?: ReadonlySet<string>;
 }
+
+/** The actor as the invite pickers see it: invitableRoleIds replaces manageableRoleIds when the server sent it. */
+export const inviteActor = (actor: Actor): Actor => (actor.invitableRoleIds ? { ...actor, manageableRoleIds: actor.invitableRoleIds } : actor);
 
 /* ───────────────────────── Permission catalogue ───────────────────────── */
 
@@ -449,6 +454,8 @@ export interface MyTeamPermissions {
   permissions: string[];
   /** Role ids the user may hand out (server-resolved). Absent on older backends. */
   manageableRoleIds?: string[];
+  /** Role ids the user may hand out when inviting (server-resolved). */
+  invitableRoleIds?: string[];
 }
 
 /**

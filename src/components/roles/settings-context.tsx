@@ -49,6 +49,7 @@ export function buildActor(perms: TeamPermissionsState, roles: TeamRole[]): Acto
     permissions: new Set(perms.permissions),
     highestPosition: Math.max(perms.highestPosition, fromRoles),
     manageableRoleIds: perms.manageableRoleIds ? new Set(perms.manageableRoleIds) : undefined,
+    invitableRoleIds: perms.invitableRoleIds ? new Set(perms.invitableRoleIds) : undefined,
   };
 }
 

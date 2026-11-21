@@ -25,3 +25,10 @@ test("assignBlockReason follows the server's manageableRoleIds when present", ()
   assert.equal(assignBlockReason(actor, role("viewer", 50)), null);
   assert.equal(assignBlockReason(actor, role("other", 1)), "position");
 });
+
+test("inviteActor prefers invitableRoleIds over manageableRoleIds", async () => {
+  const { inviteActor } = await import("./model.ts");
+  const a: Actor = { isOwner: false, permissions: new Set(), highestPosition: 1, manageableRoleIds: new Set(["a"]), invitableRoleIds: new Set(["a", "viewer"]) };
+  assert.ok(inviteActor(a).manageableRoleIds!.has("viewer"));
+  assert.ok(!a.manageableRoleIds!.has("viewer"));
+});

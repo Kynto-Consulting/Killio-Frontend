@@ -299,6 +299,7 @@
     "empty": "Nobody has access to this channel yet.",
     "muted": "Muted",
     "botLabel": "Bot",
+    "inherited": "Inherited from a group",
     "message": "Direct message",
     "actions": "Actions for {{name}}",
     "visibilityNote": "These are the people who can see this channel.",

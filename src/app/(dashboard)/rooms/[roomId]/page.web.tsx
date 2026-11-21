@@ -706,6 +706,7 @@ Team Context: ${activeTeamId}.`;
       return {
         ...m,
         roles: m.roles ?? roles,
+        inheritedRoles: (m.inheritedRoleIds ?? []).map((id) => roleById.get(id)).filter((r): r is NonNullable<typeof r> => Boolean(r)),
         isBot: m.isBot ?? references.botIds.has(m.userId),
         mutedUntil: m.userId in activeMutes ? activeMutes[m.userId] : m.mutedUntil ?? null,
       };

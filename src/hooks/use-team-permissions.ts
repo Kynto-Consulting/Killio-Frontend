@@ -19,6 +19,8 @@ export interface TeamPermissionsState {
   highestPosition: number;
   /** Role ids I can hand out, from me/permissions (undefined on older backends). */
   manageableRoleIds?: string[];
+  /** Role ids I can hand out when inviting. */
+  invitableRoleIds?: string[];
   isLoading: boolean;
   /** True once there is an answer (server or backup). Redirect-on-denied logic must wait for it. */
   isReady: boolean;
@@ -161,6 +163,7 @@ export function useTeamPermissions(teamId: string | null | undefined, accessToke
       permissions: entry.data.permissions,
       highestPosition: roles.reduce((m, r) => Math.max(m, r.position), 0),
       manageableRoleIds: entry.data.manageableRoleIds,
+      invitableRoleIds: entry.data.invitableRoleIds,
       isLoading: loading,
       isReady: true,
       source: entry.source,
