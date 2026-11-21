@@ -15,6 +15,7 @@ import { apiCache, CACHE_TTL, cacheKey } from "@/lib/api-cache";
 import Link from "next/link";
 import { UnifiedBrickList } from "@/components/bricks/unified-brick-list";
 import { cn } from "@/lib/utils";
+import { useResourcePermissions } from "@/hooks/use-resource-permissions";
 import { useDocumentPresence } from "@/hooks/useDocumentPresence";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { updateDocumentTitle as apiUpdateDocumentTitle } from "@/lib/api/documents";
@@ -111,6 +112,8 @@ export default function DocumentPage() {
 
   const { activeTeamId } = useSession();
   const presenceMembers = useDocumentPresence(localMode ? null : docId, user, accessToken);
+  // Server-resolved permissions on this document (adds to, never replaces, the role check below).
+  const docPermissions = useResourcePermissions("document", localMode ? null : docId, accessToken);
 
   const sanitizeDocumentBricks = useCallback((bricks: DocumentBrick[]): DocumentBrick[] => {
     // Keep one brick per id to prevent optimistic-create + realtime duplicates.
@@ -1700,7 +1703,7 @@ export default function DocumentPage() {
   // In a LOCAL workspace the file lives on the user's own disk — they always own
   // it, so it's always editable (the doc may not carry a server 'role').
   const canEdit = localMode || ['owner','admin','member'].includes(document.role);
-  const canManageDocument = localMode || document.role === 'owner';
+  const canManageDocument = localMode || document.role === 'owner' || docPermissions.can('resource.manage');
 
   // Build breadcrumb path
   const getBreadcrumbs = () => {

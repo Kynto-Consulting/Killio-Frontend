@@ -5,7 +5,7 @@ import { Layers } from "lucide-react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useSession } from "@/components/providers/session-provider";
 import { useUiMode } from "@/components/providers/ui-mode-provider";
-import { useActiveTeamRole } from "@/hooks/use-active-team-role";
+import { useTeamPermissions } from "@/hooks/use-team-permissions";
 import { ModePicker } from "@/components/onboarding/mode-picker";
 import { Select } from "@/components/ui/select";
 import { setTeamDefaultUiMode } from "@/lib/api/ui-prefs";
@@ -17,7 +17,8 @@ export function ModeSettings() {
   const t = useTranslations("onboarding");
   const ui = useUiMode();
   const { accessToken, activeTeamId, user } = useSession();
-  const { isAdmin } = useActiveTeamRole(activeTeamId, accessToken, user?.id);
+  const { can: canTeam } = useTeamPermissions(activeTeamId, accessToken, user?.id);
+  const isAdmin = canTeam("team.manage");
   const [busy, setBusy] = useState(false);
 
   const change = async (mode: UiMode | null) => {

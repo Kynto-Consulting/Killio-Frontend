@@ -1,1027 +1,211 @@
 "use client";
 
-import { UserPlus, Lock, MoreHorizontal, Shield, Copy, Check } from "lucide-react";
-import { useTenant } from "@/components/providers/tenant-provider";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Gavel, LayoutDashboard, Lock, Mail, ShieldCheck, UserPlus, Users, UsersRound } from "lucide-react";
+
 import { useSession } from "@/components/providers/session-provider";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  createInvite,
-  createInviteLink,
-  listInviteLinks,
-  revokeInviteLink,
-  type InviteLink,
-  listTeamInvites,
-  listTeams,
-  listTeamMembers,
-  removeTeamMember,
-  revokeTeamInvite,
-  TeamRole,
-  TeamView,
-  TeamMemberSummary,
-  InviteSummary,
-  updateTeamMemberAlias,
-  updateTeamMemberRole,
-  renameTeam,
-  deleteTeam,
-} from "@/lib/api/contracts";
-import { InviteMemberModal } from "@/components/ui/invite-member-modal";
-import { UserProfileCard } from "@/components/rooms/UserProfileCard";
-import { getUserAvatarUrl } from "@/lib/gravatar";
-import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
-import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
-import { TeamGroupsSection } from "@/components/teams/team-groups-section";
-import { apiCache, cacheKey, CACHE_TTL } from "@/lib/api-cache";
+import { InviteMemberModal } from "@/components/ui/invite-member-modal";
 import { OfflineRouteFallback } from "@/components/ui/offline-route-fallback";
-import { useRealtime } from "@/components/providers/realtime-provider";
-import { realtimeChannel } from "@/lib/realtime/channels";
-import type { MessageListener } from "@/lib/realtime/types";
+import { AuditTab } from "@/components/roles/audit-tab";
+import { GroupsTab } from "@/components/roles/groups-tab";
+import { InvitesTab } from "@/components/roles/invites-tab";
+import { MembersTab } from "@/components/roles/members-tab";
+import { OverviewTab } from "@/components/roles/overview-tab";
+import { RolesTab } from "@/components/roles/roles-tab";
+import { SettingsProvider, buildActor, type SettingsCtx, type SettingsMember } from "@/components/roles/settings-context";
+import { TabBar, btnPrimary, type TabDef } from "@/components/roles/ui";
+import { useTeamGroups } from "@/hooks/use-team-groups";
+import { invalidateTeamPermissions, useTeamPermissions } from "@/hooks/use-team-permissions";
+import { invalidateTeamRoles, useTeamRoles } from "@/hooks/use-team-roles";
+import { useTeamRealtime } from "@/hooks/useTeamRealtime";
+import { apiCache, cacheKey, CACHE_TTL } from "@/lib/api-cache";
+import { listTeamMembers, listTeams, type TeamRole, type TeamView } from "@/lib/api/contracts";
 
-const MEMBER_COLORS = ["#22d3ee", "#6366f1", "#f472b6", "#fb923c", "#a78bfa", "#34d399", "#fbbf24", "#f87171"];
-
-function memberColor(id: string): string {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (Math.imul(31, h) + id.charCodeAt(i)) | 0;
-  return MEMBER_COLORS[Math.abs(h) % MEMBER_COLORS.length];
-}
-
-function roleBadgeStyle(role: string): React.CSSProperties {
-  if (role === "owner" || role === "admin") {
-    return { color: "hsl(var(--c-indigo))", background: "rgba(129,140,248,0.1)", border: "1px solid rgba(129,140,248,0.2)" };
-  }
-  if (role === "guest") {
-    return { color: "hsl(var(--ink) / 0.42)", background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)" };
-  }
-  if (role === "viewer") {
-    return { color: "rgba(161,161,170,0.85)", background: "rgba(113,113,122,0.15)", border: "1px solid rgba(113,113,122,0.3)" };
-  }
-  return { color: "hsl(var(--ink) / 0.42)", background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)" };
-}
-
-// Per-role capability matrix shown in the invite "info" popover. Columns are the
-// unified roles; rows are feature areas. Level: 2=manage, 1=edit/use, 0.5=view, 0=none.
-type PermLevel = 0 | 0.5 | 1 | 2;
-const PERM_ROLES = ["owner", "admin", "member", "viewer", "guest"] as const;
-const PERM_MATRIX: { key: string; levels: Record<(typeof PERM_ROLES)[number], PermLevel> }[] = [
-  { key: "kanban",    levels: { owner: 2, admin: 2, member: 1, viewer: 0.5, guest: 0.5 } },
-  { key: "mesh",      levels: { owner: 2, admin: 2, member: 1, viewer: 0.5, guest: 0.5 } },
-  { key: "docs",      levels: { owner: 2, admin: 2, member: 1, viewer: 0.5, guest: 0.5 } },
-  { key: "scripts",   levels: { owner: 2, admin: 2, member: 1, viewer: 0.5, guest: 0 } },
-  { key: "members",   levels: { owner: 2, admin: 2, member: 1, viewer: 0, guest: 0 } },
-  { key: "workspace", levels: { owner: 2, admin: 1, member: 0, viewer: 0, guest: 0 } },
-];
-
-/** Build a shareable accept-invite URL from either the explicit acceptUrl returned
- *  by the backend or the raw token (fallback when acceptUrl is missing). */
-function buildInviteLink(invite: Pick<InviteSummary, "token" | "acceptUrl">): string | null {
-  if (invite.acceptUrl) return invite.acceptUrl;
-  if (invite.token && typeof window !== "undefined") {
-    return `${window.location.origin}/accept-invite?token=${encodeURIComponent(invite.token)}`;
-  }
-  return null;
-}
+type TabId = "overview" | "members" | "invites" | "roles" | "groups" | "audit";
 
 export default function TeamsPage() {
   return (
     <OfflineRouteFallback view="teams">
-      <TeamsPageInner />
+      <Suspense fallback={null}>
+        <TeamsPageInner />
+      </Suspense>
     </OfflineRouteFallback>
   );
 }
 
+/**
+ * Workspace settings: one tab bar on top (Overview, Members, Invitations, Roles, Groups, Moderation).
+ * Tabs a person cannot use are not shown; which ones those are comes from `me/permissions`, not from role names.
+ */
 function TeamsPageInner() {
   const { accessToken, activeTeamId, user } = useSession();
-  const t = useTranslations("teams");
+  const t = useTranslations("roles");
+  const tt = useTranslations("teams");
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
 
-  const [activeTeam, setActiveTeam] = useState<TeamView | null>(null);
-  const [members, setMembers] = useState<TeamMemberSummary[]>([]);
-  const [invites, setInvites] = useState<InviteSummary[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingInvites, setIsLoadingInvites] = useState(true);
-  const [confirmRemoveMember, setConfirmRemoveMember] = useState<{ memberId: string; isSelf: boolean } | null>(null);
-  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
-  const [activeMemberMenu, setActiveMemberMenu] = useState<string | null>(null);
-  const [inlineInviteEmail, setInlineInviteEmail] = useState("");
-  const [inlineInviteRole, setInlineInviteRole] = useState<Exclude<TeamRole, "owner">>("member");
-  const [roleMenuOpen, setRoleMenuOpen] = useState(false);
-  const [showPermTable, setShowPermTable] = useState(false);
-  const [inlineExpiry, setInlineExpiry] = useState<number>(3); // days; -1 = never
-  const [expiryMenuOpen, setExpiryMenuOpen] = useState(false);
-  // Reusable invite links
-  const [inviteLinks, setInviteLinks] = useState<InviteLink[]>([]);
-  const [linkExpiry, setLinkExpiry] = useState<number>(3);
-  const [linkMaxUses, setLinkMaxUses] = useState<string>(""); // "" = unlimited
-  const [isCreatingLink, setIsCreatingLink] = useState(false);
-  const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
-  const [linkExpiryMenuOpen, setLinkExpiryMenuOpen] = useState(false);
-  const [inviteError, setInviteError] = useState<string | null>(null);
-  const [isInlineInviting, setIsInlineInviting] = useState(false);
-  const [isMutatingMember, setIsMutatingMember] = useState<string | null>(null);
-  const [isMutatingInvite, setIsMutatingInvite] = useState<string | null>(null);
-  const [editingAliasMemberId, setEditingAliasMemberId] = useState<string | null>(null);
-  const [aliasDraft, setAliasDraft] = useState("");
-  const [profileCard, setProfileCard] = useState<{ member: TeamMemberSummary; anchor: { x: number; y: number } } | null>(null);
+  const [team, setTeam] = useState<TeamView | null>(null);
+  const [members, setMembers] = useState<SettingsMember[]>([]);
+  const [membersLoading, setMembersLoading] = useState(true);
+  const [inviteOpen, setInviteOpen] = useState(false);
 
-  // Workspace settings
-  const [nameDraft, setNameDraft] = useState("");
-  const [isSavingName, setIsSavingName] = useState(false);
-  const [deleteConfirmName, setDeleteConfirmName] = useState("");
-  const [isDeletingWorkspace, setIsDeletingWorkspace] = useState(false);
+  const perms = useTeamPermissions(activeTeamId, accessToken, user?.id);
+  const { roles, isLoading: rolesLoading, error: rolesError } = useTeamRoles(activeTeamId);
+  const { groups } = useTeamGroups(activeTeamId);
 
-  const myMembership = useMemo(() => members.find((member) => member.id === user?.id), [members, user?.id]);
-  const myRole = (myMembership?.role ?? "guest") as TeamRole;
-
-  const tenantPermissions = useTenant().permissions;
-  const canInvite = !!accessToken && !!activeTeamId && !activeTeam?.isPersonal && ["owner", "admin", "member"].includes(myRole) && (myRole !== "member" || tenantPermissions.membersCanInvite);
-  const canManageMembers = ["owner", "admin"].includes(myRole);
-
-  const inviteDisabledReason = activeTeam?.isPersonal
-    ? t("personalWorkspaceInviteHelp")
-    : !canInvite
-      ? t("roleCannotInviteHelp")
-      : null;
-
-  const inviteRoleOptions = useMemo<Exclude<TeamRole, "owner">[]>(() => {
-    if (myRole === "owner" || myRole === "admin") return ["admin", "member", "guest"];
-    if (myRole === "member") return ["member", "guest"];
-    return ["guest"];
-  }, [myRole]);
-
-  useEffect(() => {
-    if (!inviteRoleOptions.includes(inlineInviteRole)) {
-      setInlineInviteRole(inviteRoleOptions[0]);
-    }
-  }, [inviteRoleOptions, inlineInviteRole]);
-
-  const roleCapabilities: Record<TeamRole, string[]> = useMemo(() => ({
-    owner: [t("roleCapabilities.owner.0"), t("roleCapabilities.owner.1"), t("roleCapabilities.owner.2"), t("roleCapabilities.owner.3")],
-    admin: [t("roleCapabilities.admin.0"), t("roleCapabilities.admin.1"), t("roleCapabilities.admin.2"), t("roleCapabilities.admin.3")],
-    member: [t("roleCapabilities.member.0"), t("roleCapabilities.member.1"), t("roleCapabilities.member.2"), t("roleCapabilities.member.3")],
-    guest: [t("roleCapabilities.guest.0"), t("roleCapabilities.guest.1"), t("roleCapabilities.guest.2"), t("roleCapabilities.guest.3")],
-    viewer: [t("roleCapabilities.guest.0"),  t("roleCapabilities.guest.1"), t("roleCapabilities.guest.2"), t("roleCapabilities.guest.3")]
-  }), [t]);
-
-  const reloadInvites = async () => {
-    if (!accessToken || !activeTeamId || !canInvite) return;
-    setIsLoadingInvites(true);
+  const reloadMembers = useCallback(async () => {
+    if (!accessToken || !activeTeamId) return;
     try {
-      setInvites(await listTeamInvites(activeTeamId, accessToken));
-    } catch { setInvites([]); }
-    finally { setIsLoadingInvites(false); }
-  };
-
-  const reloadLinks = async () => {
-    if (!accessToken || !activeTeamId || !canInvite) return;
-    try { setInviteLinks(await listInviteLinks(activeTeamId, accessToken)); } catch { setInviteLinks([]); }
-  };
-
-  useEffect(() => { reloadLinks(); /* eslint-disable-next-line */ }, [activeTeamId, accessToken, canInvite]);
-
-  const copyLink = async (link: InviteLink) => {
-    const url = link.acceptUrl
-      || (typeof window !== "undefined" ? `${window.location.origin}/accept-invite?token=${encodeURIComponent(link.token ?? "")}` : "");
-    if (!url) return;
-    try { await navigator.clipboard.writeText(url); setCopiedLinkId(link.id); setTimeout(() => setCopiedLinkId(null), 1800); } catch { /* noop */ }
-  };
-
-  const createLink = async () => {
-    if (!accessToken || !activeTeamId || !canInvite || isCreatingLink) return;
-    setIsCreatingLink(true);
-    setInviteError(null);
-    try {
-      const max = linkMaxUses.trim() === "" ? null : Math.max(1, parseInt(linkMaxUses, 10) || 1);
-      const link = await createInviteLink(activeTeamId, { role: inlineInviteRole, expiresInDays: linkExpiry, maxUses: max }, accessToken);
-      // Show the brand-new link at the top (carries token/acceptUrl) and copy it.
-      setInviteLinks((prev) => [link, ...prev]);
-      await copyLink(link);
-    } catch (err: any) {
-      setInviteError(err?.message || t("inviteLink.createError"));
+      const list = (await listTeamMembers(activeTeamId, accessToken)) as SettingsMember[];
+      apiCache.set(cacheKey.members(activeTeamId), list, CACHE_TTL.MEMBERS);
+      setMembers(list);
+    } catch (err) {
+      console.error(err);
     } finally {
-      setIsCreatingLink(false);
+      setMembersLoading(false);
     }
-  };
+  }, [accessToken, activeTeamId]);
 
-  const revokeLink = async (id: string) => {
-    if (!accessToken || !activeTeamId) return;
-    setInviteLinks((prev) => prev.filter((l) => l.id !== id));
-    try { await revokeInviteLink(activeTeamId, id, accessToken); } catch { reloadLinks(); }
-  };
-
-  const reloadMembers = async () => {
-    if (!accessToken || !activeTeamId) return;
-    setIsLoading(true);
-    try { setMembers(await listTeamMembers(activeTeamId, accessToken)); }
-    catch (err) { console.error(err); }
-    finally { setIsLoading(false); }
-  };
-
-  const sendInlineInvite = async () => {
-    if (!accessToken || !activeTeamId || !canInvite || !inlineInviteEmail.trim() || isInlineInviting) return;
-    setInviteError(null);
-    setIsInlineInviting(true);
-    try {
-      const invite = await createInvite({ email: inlineInviteEmail.trim(), role: inlineInviteRole, expiresInDays: inlineExpiry }, activeTeamId, accessToken);
-      if (invite.deliveryStatus !== "sent") {
-        setInviteError(
-          invite.deliveryStatus === "skipped"
-            ? t("inviteDeliverySkipped")
-            : t("inviteDeliveryFailed"),
-        );
-      }
-      setInlineInviteEmail("");
-      await reloadInvites();
-    } catch (err: any) {
-      setInviteError(typeof err?.message === "string" ? err.message : t("inviteSendError"));
-    } finally { setIsInlineInviting(false); }
-  };
-
-  const handleRevokeInvite = async (inviteId: string) => {
-    if (!accessToken || !activeTeamId || isMutatingInvite) return;
-    setIsMutatingInvite(inviteId);
-    try {
-      await revokeTeamInvite(activeTeamId, inviteId, accessToken);
-      await reloadInvites();
-    } catch (err: any) {
-      toast(typeof err?.message === "string" ? err.message : t("inviteRevokeError"), "error");
-    } finally { setIsMutatingInvite(null); }
-  };
-
-  const handleChangeMemberRole = async (memberId: string, role: Exclude<TeamRole, "owner">) => {
-    if (!accessToken || !activeTeamId || isMutatingMember) return;
-    setIsMutatingMember(memberId);
-    try {
-      await updateTeamMemberRole(activeTeamId, memberId, role, accessToken);
-      setActiveMemberMenu(null);
-      await reloadMembers();
-    } catch (err: any) {
-      toast(typeof err?.message === "string" ? err.message : t("roleUpdateError"), "error");
-    } finally { setIsMutatingMember(null); }
-  };
-
-  const handleUpdateMemberAlias = async (memberId: string, alias: string | null) => {
-    if (!accessToken || !activeTeamId || isMutatingMember) return;
-    setIsMutatingMember(memberId);
-    try {
-      await updateTeamMemberAlias(activeTeamId, memberId, alias, accessToken);
-      setEditingAliasMemberId(null);
-      setAliasDraft("");
-      setActiveMemberMenu(null);
-      await reloadMembers();
-    } catch (err: any) {
-      toast(typeof err?.message === "string" ? err.message : t("aliasUpdateError"), "error");
-    } finally { setIsMutatingMember(null); }
-  };
-
-  const handleRemoveMember = (memberId: string, isSelf: boolean) => {
-    if (!accessToken || !activeTeamId || isMutatingMember) return;
-    setConfirmRemoveMember({ memberId, isSelf });
-  };
-
-  const handleRemoveMemberConfirm = async () => {
-    if (!confirmRemoveMember || !accessToken || !activeTeamId) return;
-    const { memberId, isSelf } = confirmRemoveMember;
-    setConfirmRemoveMember(null);
-    setIsMutatingMember(memberId);
-    try {
-      await removeTeamMember(activeTeamId, memberId, accessToken);
-      setActiveMemberMenu(null);
-      await reloadMembers();
-      if (isSelf) window.location.href = "/";
-    } catch (err: any) {
-      toast(typeof err?.message === "string" ? err.message : t("removeMemberError"), "error");
-    } finally { setIsMutatingMember(null); }
-  };
-
+  // Team + members (cached copy first so the screen paints at once).
   useEffect(() => {
     if (!accessToken || !activeTeamId || !user?.id) return;
-
-    // Serve cached team data instantly
-    const teamsCacheKey = cacheKey.teams(user.id);
-    const membersCacheKey = cacheKey.members(activeTeamId);
-    const cachedTeams = apiCache.get<import("@/lib/api/contracts").TeamView[]>(teamsCacheKey);
-    const cachedMembers = apiCache.get<import("@/lib/api/contracts").TeamMemberSummary[]>(membersCacheKey);
-    if (cachedTeams) {
-      const team = cachedTeams.find((t) => t.id === activeTeamId);
-      if (team) { setActiveTeam(team); setNameDraft(team.name); }
-    }
+    const cachedTeams = apiCache.get<TeamView[]>(cacheKey.teams(user.id));
+    const cachedMembers = apiCache.get<SettingsMember[]>(cacheKey.members(activeTeamId));
+    setTeam(cachedTeams?.find((x) => x.id === activeTeamId) ?? null);
     if (cachedMembers) {
       setMembers(cachedMembers);
-      const me = cachedMembers.find((m) => m.id === user?.id);
-      const role = me?.role ?? "guest";
-      if (["owner", "admin", "member"].includes(role)) {
-        // will also be set by the fresh fetch below
-      }
+      setMembersLoading(false);
+    } else {
+      setMembers([]);
+      setMembersLoading(true);
     }
+    listTeams(accessToken)
+      .then((teams) => {
+        apiCache.set(cacheKey.teams(user.id), teams, CACHE_TTL.TEAMS);
+        setTeam(teams.find((x) => x.id === activeTeamId) ?? null);
+      })
+      .catch(console.error);
+    void reloadMembers();
+  }, [accessToken, activeTeamId, user?.id, reloadMembers]);
 
-    setIsLoading(true);
-    listTeams(accessToken).then((teams) => {
-      apiCache.set(teamsCacheKey, teams, CACHE_TTL.TEAMS);
-      const team = teams.find((t) => t.id === activeTeamId);
-      if (team) { setActiveTeam(team); setNameDraft(team.name); }
-    }).catch(console.error);
-    listTeamMembers(activeTeamId, accessToken).then((nextMembers) => {
-      apiCache.set(membersCacheKey, nextMembers, CACHE_TTL.MEMBERS);
-      setMembers(nextMembers);
-      const me = nextMembers.find((m) => m.id === user?.id);
-      const role = me?.role ?? "guest";
-      if (["owner", "admin", "member"].includes(role)) {
-        listTeamInvites(activeTeamId, accessToken).then(setInvites).catch(console.error).finally(() => setIsLoadingInvites(false));
-      } else { setIsLoadingInvites(false); }
-    }).catch(console.error).finally(() => setIsLoading(false));
-  }, [accessToken, activeTeamId, user?.id]);
-
-  const pendingInvites = invites.filter((i) => i.status === "pending");
-  const activeMembers = members.filter((m) => m.status === "active");
-  const adminCount = members.filter((m) => ["admin", "owner"].includes(m.role)).length;
-
-  const handleRenameWorkspace = async () => {
-    if (!accessToken || !activeTeamId || isSavingName) return;
-    setIsSavingName(true);
-    try {
-      const result = await renameTeam(activeTeamId, nameDraft.trim(), accessToken);
-      setActiveTeam((prev) => prev ? { ...prev, name: result.name } : prev);
-      toast(t("workspaceNameSaved"), "success");
-    } catch (err: any) {
-      toast(typeof err?.message === "string" ? err.message : t("workspaceNameError"), "error");
-    } finally {
-      setIsSavingName(false);
+  // Somebody joined, left or changed roles: refresh this screen too (permissions refresh in their own hook).
+  useTeamRealtime(activeTeamId, (e) => {
+    const name = String(e.type ?? "");
+    if (name.startsWith("member.") || name.startsWith("role.")) {
+      void reloadMembers();
+      if (activeTeamId) invalidateTeamRoles(activeTeamId);
     }
-  };
+  });
 
-  const handleDeleteWorkspace = async () => {
-    if (!accessToken || !activeTeamId || isDeletingWorkspace) return;
-    if (deleteConfirmName.trim() !== (activeTeam?.name ?? "")) return;
-    setIsDeletingWorkspace(true);
-    try {
-      await deleteTeam(activeTeamId, accessToken);
-      window.location.href = "/";
-    } catch (err: any) {
-      toast(typeof err?.message === "string" ? err.message : t("deleteWorkspaceError"), "error");
-      setIsDeletingWorkspace(false);
+  const personal = !!team?.isPersonal;
+  const can = perms.can;
+  const available = useMemo(() => {
+    const ids: TabId[] = ["overview", "members"];
+    if (!personal) {
+      if (can("members.invite") || can("invites.manage") || can("members.manage")) ids.push("invites");
+      if (can("roles.manage") || can("members.manage_roles") || can("members.manage")) ids.push("roles");
+      ids.push("groups");
+      if (can("audit.view") || can("members.ban") || can("members.kick")) ids.push("audit");
     }
-  };
+    return ids;
+  }, [can, personal]);
 
-  // ── STYLES ────────────────────────────────────────────────────────────────
-  const surface: React.CSSProperties = { background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)", borderRadius: 14 };
-  const cardHeader: React.CSSProperties = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px 12px", borderBottom: "1px solid hsl(var(--ink) / 0.08)" };
-  const cardBody: React.CSSProperties = { padding: "16px 20px" };
+  const requested = params.get("tab") as TabId | null;
+  // While permissions are loading keep the requested tab (no flash to Overview); afterwards fall back if it is not allowed.
+  const tab: TabId = requested && (available.includes(requested) || !perms.isReady) ? requested : "overview";
+  const setTab = useCallback(
+    (id: string) => {
+      const next = new URLSearchParams(params.toString());
+      next.set("tab", id);
+      router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+    },
+    [params, pathname, router],
+  );
+
+  const tabDefs: TabDef[] = available.map((id) => ({
+    id,
+    label: t(`tabs.${id}`),
+    icon: { overview: <LayoutDashboard className="h-4 w-4" />, members: <Users className="h-4 w-4" />, invites: <Mail className="h-4 w-4" />, roles: <ShieldCheck className="h-4 w-4" />, groups: <UsersRound className="h-4 w-4" />, audit: <Gavel className="h-4 w-4" /> }[id],
+    badge: id === "members" && members.length ? members.length : null,
+  }));
+
+  const ctx: SettingsCtx | null = useMemo(() => {
+    if (!activeTeamId || !accessToken) return null;
+    return {
+      teamId: activeTeamId,
+      accessToken,
+      userId: user?.id ?? null,
+      team,
+      perms,
+      actor: buildActor(perms, roles),
+      roles,
+      rolesError,
+      rolesLoading,
+      groups,
+      members,
+      membersLoading,
+      reloadMembers,
+      reloadRoles: () => invalidateTeamRoles(activeTeamId),
+    };
+  }, [activeTeamId, accessToken, user?.id, team, perms, roles, rolesError, rolesLoading, groups, members, membersLoading, reloadMembers]);
+
+  const myLegacyRole = (members.find((m) => m.id === user?.id)?.role ?? "guest") as TeamRole;
+  const canInvite = !personal && (can("members.invite") || can("members.manage"));
+
+  if (!ctx) {
+    return <div className="p-8 text-center text-sm text-muted-foreground">{t("loading")}</div>;
+  }
 
   return (
-    <div style={{ background: "hsl(var(--surface-deep))", color: "hsl(var(--ink) / 0.92)", minHeight: "100%" }}>
-      {/* Ambient glow */}
-      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0 }}>
-        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at top, rgba(216,255,114,0.08), transparent 55%)" }} />
-      </div>
-
-      <div style={{ position: "relative", zIndex: 1, padding: "28px 32px", maxWidth: 1160, margin: "0 auto", display: "flex", flexDirection: "column", gap: 20 }}>
-
-        {/* ── HEADER ── */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-          <div>
-            <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.03em", color: "hsl(var(--ink))", display: "flex", alignItems: "center", gap: 10 }}>
-              {t("title")}
-              {activeTeam?.isPersonal && (
-                <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase", color: "hsl(var(--c-indigo))", background: "rgba(129,140,248,0.1)", border: "1px solid rgba(129,140,248,0.2)", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                  <Lock style={{ width: 10, height: 10 }} /> {activeTeam.name}
+    <div className="min-h-full bg-background text-foreground">
+      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-5 sm:px-8 sm:py-7">
+        <header className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="flex items-center gap-2 text-xl font-extrabold tracking-tight text-foreground">
+              <span className="truncate">{team?.name ?? tt("title")}</span>
+              {personal && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-[var(--memphis-line)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                  <Lock className="h-3 w-3" aria-hidden /> {t("personalBadge")}
                 </span>
               )}
             </h1>
-            <p style={{ fontSize: 13, color: "hsl(var(--ink) / 0.45)", marginTop: 3 }}>{t("subtitle")}</p>
+            <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
           </div>
-          <button
-            disabled={!canInvite}
-            onClick={() => canInvite && setIsInviteModalOpen(true)}
-            title={activeTeam?.isPersonal ? t("personalWorkspaceInviteTitle") : !canInvite ? t("roleCannotInviteTitle") : ""}
-            style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "0 16px", height: 36, borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: canInvite ? "pointer" : "default", border: "none", background: canInvite ? "hsl(var(--accent-ink))" : "hsl(var(--ink) / 0.06)", color: canInvite ? "hsl(var(--accent-ink-fg))" : "hsl(var(--ink) / 0.35)", transition: "all .15s", opacity: canInvite ? 1 : 0.6 }}
-          >
-            {canInvite ? <UserPlus style={{ width: 14, height: 14 }} /> : <Lock style={{ width: 14, height: 14 }} />}
-            {t("invitePeople")}
+          <button type="button" className={btnPrimary} disabled={!canInvite} title={canInvite ? undefined : personal ? tt("personalWorkspaceInviteHelp") : tt("roleCannotInviteHelp")} onClick={() => setInviteOpen(true)}>
+            {canInvite ? <UserPlus className="h-3.5 w-3.5" aria-hidden /> : <Lock className="h-3.5 w-3.5" aria-hidden />}
+            {tt("invitePeople")}
           </button>
-        </div>
+        </header>
 
-        {/* ── STAT TILES ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
-          {[
-            { v: members.length, l: t("members") },
-            { v: activeMembers.length, l: t("activeThisWeek") },
-            { v: pendingInvites.length, l: t("pendingInvites") },
-            { v: adminCount, l: t("admins") },
-          ].map((tile, i) => (
-            <div key={i} style={{ ...surface, padding: "18px 20px" }}>
-              <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: "hsl(var(--ink))", lineHeight: 1 }}>{tile.v}</div>
-              <div style={{ fontSize: 11, color: "hsl(var(--ink) / 0.45)", marginTop: 4 }}>{tile.l}</div>
-            </div>
-          ))}
-        </div>
+        <TabBar tabs={tabDefs} active={tab} onChange={setTab} label={t("tabs.label")} />
 
-        {/* ── INVITE BAR ── */}
-        {canInvite && (
-          <div style={surface}>
-            <div style={cardHeader}>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "hsl(var(--ink))" }}>{t("inviteWorkspace")}</div>
-                <div style={{ fontSize: 11, color: "hsl(var(--ink) / 0.45)", marginTop: 2 }}>
-                  {t("allowedRoles")} {inviteRoleOptions.join(", ")}
-                </div>
-              </div>
-            </div>
-            <div style={cardBody}>
-              <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                <input
-                  type="email"
-                  value={inlineInviteEmail}
-                  onChange={(e) => setInlineInviteEmail(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && sendInlineInvite()}
-                  placeholder={t("inviteEmailPlaceholder")}
-                  disabled={!canInvite || isInlineInviting}
-                  style={{ flex: 1, minWidth: 200, height: 38, borderRadius: 10, border: "1px solid hsl(var(--ink) / 0.1)", background: "hsl(var(--shade) / calc(0.25 * var(--shade-k)))", color: "hsl(var(--ink) / 0.9)", fontSize: 13, padding: "0 14px", outline: "none" }}
-                />
-                {/* Custom (non-vanilla) role selector */}
-                <div style={{ position: "relative" }}>
-                  <button
-                    type="button"
-                    onClick={() => setRoleMenuOpen((o) => !o)}
-                    disabled={!canInvite || isInlineInviting}
-                    style={{ height: 38, minWidth: 130, borderRadius: 10, border: "1px solid hsl(var(--ink) / 0.1)", background: "hsl(var(--shade) / calc(0.25 * var(--shade-k)))", color: "hsl(var(--ink) / 0.85)", fontSize: 13, padding: "0 12px", outline: "none", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, cursor: "pointer" }}
-                  >
-                    <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: 99, ...roleBadgeStyle(inlineInviteRole) }} />
-                      <span style={{ fontWeight: 600 }}>{t(`roleName.${inlineInviteRole}`)}</span>
-                    </span>
-                    <span style={{ opacity: 0.5, fontSize: 10 }}>▾</span>
-                  </button>
-                  {roleMenuOpen && (
-                    <div
-                      style={{ position: "absolute", top: 44, right: 0, zIndex: 60, minWidth: 230, borderRadius: 12, border: "1px solid hsl(var(--ink) / 0.12)", background: "#10130a", boxShadow: "0 12px 40px hsl(var(--shade) / calc(0.55 * var(--shade-k)))", overflow: "hidden" }}
-                      onMouseLeave={() => setRoleMenuOpen(false)}
-                    >
-                      {inviteRoleOptions.map((role) => (
-                        <button
-                          key={role}
-                          type="button"
-                          onClick={() => { setInlineInviteRole(role); setRoleMenuOpen(false); }}
-                          style={{ width: "100%", textAlign: "left", padding: "9px 12px", border: "none", background: role === inlineInviteRole ? "rgba(216,255,114,0.08)" : "transparent", color: "hsl(var(--ink) / 0.85)", cursor: "pointer", display: "flex", flexDirection: "column", gap: 2 }}
-                        >
-                          <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 600 }}>
-                            <span style={{ width: 8, height: 8, borderRadius: 99, ...roleBadgeStyle(role) }} />
-                            {t(`roleName.${role}`)}
-                          </span>
-                          <span style={{ fontSize: 11, color: "hsl(var(--ink) / 0.45)", paddingLeft: 15 }}>{t(`roleShort.${role}`)}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                {/* Info button → permissions table */}
-                <button
-                  type="button"
-                  onClick={() => setShowPermTable((s) => !s)}
-                  title={t("permTable.title")}
-                  aria-label={t("permTable.title")}
-                  style={{ height: 38, width: 38, borderRadius: 10, border: "1px solid hsl(var(--ink) / 0.1)", background: showPermTable ? "rgba(216,255,114,0.12)" : "hsl(var(--shade) / calc(0.25 * var(--shade-k)))", color: showPermTable ? "hsl(var(--accent-ink))" : "hsl(var(--ink) / 0.6)", fontSize: 15, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-                >ⓘ</button>
-                {/* Expiry selector */}
-                <div style={{ position: "relative" }}>
-                  <button
-                    type="button"
-                    onClick={() => setExpiryMenuOpen((o) => !o)}
-                    disabled={!canInvite || isInlineInviting}
-                    title={t("inviteExpiry.label")}
-                    style={{ height: 38, minWidth: 120, borderRadius: 10, border: inlineExpiry === -1 ? "1px solid rgba(248,113,113,0.45)" : "1px solid hsl(var(--ink) / 0.1)", background: inlineExpiry === -1 ? "rgba(248,113,113,0.08)" : "hsl(var(--shade) / calc(0.25 * var(--shade-k)))", color: inlineExpiry === -1 ? "#f87171" : "hsl(var(--ink) / 0.8)", fontSize: 13, padding: "0 12px", outline: "none", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, cursor: "pointer" }}
-                  >
-                    <span style={{ fontWeight: 600 }}>{inlineExpiry === -1 ? t("inviteExpiry.never") : t("inviteExpiry.days", { n: inlineExpiry })}</span>
-                    <span style={{ opacity: 0.5, fontSize: 10 }}>▾</span>
-                  </button>
-                  {expiryMenuOpen && (
-                    <div
-                      style={{ position: "absolute", top: 44, right: 0, zIndex: 60, minWidth: 150, borderRadius: 12, border: "1px solid hsl(var(--ink) / 0.12)", background: "#10130a", boxShadow: "0 12px 40px hsl(var(--shade) / calc(0.55 * var(--shade-k)))", overflow: "hidden" }}
-                      onMouseLeave={() => setExpiryMenuOpen(false)}
-                    >
-                      {[3, 7, 14, 31, -1].map((d) => (
-                        <button
-                          key={d}
-                          type="button"
-                          onClick={() => { setInlineExpiry(d); setExpiryMenuOpen(false); }}
-                          style={{ width: "100%", textAlign: "left", padding: "9px 12px", border: "none", background: d === inlineExpiry ? "rgba(216,255,114,0.08)" : "transparent", color: d === -1 ? "#f87171" : "hsl(var(--ink) / 0.85)", cursor: "pointer", fontSize: 13, fontWeight: d === inlineExpiry ? 700 : 500 }}
-                        >
-                          {d === -1 ? `⚠ ${t("inviteExpiry.never")}` : t("inviteExpiry.days", { n: d })}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <button
-                  onClick={sendInlineInvite}
-                  disabled={!canInvite || !inlineInviteEmail.trim() || isInlineInviting}
-                  style={{ height: 34, padding: "0 16px", borderRadius: 10, border: "none", background: "hsl(var(--accent-ink))", color: "hsl(var(--accent-ink-fg))", fontSize: 12, fontWeight: 700, cursor: (!canInvite || !inlineInviteEmail.trim()) ? "default" : "pointer", opacity: (!canInvite || !inlineInviteEmail.trim()) ? 0.5 : 1, transition: "opacity .15s" }}
-                >
-                  {isInlineInviting ? "..." : t("sendInvite")}
-                </button>
-              </div>
-              {inlineExpiry === -1 && (
-                <p style={{ marginTop: 10, fontSize: 12, color: "hsl(var(--c-red))", display: "flex", alignItems: "center", gap: 6, lineHeight: 1.4 }}>
-                  <span style={{ fontSize: 14 }}>⚠</span> {t("inviteExpiry.neverWarning")}
-                </p>
-              )}
-              {showPermTable && (
-                <div style={{ marginTop: 14, borderRadius: 12, border: "1px solid hsl(var(--ink) / 0.1)", background: "hsl(var(--shade) / calc(0.28 * var(--shade-k)))", overflow: "hidden" }}>
-                  <div style={{ padding: "10px 14px", borderBottom: "1px solid hsl(var(--ink) / 0.07)", fontSize: 12, fontWeight: 700, color: "hsl(var(--ink))" }}>{t("permTable.title")}</div>
-                  <div style={{ overflowX: "auto" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                      <thead>
-                        <tr>
-                          <th style={{ textAlign: "left", padding: "8px 14px", color: "hsl(var(--ink) / 0.45)", fontWeight: 600 }}>{t("permTable.feature")}</th>
-                          {PERM_ROLES.map((r) => (
-                            <th key={r} style={{ padding: "8px 10px", color: "hsl(var(--ink) / 0.7)", fontWeight: 600, textTransform: "capitalize", minWidth: 64 }}>{t(`roleName.${r}`)}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {PERM_MATRIX.map((row) => (
-                          <tr key={row.key} style={{ borderTop: "1px solid hsl(var(--ink) / 0.05)" }}>
-                            <td style={{ padding: "8px 14px", color: "hsl(var(--ink) / 0.82)", fontWeight: 500 }}>{t(`permTable.rows.${row.key}`)}</td>
-                            {PERM_ROLES.map((r) => {
-                              const lvl = row.levels[r];
-                              const label = lvl === 2 ? t("permTable.lvl.manage") : lvl === 1 ? t("permTable.lvl.edit") : lvl === 0.5 ? t("permTable.lvl.view") : "—";
-                              const color = lvl === 2 ? "hsl(var(--accent-ink))" : lvl === 1 ? "#a3e635" : lvl === 0.5 ? "rgba(161,161,170,0.9)" : "hsl(var(--ink) / 0.25)";
-                              return <td key={r} style={{ padding: "8px 10px", textAlign: "center", color, fontWeight: lvl >= 1 ? 600 : 400 }}>{label}</td>;
-                            })}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div style={{ padding: "8px 14px", fontSize: 11, color: "hsl(var(--ink) / 0.4)", borderTop: "1px solid hsl(var(--ink) / 0.07)" }}>{t("permTable.guestNote")}</div>
-                </div>
-              )}
-              {inviteError && <p style={{ marginTop: 8, fontSize: 12, color: "hsl(var(--c-red))" }}>{inviteError}</p>}
-              {inviteDisabledReason && <p style={{ marginTop: 8, fontSize: 12, color: "hsl(var(--ink) / 0.42)" }}>{inviteDisabledReason}</p>}
-            </div>
+        <SettingsProvider value={ctx}>
+          <div role="tabpanel" id={`settings-panel-${tab}`} aria-labelledby={`settings-tab-${tab}`} tabIndex={-1} className="min-w-0 focus:outline-none">
+            {tab === "overview" && <OverviewTab onRenamed={(name) => setTeam((prev) => (prev ? { ...prev, name } : prev))} />}
+            {tab === "members" && <MembersTab />}
+            {tab === "invites" && <InvitesTab />}
+            {tab === "roles" && <RolesTab />}
+            {tab === "groups" && <GroupsTab />}
+            {tab === "audit" && <AuditTab />}
           </div>
-        )}
-
-        {/* ── REUSABLE INVITE LINK CARD ── */}
-        {canInvite && (
-          <div style={surface}>
-            <div style={cardHeader}>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "hsl(var(--ink))" }}>{t("inviteLink.title")}</div>
-                <div style={{ fontSize: 11, color: "hsl(var(--ink) / 0.45)", marginTop: 2 }}>{t("inviteLink.subtitle")}</div>
-              </div>
-            </div>
-            <div style={cardBody}>
-              <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                <span style={{ fontSize: 12, color: "hsl(var(--ink) / 0.55)" }}>{t("inviteLink.roleAs", { role: t(`roleName.${inlineInviteRole}`) })}</span>
-                {/* Expiry (custom dropdown) */}
-                <div style={{ position: "relative" }}>
-                  <button
-                    type="button"
-                    onClick={() => setLinkExpiryMenuOpen((o) => !o)}
-                    title={t("inviteExpiry.label")}
-                    style={{ height: 36, minWidth: 120, borderRadius: 10, border: linkExpiry === -1 ? "1px solid rgba(248,113,113,0.45)" : "1px solid hsl(var(--ink) / 0.1)", background: linkExpiry === -1 ? "rgba(248,113,113,0.08)" : "hsl(var(--shade) / calc(0.25 * var(--shade-k)))", color: linkExpiry === -1 ? "#f87171" : "hsl(var(--ink) / 0.8)", fontSize: 13, padding: "0 12px", outline: "none", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, cursor: "pointer" }}
-                  >
-                    <span style={{ fontWeight: 600 }}>{linkExpiry === -1 ? t("inviteExpiry.never") : t("inviteExpiry.days", { n: linkExpiry })}</span>
-                    <span style={{ opacity: 0.5, fontSize: 10 }}>▾</span>
-                  </button>
-                  {linkExpiryMenuOpen && (
-                    <div
-                      style={{ position: "absolute", top: 42, left: 0, zIndex: 60, minWidth: 150, borderRadius: 12, border: "1px solid hsl(var(--ink) / 0.12)", background: "#10130a", boxShadow: "0 12px 40px hsl(var(--shade) / calc(0.55 * var(--shade-k)))", overflow: "hidden" }}
-                      onMouseLeave={() => setLinkExpiryMenuOpen(false)}
-                    >
-                      {[3, 7, 14, 31, -1].map((d) => (
-                        <button
-                          key={d}
-                          type="button"
-                          onClick={() => { setLinkExpiry(d); setLinkExpiryMenuOpen(false); }}
-                          style={{ width: "100%", textAlign: "left", padding: "9px 12px", border: "none", background: d === linkExpiry ? "rgba(216,255,114,0.08)" : "transparent", color: d === -1 ? "#f87171" : "hsl(var(--ink) / 0.85)", cursor: "pointer", fontSize: 13, fontWeight: d === linkExpiry ? 700 : 500 }}
-                        >
-                          {d === -1 ? `⚠ ${t("inviteExpiry.never")}` : t("inviteExpiry.days", { n: d })}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                {/* Max uses */}
-                <input
-                  type="number"
-                  min={1}
-                  value={linkMaxUses}
-                  onChange={(e) => setLinkMaxUses(e.target.value)}
-                  placeholder={t("inviteLink.maxUsesPlaceholder")}
-                  style={{ width: 130, height: 36, borderRadius: 10, border: "1px solid hsl(var(--ink) / 0.1)", background: "hsl(var(--shade) / calc(0.25 * var(--shade-k)))", color: "hsl(var(--ink) / 0.85)", fontSize: 13, padding: "0 12px", outline: "none" }}
-                />
-                <button
-                  onClick={createLink}
-                  disabled={isCreatingLink}
-                  style={{ height: 36, padding: "0 16px", borderRadius: 10, border: "none", background: "hsl(var(--accent-ink))", color: "hsl(var(--accent-ink-fg))", fontSize: 12, fontWeight: 700, cursor: isCreatingLink ? "default" : "pointer", opacity: isCreatingLink ? 0.5 : 1 }}
-                >
-                  {isCreatingLink ? "..." : t("inviteLink.generate")}
-                </button>
-              </div>
-              {linkExpiry === -1 && (
-                <p style={{ marginTop: 10, fontSize: 12, color: "hsl(var(--c-red))", display: "flex", alignItems: "center", gap: 6, lineHeight: 1.4 }}>
-                  <span style={{ fontSize: 14 }}>⚠</span> {t("inviteExpiry.neverWarning")}
-                </p>
-              )}
-
-              {inviteLinks.length > 0 && (
-                <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
-                  {inviteLinks.map((link) => {
-                    const url = link.acceptUrl || (typeof window !== "undefined" && link.token ? `${window.location.origin}/accept-invite?token=${encodeURIComponent(link.token)}` : null);
-                    return (
-                      <div key={link.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, border: "1px solid hsl(var(--ink) / 0.08)", background: "hsl(var(--shade) / calc(0.22 * var(--shade-k)))" }}>
-                        <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 99, ...roleBadgeStyle(link.role), fontWeight: 600, textTransform: "capitalize" }}>{t(`roleName.${link.role}`)}</span>
-                        <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: url ? "hsl(var(--ink) / 0.7)" : "hsl(var(--ink) / 0.35)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {url || t("inviteLink.hiddenUrl")}
-                        </span>
-                        <span style={{ fontSize: 11, color: "hsl(var(--ink) / 0.45)", whiteSpace: "nowrap" }}>
-                          {link.maxUses != null ? `${link.useCount}/${link.maxUses}` : `${link.useCount}`} · {link.expiresAt ? new Date(link.expiresAt).toLocaleDateString() : t("inviteExpiry.never")}
-                        </span>
-                        {url && (
-                          <button onClick={() => copyLink(link)} style={{ height: 30, padding: "0 10px", borderRadius: 8, border: "1px solid hsl(var(--ink) / 0.12)", background: "transparent", color: copiedLinkId === link.id ? "hsl(var(--accent-ink))" : "hsl(var(--ink) / 0.75)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
-                            {copiedLinkId === link.id ? t("inviteLink.copied") : t("inviteLink.copy")}
-                          </button>
-                        )}
-                        <button onClick={() => revokeLink(link.id)} title={t("inviteLink.revoke")} style={{ height: 30, width: 30, borderRadius: 8, border: "1px solid rgba(248,113,113,0.2)", background: "transparent", color: "hsl(var(--c-red))", fontSize: 14, cursor: "pointer" }}>✕</button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ── MEMBER CARDS GRID ── */}
-        <div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: "hsl(var(--ink))" }}>{t("members")}</span>
-            <span style={{ fontSize: 12, color: "hsl(var(--ink) / 0.45)" }}>{members.length} {t("total")} · {t("sortedByRole")}</span>
-          </div>
-
-          {isLoading ? (
-            <div style={{ padding: 48, textAlign: "center", fontSize: 13, color: "hsl(var(--ink) / 0.42)" }}>{t("loadingMembers")}</div>
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
-              {members.map((member) => {
-                const isMe = member.id === user?.id;
-                const color = memberColor(member.id);
-                const isActive = member.status === "active";
-                const isAliasEditing = editingAliasMemberId === member.membershipId;
-                const canEditAlias = canManageMembers || isMe;
-
-                return (
-                  <div
-                    key={member.membershipId}
-                    style={{ background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)", borderRadius: 14, padding: 18, position: "relative", transition: "border-color .15s, transform .15s", cursor: "default" }}
-                  >
-                    {/* Role badge + you badge */}
-                    <div style={{ position: "absolute", top: 14, right: 14, display: "flex", gap: 4, alignItems: "center" }}>
-                      {isMe && (
-                        <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 7px", borderRadius: 999, letterSpacing: "0.06em", color: "hsl(var(--accent-ink))", background: "rgba(216,255,114,0.1)", border: "1px solid rgba(216,255,114,0.22)" }}>
-                          {t("you")}
-                        </span>
-                      )}
-                      <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase", ...roleBadgeStyle(member.role) }}>
-                        {member.role}
-                      </span>
-                    </div>
-
-                    {/* Avatar + name + email */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, paddingRight: isMe ? 112 : 70 }}>
-                      <div
-                        onClick={!isMe && activeTeamId ? (e) => {
-                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                          setProfileCard({ member, anchor: { x: Math.min(rect.right + 8, window.innerWidth - 270), y: Math.min(rect.top, window.innerHeight - 300) } });
-                        } : undefined}
-                        style={{ width: 40, height: 40, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, border: `1.5px solid ${color}44`, background: `${color}18`, color, flexShrink: 0, overflow: "hidden", cursor: !isMe && activeTeamId ? "pointer" : "default" }}
-                      >
-                        {member.avatarUrl
-                          ? <img src={getUserAvatarUrl(member.avatarUrl, member.primaryEmail, 40)} alt={member.alias || member.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                          : (member.alias || member.name).slice(0, 1).toUpperCase()}
-                      </div>
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
-                          <span style={{ fontSize: 14, fontWeight: 700, color: "hsl(var(--ink))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {member.alias || member.name}
-                          </span>
-                        </div>
-                        {member.alias && (
-                          <div style={{ fontSize: 10, color: "hsl(var(--ink) / 0.3)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{member.name}</div>
-                        )}
-                        <div style={{ fontSize: 11, color: "hsl(var(--ink) / 0.45)", marginTop: member.alias ? 0 : 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {member.primaryEmail}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Mini stat grid */}
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                      <div style={{ background: "hsl(var(--shade) / calc(0.2 * var(--shade-k)))", borderRadius: 8, padding: "8px 10px" }}>
-                        <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "hsl(var(--ink) / 0.25)" }}>{t("statusLabel")}</div>
-                        <div style={{ fontSize: 13, fontWeight: 700, marginTop: 3, color: isActive ? "#4ade80" : "hsl(var(--ink) / 0.42)" }}>{isActive ? t("statusActive") : t("statusAway")}</div>
-                      </div>
-                      <div style={{ background: "hsl(var(--shade) / calc(0.2 * var(--shade-k)))", borderRadius: 8, padding: "8px 10px" }}>
-                        <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "hsl(var(--ink) / 0.25)" }}>{t("aliasBadge")}</div>
-                        <div style={{ fontSize: 13, fontWeight: 700, marginTop: 3, color: member.alias ? "hsl(var(--ink) / 0.75)" : "hsl(var(--ink) / 0.25)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {member.alias || "—"}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Actions dropdown trigger */}
-                    {(canManageMembers || isMe) && (
-                      <div style={{ position: "absolute", bottom: 14, right: 14 }}>
-                        <div style={{ position: "relative" }}>
-                          <button
-                            onClick={() => {
-                              const next = activeMemberMenu === member.membershipId ? null : member.membershipId;
-                              setActiveMemberMenu(next);
-                              if (!next) { setEditingAliasMemberId(null); setAliasDraft(""); }
-                            }}
-                            style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid hsl(var(--ink) / 0.1)", background: "hsl(var(--ink) / 0.04)", color: "hsl(var(--ink) / 0.45)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
-                          >
-                            <MoreHorizontal style={{ width: 14, height: 14 }} />
-                          </button>
-
-                          {activeMemberMenu === member.membershipId && (
-                            <>
-                              <div className="fixed inset-0 z-40" onClick={() => { setActiveMemberMenu(null); setEditingAliasMemberId(null); setAliasDraft(""); }} />
-                              <div style={{ position: "absolute", right: 0, bottom: 36, width: 220, borderRadius: 10, border: "1px solid hsl(var(--ink) / 0.12)", background: "#0d1117", boxShadow: "0 8px 32px hsl(var(--shade) / calc(0.5 * var(--shade-k)))", zIndex: 50, padding: "4px 0", fontSize: 13 }}>
-                                {canEditAlias && (
-                                  <>
-                                    <div style={{ padding: "6px 12px 4px", fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "hsl(var(--ink) / 0.3)" }}>{t("workspaceAlias")}</div>
-                                    {isAliasEditing ? (
-                                      <div style={{ padding: "4px 12px 8px" }}>
-                                        <input
-                                          value={aliasDraft}
-                                          onChange={(e) => setAliasDraft(e.target.value)}
-                                          placeholder={t("aliasPlaceholder")}
-                                          style={{ width: "100%", height: 32, borderRadius: 8, border: "1px solid hsl(var(--ink) / 0.12)", background: "hsl(var(--ink) / 0.05)", color: "hsl(var(--ink))", fontSize: 12, padding: "0 10px", outline: "none", marginBottom: 6 }}
-                                        />
-                                        <div style={{ display: "flex", gap: 6 }}>
-                                          <button
-                                            onClick={() => handleUpdateMemberAlias(member.membershipId, aliasDraft.trim() ? aliasDraft : null)}
-                                            disabled={isMutatingMember === member.membershipId}
-                                            style={{ borderRadius: 6, background: "hsl(var(--accent-ink))", color: "hsl(var(--accent-ink-fg))", border: "none", padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
-                                          >{t("saveAlias")}</button>
-                                          <button
-                                            onClick={() => { setEditingAliasMemberId(null); setAliasDraft(""); }}
-                                            style={{ borderRadius: 6, border: "1px solid hsl(var(--ink) / 0.1)", background: "transparent", color: "hsl(var(--ink) / 0.6)", padding: "4px 10px", fontSize: 11, cursor: "pointer" }}
-                                          >{t("cancelAlias")}</button>
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <div style={{ paddingBottom: 4 }}>
-                                        <button
-                                          onClick={() => { setEditingAliasMemberId(member.membershipId); setAliasDraft(member.alias || ""); }}
-                                          style={{ width: "100%", textAlign: "left", padding: "7px 12px", background: "transparent", border: "none", color: "hsl(var(--ink) / 0.8)", cursor: "pointer", fontSize: 13 }}
-                                        >{t("editAlias")}</button>
-                                        {member.alias && (
-                                          <button
-                                            onClick={() => handleUpdateMemberAlias(member.membershipId, null)}
-                                            disabled={isMutatingMember === member.membershipId}
-                                            style={{ width: "100%", textAlign: "left", padding: "7px 12px", background: "transparent", border: "none", color: "hsl(var(--ink) / 0.45)", cursor: "pointer", fontSize: 13 }}
-                                          >{t("clearAlias")}</button>
-                                        )}
-                                      </div>
-                                    )}
-                                    <div style={{ borderTop: "1px solid hsl(var(--ink) / 0.07)", margin: "2px 0" }} />
-                                  </>
-                                )}
-
-                                {canManageMembers && !isMe && member.role !== "owner" && (
-                                  <>
-                                    <div style={{ padding: "6px 12px 4px", fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "hsl(var(--ink) / 0.3)" }}>{t("changeRole")}</div>
-                                    {(["admin", "member", "guest"] as const).map((nextRole) => (
-                                      <button
-                                        key={nextRole}
-                                        onClick={() => handleChangeMemberRole(member.membershipId, nextRole)}
-                                        disabled={member.role === nextRole || isMutatingMember === member.membershipId}
-                                        style={{ width: "100%", textAlign: "left", padding: "7px 12px", background: "transparent", border: "none", color: member.role === nextRole ? "hsl(var(--ink) / 0.3)" : "hsl(var(--ink) / 0.8)", cursor: member.role === nextRole ? "default" : "pointer", fontSize: 13, textTransform: "capitalize" }}
-                                      >{nextRole}</button>
-                                    ))}
-                                    <div style={{ borderTop: "1px solid hsl(var(--ink) / 0.07)", margin: "2px 0" }} />
-                                  </>
-                                )}
-
-                                {((canManageMembers && !isMe && member.role !== "owner") || (isMe && member.role !== "owner")) && (
-                                  <button
-                                    onClick={() => handleRemoveMember(member.membershipId, isMe)}
-                                    disabled={isMutatingMember === member.membershipId}
-                                    style={{ width: "100%", textAlign: "left", padding: "8px 12px", background: "transparent", border: "none", color: "hsl(var(--c-red))", cursor: "pointer", fontSize: 13 }}
-                                  >{isMe ? t("leaveTeam") : t("removeMember")}</button>
-                                )}
-                                {!((canManageMembers && !isMe && member.role !== "owner") || (isMe && member.role !== "owner")) && !canEditAlias && (
-                                  <div style={{ padding: "8px 12px", fontSize: 13, color: "hsl(var(--ink) / 0.3)" }}>{t("noActions")}</div>
-                                )}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* ── PENDING INVITES TABLE ── */}
-        {canInvite && (
-          <div style={surface}>
-            <div style={cardHeader}>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "hsl(var(--ink))" }}>{t("pendingInvitesTitle")}</div>
-                <div style={{ fontSize: 11, color: "hsl(var(--ink) / 0.45)", marginTop: 2 }}>
-                  {isLoadingInvites ? t("loadingInvites") : t("awaitingResponse", { count: pendingInvites.length })}
-                </div>
-              </div>
-              <Shield style={{ width: 16, height: 16, color: "hsl(var(--ink) / 0.3)" }} />
-            </div>
-            <div style={{ overflowX: "auto" }}>
-              {isLoadingInvites ? (
-                <div style={{ padding: "20px 20px", fontSize: 13, color: "hsl(var(--ink) / 0.42)" }}>{t("loadingInvites")}</div>
-              ) : invites.length === 0 ? (
-                <div style={{ padding: "20px 20px", fontSize: 13, color: "hsl(var(--ink) / 0.42)" }}>{t("noInvitesYet")}</div>
-              ) : (
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr style={{ borderBottom: "1px solid hsl(var(--ink) / 0.07)" }}>
-                      {(["email", "role", "status", "delivery", "action"] as const).map((h) => (
-                        <th key={h} style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "hsl(var(--ink) / 0.25)", padding: "10px 20px", textAlign: "left" }}>{t(`tableHeaders.${h}`)}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {invites.map((invite) => (
-                      <tr key={invite.id} style={{ borderBottom: "1px solid hsl(var(--ink) / 0.04)" }}>
-                        <td style={{ padding: "11px 20px", fontSize: 13, color: "hsl(var(--ink))", fontWeight: 500 }}>{invite.email}</td>
-                        <td style={{ padding: "11px 20px" }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase", color: "hsl(var(--ink) / 0.45)", background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)" }}>{invite.role}</span>
-                        </td>
-                        <td style={{ padding: "11px 20px" }}>
-                          <span style={invite.status === "pending"
-                            ? { fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase", color: "hsl(var(--c-amber))", background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.2)" }
-                            : { fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase", color: "hsl(var(--ink) / 0.42)", background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)" }
-                          }>{invite.status}</span>
-                        </td>
-                        <td style={{ padding: "11px 20px" }}>
-                          <span style={invite.deliveryStatus === "sent"
-                            ? { fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase", color: "#86efac", background: "rgba(134,239,172,0.1)", border: "1px solid rgba(134,239,172,0.22)" }
-                            : invite.deliveryStatus === "skipped"
-                              ? { fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase", color: "hsl(var(--c-amber))", background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.2)" }
-                              : { fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase", color: "hsl(var(--c-red))", background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.2)" }
-                          }>{invite.deliveryStatus}</span>
-                        </td>
-                        <td style={{ padding: "11px 20px" }}>
-                          {canInvite && invite.status === "pending" && (
-                            <button
-                              onClick={() => handleRevokeInvite(invite.id)}
-                              disabled={isMutatingInvite === invite.id}
-                              style={{ display: "inline-flex", alignItems: "center", gap: 5, height: 28, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(248,113,113,0.25)", background: "rgba(248,113,113,0.07)", color: "hsl(var(--c-red))", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: isMutatingInvite === invite.id ? 0.5 : 1 }}
-                            >
-                              {t("revoke")}
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ── GROUPS ── */}
-        {activeTeamId && !activeTeam?.isPersonal && !isLoading && (
-          <TeamGroupsSection teamId={activeTeamId} members={members} canManage={canManageMembers} />
-        )}
-
-        {/* ── ROLE CAPABILITIES ── */}
-        <div style={surface}>
-          <div style={cardHeader}>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "hsl(var(--ink))" }}>{t("currentRole")} <span style={{ textTransform: "capitalize", color: "hsl(var(--accent-ink))" }}>{myRole}</span></div>
-              <div style={{ fontSize: 11, color: "hsl(var(--ink) / 0.45)", marginTop: 2 }}>{t("activePermissions")}</div>
-            </div>
-            <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.14em", textTransform: "uppercase", color: "hsl(var(--ink) / 0.42)", background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)" }}>{t("roleMatrix")}</span>
-          </div>
-          <div style={{ ...cardBody, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
-            {roleCapabilities[myRole].map((cap) => (
-              <div key={cap} style={{ borderRadius: 8, border: "1px solid hsl(var(--ink) / 0.07)", background: "hsl(var(--shade) / calc(0.2 * var(--shade-k)))", padding: "8px 12px", fontSize: 12, color: "hsl(var(--ink) / 0.7)" }}>{cap}</div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── WORKSPACE SETTINGS (admin + owner only) ── */}
-        {["owner", "admin"].includes(myRole) && !activeTeam?.isPersonal && (
-          <div style={surface}>
-            <div style={cardHeader}>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "hsl(var(--ink))" }}>{t("workspaceSettings")}</div>
-                <div style={{ fontSize: 11, color: "hsl(var(--ink) / 0.45)", marginTop: 2 }}>
-                  {myRole === "owner" ? t("deleteWorkspace") + " · " : ""}{t("workspaceName")}
-                </div>
-              </div>
-            </div>
-            <div style={cardBody}>
-
-              {/* Rename */}
-              <div style={{ marginBottom: 24 }}>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "hsl(var(--ink) / 0.55)", marginBottom: 8 }}>
-                  {t("workspaceName")}
-                </label>
-                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                  <input
-                    type="text"
-                    value={nameDraft}
-                    onChange={(e) => setNameDraft(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleRenameWorkspace()}
-                    maxLength={64}
-                    placeholder={t("workspaceNamePlaceholder")}
-                    style={{ flex: 1, minWidth: 0, height: 38, borderRadius: 10, border: "1px solid hsl(var(--ink) / 0.1)", background: "hsl(var(--shade) / calc(0.25 * var(--shade-k)))", color: "hsl(var(--ink) / 0.9)", fontSize: 13, padding: "0 14px", outline: "none" }}
-                  />
-                  <button
-                    onClick={handleRenameWorkspace}
-                    disabled={isSavingName || !nameDraft.trim() || nameDraft.trim() === activeTeam?.name}
-                    style={{ height: 38, padding: "0 16px", borderRadius: 10, border: "none", background: "hsl(var(--accent-ink))", color: "hsl(var(--accent-ink-fg))", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: (isSavingName || !nameDraft.trim() || nameDraft.trim() === activeTeam?.name) ? 0.5 : 1, transition: "opacity .15s", whiteSpace: "nowrap" }}
-                  >
-                    {isSavingName ? t("savingWorkspaceName") : t("saveWorkspaceName")}
-                  </button>
-                </div>
-              </div>
-
-              {/* Delete — owner only */}
-              {myRole === "owner" && (
-                <div style={{ borderTop: "1px solid rgba(248,113,113,0.15)", paddingTop: 20 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "hsl(var(--c-red))", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>
-                    {t("dangerZone")}
-                  </div>
-                  <p style={{ fontSize: 12, color: "hsl(var(--ink) / 0.45)", marginBottom: 14, lineHeight: 1.6 }}>
-                    {t("deleteWorkspaceHint")}
-                  </p>
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "hsl(var(--ink) / 0.55)", marginBottom: 8 }}>
-                    {t("confirmDeleteWorkspace")} <span style={{ color: "hsl(var(--c-red))", fontFamily: "monospace" }}>{activeTeam?.name}</span>
-                  </label>
-                  <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                    <input
-                      type="text"
-                      value={deleteConfirmName}
-                      onChange={(e) => setDeleteConfirmName(e.target.value)}
-                      placeholder={activeTeam?.name ?? ""}
-                      style={{ flex: 1, minWidth: 0, height: 38, borderRadius: 10, border: "1px solid rgba(248,113,113,0.25)", background: "rgba(248,113,113,0.04)", color: "hsl(var(--ink) / 0.9)", fontSize: 13, padding: "0 14px", outline: "none" }}
-                    />
-                    <button
-                      onClick={handleDeleteWorkspace}
-                      disabled={isDeletingWorkspace || deleteConfirmName.trim() !== (activeTeam?.name ?? "")}
-                      style={{ height: 38, padding: "0 16px", borderRadius: 10, border: "1px solid rgba(248,113,113,0.4)", background: "rgba(248,113,113,0.12)", color: "hsl(var(--c-red))", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: (isDeletingWorkspace || deleteConfirmName.trim() !== (activeTeam?.name ?? "")) ? 0.4 : 1, transition: "opacity .15s", whiteSpace: "nowrap" }}
-                    >
-                      {isDeletingWorkspace ? "..." : t("confirmDeleteWorkspaceBtn")}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
+        </SettingsProvider>
       </div>
 
       <InviteMemberModal
-        isOpen={isInviteModalOpen}
-        onClose={() => setIsInviteModalOpen(false)}
-        teamName={activeTeam?.name}
-        teamId={activeTeamId || ""}
-        accessToken={accessToken || ""}
-        inviterRole={myRole}
-        onInvited={reloadInvites}
+        isOpen={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+        teamName={team?.name}
+        teamId={activeTeamId ?? ""}
+        accessToken={accessToken ?? ""}
+        inviterRole={myLegacyRole}
+        onInvited={() => {
+          invalidateTeamPermissions(activeTeamId ?? undefined);
+          return reloadMembers();
+        }}
       />
-
-      {profileCard && activeTeamId && (
-        <UserProfileCard
-          userId={profileCard.member.id}
-          displayName={profileCard.member.alias || profileCard.member.name}
-          email={profileCard.member.primaryEmail}
-          avatarUrl={profileCard.member.avatarUrl ? getUserAvatarUrl(profileCard.member.avatarUrl, profileCard.member.primaryEmail, 48) : undefined}
-          teamId={activeTeamId}
-          anchor={profileCard.anchor}
-          onClose={() => setProfileCard(null)}
-        />
-      )}
-
-      {confirmRemoveMember && (
-        <ConfirmDeleteModal
-          isOpen={!!confirmRemoveMember}
-          onClose={() => setConfirmRemoveMember(null)}
-          onConfirm={handleRemoveMemberConfirm}
-          title={confirmRemoveMember.isSelf ? t("confirmLeaveTitle") : t("confirmRemoveTitle")}
-          description={confirmRemoveMember.isSelf ? t("confirmLeave") : t("confirmRemove")}
-          itemName=""
-        />
-      )}
     </div>
   );
 }

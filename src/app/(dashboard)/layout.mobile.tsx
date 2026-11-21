@@ -17,7 +17,7 @@ import { CardTimerWidget } from "@/components/ui/card-timer-widget";
 import { useSession } from "@/components/providers/session-provider";
 import { LocalWorkspaceProvider } from "@/components/providers/local-workspace-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
-import { useActiveTeamRole } from "@/hooks/use-active-team-role";
+import { useTeamPermissions } from "@/hooks/use-team-permissions";
 import { HelpMenuItems, OnboardingHost } from "@/components/onboarding/onboarding-host";
 import { UiModeProvider } from "@/components/providers/ui-mode-provider";
 import { useEffect, useState } from "react";
@@ -58,7 +58,8 @@ function LayoutMobileInner({ children }: { children: React.ReactNode }) {
   ];
 
   const { user, activeTeamId, setActiveTeamId, accessToken, logout } = useSession();
-  const { isAdmin: canAccessScripts } = useActiveTeamRole(activeTeamId, accessToken, user?.id);
+  const { can: canTeam } = useTeamPermissions(activeTeamId, accessToken, user?.id);
+  const canAccessScripts = canTeam("scripts.manage");
   const navigationItems = canAccessScripts
     ? [...navigation, { name: tDashboard("nav.statistics"), href: "/metrics", icon: BarChart3 }, { name: tDashboard("nav.scripts"), href: "/integrations", icon: Zap }]
     : navigation;

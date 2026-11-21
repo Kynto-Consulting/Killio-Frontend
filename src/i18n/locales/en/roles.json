@@ -1,0 +1,600 @@
+{
+  "loading": "Loading...",
+  "subtitle": "Space settings: people, roles, groups and invitations.",
+  "personalBadge": "Personal",
+  "tabs": {
+    "label": "Settings sections",
+    "overview": "Overview",
+    "members": "Members",
+    "invites": "Invitations",
+    "roles": "Roles",
+    "groups": "Groups",
+    "audit": "Moderation"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save"
+  },
+  "toast": {
+    "error": "The action could not be completed.",
+    "saved": "Changes saved.",
+    "created": "Role created.",
+    "deleted": "Role deleted.",
+    "reordered": "Order updated.",
+    "membersUpdated": "Roles updated."
+  },
+  "apiUnavailable": {
+    "title": "Roles are not available yet.",
+    "body": "The server did not answer for this section. Basic roles are used meanwhile."
+  },
+  "color": {
+    "none": "No color",
+    "custom": "Custom"
+  },
+  "tri": {
+    "allow": "Allow",
+    "inherit": "Inherit",
+    "deny": "Deny",
+    "allowHint": "Allow",
+    "inheritHint": "Inherit: the next layer decides",
+    "denyHint": "Deny"
+  },
+  "cascade": {
+    "explain": "How it is decided: the person's groups are checked first, then their personal roles, and finally the default role. The first layer that is not on “Inherit” wins."
+  },
+  "group": {
+    "general": "Space general",
+    "members": "Members and moderation",
+    "content": "Content",
+    "rooms": "Rooms and messages",
+    "integrations": "Integrations and scripts",
+    "bots": "Bots",
+    "billing": "Billing"
+  },
+  "perm": {
+    "administrator": {
+      "name": "Administrator",
+      "desc": "Can do everything in the space unless it is denied higher up. Give it with great care."
+    },
+    "team_manage": {
+      "name": "Manage the space",
+      "desc": "Change the space name and settings."
+    },
+    "roles_manage": {
+      "name": "Manage roles",
+      "desc": "Create, edit and order roles below their own."
+    },
+    "groups_manage": {
+      "name": "Manage groups",
+      "desc": "Create groups and change their members and roles."
+    },
+    "metrics_view": {
+      "name": "View metrics",
+      "desc": "See the space usage statistics."
+    },
+    "audit_view": {
+      "name": "View the moderation log",
+      "desc": "See who kicked, banned or muted and when."
+    },
+    "members_invite": {
+      "name": "Invite people",
+      "desc": "Send invitations and create links to join the space."
+    },
+    "invites_manage": {
+      "name": "Manage invitations",
+      "desc": "Revoke other people's invitations and links."
+    },
+    "members_manage": {
+      "name": "Manage members",
+      "desc": "View and adjust space members (alias, status)."
+    },
+    "members_manage_roles": {
+      "name": "Assign roles",
+      "desc": "Give or remove roles from members, only those below their own."
+    },
+    "members_kick": {
+      "name": "Kick members",
+      "desc": "Remove someone from the space (they can return with an invitation)."
+    },
+    "members_ban": {
+      "name": "Ban members",
+      "desc": "Remove someone and block them from joining again."
+    },
+    "members_mute": {
+      "name": "Mute members",
+      "desc": "Temporarily stop someone from writing."
+    },
+    "boards_create": {
+      "name": "Create boards",
+      "desc": "Create new boards in the space."
+    },
+    "documents_create": {
+      "name": "Create documents",
+      "desc": "Create new documents in the space."
+    },
+    "meshes_create": {
+      "name": "Create meshes",
+      "desc": "Create new meshes (canvases)."
+    },
+    "folders_manage": {
+      "name": "Manage folders",
+      "desc": "Create and reorganise folders."
+    },
+    "content_manage_all": {
+      "name": "Manage all content",
+      "desc": "See and manage every board and document, including other people's private ones."
+    },
+    "marketplace_import": {
+      "name": "Import from the marketplace",
+      "desc": "Install marketplace packs into the space."
+    },
+    "rooms_create": {
+      "name": "Create rooms",
+      "desc": "Create new chat rooms."
+    },
+    "rooms_manage": {
+      "name": "Manage rooms",
+      "desc": "Edit, archive and organise the space rooms."
+    },
+    "room_view": {
+      "name": "View rooms",
+      "desc": "See rooms and read their messages."
+    },
+    "room_post": {
+      "name": "Write in rooms",
+      "desc": "Send messages in rooms."
+    },
+    "room_react": {
+      "name": "React",
+      "desc": "React to messages."
+    },
+    "room_call": {
+      "name": "Make calls",
+      "desc": "Start or join voice and video calls."
+    },
+    "room_record": {
+      "name": "Record calls",
+      "desc": "Record a room's calls."
+    },
+    "room_invite": {
+      "name": "Invite to rooms",
+      "desc": "Add people to a room."
+    },
+    "room_pin": {
+      "name": "Pin messages",
+      "desc": "Pin and unpin important messages."
+    },
+    "room_manage_messages": {
+      "name": "Manage messages",
+      "desc": "Delete other people's messages."
+    },
+    "room_mention_everyone": {
+      "name": "Mention everyone",
+      "desc": "Use @everyone to notify the whole room."
+    },
+    "room_manage": {
+      "name": "Manage a room",
+      "desc": "Change a room's name, topic and permissions."
+    },
+    "integrations_manage": {
+      "name": "Manage integrations",
+      "desc": "Connect and configure external integrations."
+    },
+    "scripts_manage": {
+      "name": "Manage scripts",
+      "desc": "Create, edit and publish scripts and automations."
+    },
+    "scripts_run": {
+      "name": "Run scripts",
+      "desc": "Run scripts manually."
+    },
+    "env_manage": {
+      "name": "Manage secret variables",
+      "desc": "See and change environment variables and secrets used by scripts."
+    },
+    "sql_manage": {
+      "name": "Manage SQL connections",
+      "desc": "Add and remove database connections."
+    },
+    "sql_query": {
+      "name": "Query with SQL",
+      "desc": "Run queries on the available connections."
+    },
+    "bots_manage": {
+      "name": "Manage bots",
+      "desc": "Create and configure space bots."
+    },
+    "billing_manage": {
+      "name": "Manage billing",
+      "desc": "See and change the plan, payments and credits."
+    }
+  },
+  "permissions": {
+    "search": "Search permissions",
+    "noMatches": "No permission matches."
+  },
+  "block": {
+    "locked": "Read only.",
+    "owner_role": "The Owner role is fixed: nobody edits or assigns it.",
+    "position": "This role is at or above your own level.",
+    "not_owned": "You cannot grant a permission you do not have.",
+    "owner_only": "Only the owner can change this permission.",
+    "noRolesManage": "You do not have permission to manage roles.",
+    "noAssign": "You cannot assign this role.",
+    "assign": {
+      "owner_role": "Fixed",
+      "position": "Above you",
+      "not_owned": "Has permissions you lack"
+    },
+    "member": {
+      "self": "You cannot do this to yourself.",
+      "target_owner": "Nobody can act on the owner.",
+      "position": "Their highest role is equal to or above yours.",
+      "no_permission": "You lack the “{{permission}}” permission."
+    }
+  },
+  "picker": {
+    "label": "Roles",
+    "noRoles": "No roles."
+  },
+  "list": {
+    "title": "Role hierarchy",
+    "hint": "Top = highest. Drag or use the arrows to reorder.",
+    "create": "Create role",
+    "newName": "New role",
+    "copyName": "{{name}} (copy)",
+    "default": "Everyone",
+    "members": "{{count}} people",
+    "moveUp": "Move {{name}} up",
+    "moveDown": "Move {{name}} down",
+    "readOnly": "Only people who manage roles can reorder them."
+  },
+  "editor": {
+    "pick": "Pick a role to edit it.",
+    "tabs": "Role settings",
+    "display": "Display",
+    "permissions": "Permissions",
+    "members": "Members",
+    "system": "System",
+    "systemNote": "This is a system role: you can change its name, colour and permissions, but not delete it.",
+    "ownerNote": "The owner can do everything and this role is not edited. To change owner use “Transfer ownership” in Overview.",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "unsaved": "You have unsaved changes.",
+    "saved": "All saved.",
+    "reset": "Reset",
+    "save": "Save changes",
+    "saving": "Saving..."
+  },
+  "display": {
+    "name": "Name",
+    "nameHelp": "1 to 40 characters. Cannot contain < > [ ].",
+    "nameInvalid": "The name must be 1 to 40 characters and cannot contain < > [ ].",
+    "color": "Colour",
+    "mentionable": "Can be mentioned",
+    "mentionableHelp": "Anyone can notify people with this role using @.",
+    "preview": "How it will look"
+  },
+  "delete": {
+    "title": "Delete role",
+    "description": "People who have this role will lose it. This cannot be undone."
+  },
+  "roleMembers": {
+    "none": "Nobody has this role directly.",
+    "remove": "Remove",
+    "viaGroup": "Via a group",
+    "add": "Add people to the role",
+    "search": "Search people",
+    "addShort": "Add",
+    "noCandidates": "No people to add."
+  },
+  "sim": {
+    "title": "Permission simulator",
+    "help": "Pick a person and see what they can do and why. It is an approximation using this screen's data: the server has the final say.",
+    "pick": "Pick a person",
+    "can": "Can",
+    "cannot": "Cannot",
+    "fromOwner": "Is the owner",
+    "fromNone": "No layer allows it",
+    "from": {
+      "group": "via the group role “{{role}}”",
+      "personal": "via their role “{{role}}”",
+      "default": "via the default role “{{role}}”"
+    }
+  },
+  "members": {
+    "search": "Search by name or email",
+    "filterRole": "Filter by role",
+    "filterGroup": "Filter by group",
+    "allRoles": "All roles",
+    "allGroups": "All groups",
+    "count": "{{shown}} of {{total}} people",
+    "empty": "Nobody matches the filter.",
+    "you": "You",
+    "muted": "Muted",
+    "roles": "Roles",
+    "viaGroup": "Via the group {{group}}",
+    "personal": "Personal role",
+    "joined": "Since {{date}}",
+    "pagination": "Pagination",
+    "prev": "Previous",
+    "next": "Next",
+    "page": "Page {{page}} of {{pages}}"
+  },
+  "actions": {
+    "open": "Actions for {{name}}",
+    "roles": "Change roles",
+    "mute": "Mute",
+    "kick": "Kick",
+    "ban": "Ban",
+    "alias": "Edit alias",
+    "leave": "Leave the space",
+    "none": "No actions"
+  },
+  "legacyRole": {
+    "admin": "Admin",
+    "member": "Member",
+    "viewer": "Viewer",
+    "guest": "Guest",
+    "owner": "Owner"
+  },
+  "rolesDialog": {
+    "title": "Roles for {{name}}",
+    "help": "You can only assign roles below your own.",
+    "fromGroups": "Also has, through its groups:"
+  },
+  "moderation": {
+    "title": {
+      "kick": "Kick {{name}}",
+      "ban": "Ban {{name}}",
+      "mute": "Mute {{name}}"
+    },
+    "help": {
+      "kick": "They leave the space but can return with an invitation.",
+      "ban": "They leave the space and cannot join again by invitation until you lift the ban.",
+      "mute": "They will not be able to write while muted."
+    },
+    "confirm": {
+      "kick": "Kick",
+      "ban": "Ban",
+      "mute": "Mute"
+    },
+    "done": {
+      "kick": "{{name}} was kicked.",
+      "ban": "{{name}} was banned.",
+      "mute": "{{name}} was muted.",
+      "unmute": "{{name}} can write again."
+    },
+    "duration": "Duration",
+    "durations": {
+      "10m": "10 minutes",
+      "1h": "1 hour",
+      "1d": "1 day",
+      "1w": "1 week",
+      "forever": "Until lifted"
+    },
+    "unmute": "Unmute",
+    "reason": "Reason (optional)",
+    "reasonPlaceholder": "Why?",
+    "reasonHelp": "It is kept in the moderation log."
+  },
+  "alias": {
+    "title": "Alias in the space",
+    "help": "The name they are shown with in this space.",
+    "clear": "Clear alias"
+  },
+  "leave": {
+    "title": "Leave the space",
+    "body": "You will lose access to this space. Sure?",
+    "confirm": "Leave"
+  },
+  "invite": {
+    "byEmail": "Invite by email",
+    "emailPlaceholder": "email@example.com",
+    "roles": "Roles",
+    "groups": "Groups",
+    "groupsNeedPermission": "To add groups you need the permission to manage groups.",
+    "summaryTitle": "What the person gets on accepting",
+    "summaryDefault": "Only the default role:",
+    "summaryGroups": "Joins the groups: {{groups}}.",
+    "summaryNote": "It never lowers the role of someone who is already a member.",
+    "viaGroupRole": "Comes through a group",
+    "expiry": "Expires",
+    "days": "{{n}} days",
+    "never": "Never",
+    "neverWarning": "A link that never expires stays valid even if you forget it: revoke it when it is no longer needed.",
+    "send": "Send invitation",
+    "sending": "Sending...",
+    "sent": "Invitation sent.",
+    "deliverySkipped": "The invitation was created but the email was not sent (no mail server).",
+    "deliveryFailed": "The invitation was created but sending the email failed.",
+    "link": "Reusable link",
+    "linkHelp": "Anyone with the link joins with the roles and groups you choose.",
+    "maxUses": "Maximum uses",
+    "unlimited": "Unlimited",
+    "generate": "Create and copy link",
+    "generating": "Creating...",
+    "linkCreated": "Link created and copied.",
+    "reusableLink": "Reusable link",
+    "listTitle": "Invitations and links",
+    "filter": "Filter by status",
+    "empty": "Nothing to show.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "revoke": "Revoke",
+    "state": {
+      "all": "All",
+      "pending": "Pending",
+      "active": "Active",
+      "used": "Used",
+      "expired": "Expired",
+      "revoked": "Revoked"
+    },
+    "personal": "A personal space does not support invitations.",
+    "noPermission": "Your role cannot invite people to this space."
+  },
+  "groups": {
+    "title": "Groups",
+    "hint": "Named sets of people. They can have roles that all their members inherit.",
+    "search": "Search groups",
+    "new": "New group",
+    "pick": "Pick a group.",
+    "emptyTitle": "No groups yet",
+    "emptyBody": "Create one to mention, share with and give roles to several people at once.",
+    "emptyReadOnly": "People who manage groups can create them.",
+    "tabs": "Group settings",
+    "general": "General",
+    "members": "Members",
+    "roles": "Roles",
+    "resources": "Access",
+    "name": "Name",
+    "nameHelp": "1 to 40 characters. Cannot contain < > [ ].",
+    "mention": "Mention",
+    "mentionHelp": "It is generated from the name.",
+    "description": "Description",
+    "create": "Create group",
+    "delete": "Delete",
+    "deleteTitle": "Delete group",
+    "deleteDescription": "Its members lose what they got through the group.",
+    "searchPeople": "Search people",
+    "addAll": "Add shown",
+    "removeAll": "Remove shown",
+    "selected": "{{count}} selected",
+    "rolesHelp": "Everyone in the group gets these roles. The group's permissions are checked first.",
+    "resourcesHelp": "Boards and documents shared with this group.",
+    "resourcesNone": "No access to show",
+    "resourcesNoneBody": "Share a board or document with the group from its share menu.",
+    "resourceType": {
+      "board": "Board",
+      "document": "Document",
+      "mesh": "Mesh"
+    },
+    "toast": {
+      "created": "Group created.",
+      "updated": "Group updated.",
+      "deleted": "Group deleted.",
+      "membersSaved": "Members saved.",
+      "rolesSaved": "Group roles saved."
+    }
+  },
+  "audit": {
+    "bansTitle": "Banned people",
+    "noBans": "No bans.",
+    "bannedOn": "Banned on {{date}}",
+    "by": "by {{name}}",
+    "reason": "Reason: {{reason}}",
+    "unban": "Lift ban",
+    "unbanTitle": "Lift the ban on {{name}}",
+    "unbanBody": "They will be able to join again with an invitation.",
+    "unbanned": "{{name}} is no longer banned.",
+    "logTitle": "Moderation log",
+    "filter": "Filter by action",
+    "allActions": "All actions",
+    "empty": "No records yet.",
+    "action": {
+      "kick": "Kick",
+      "ban": "Ban",
+      "unban": "Ban lifted",
+      "mute": "Mute",
+      "unmute": "Unmuted",
+      "roles_changed": "Roles changed",
+      "role_created": "Role created",
+      "role_updated": "Role edited",
+      "role_deleted": "Role deleted",
+      "ownership_transferred": "Ownership transferred"
+    }
+  },
+  "overview": {
+    "space": "The space",
+    "name": "Name",
+    "noRename": "Only people who manage the space can change the name.",
+    "personal": "A personal space cannot be renamed.",
+    "renamed": "Name saved.",
+    "description": "Description",
+    "plan": "Plan",
+    "members": "Members",
+    "myRole": "Your role and what you can do",
+    "owner": "Owner",
+    "noRoles": "No personal roles: the default role applies.",
+    "myPermissionsHelp": "The server decides this from your roles and groups.",
+    "fallback": "Your permissions could not be fetched: the basics of your role are shown.",
+    "ownerAll": "You are the owner: you can do everything.",
+    "nothing": "You have no special permissions for now.",
+    "danger": "Danger zone",
+    "dangerOwnerOnly": "Only the owner can transfer or delete the space.",
+    "transfer": "Transfer ownership",
+    "transferHelp": "The chosen person becomes the single owner and you become an admin.",
+    "transferBtn": "Transfer...",
+    "transferTitle": "Transfer ownership",
+    "transferWarn": "You will lose full control of the space. Only the new owner can give it back.",
+    "transferTo": "New owner",
+    "transferPick": "Pick a person",
+    "typeName": "Type “{{name}}” to confirm",
+    "transferConfirm": "Transfer ownership",
+    "transferred": "{{name}} is now the owner.",
+    "delete": "Delete the space",
+    "deleteHelp": "Its boards, documents and members are deleted. This cannot be undone.",
+    "deleteBtn": "Delete space",
+    "deleteTitle": "Delete the space",
+    "deleteWarn": "This deletes all the space content and cannot be undone."
+  },
+  "catalog": {
+    "coreName": "Killio",
+    "approxTitle": "Approximate list.",
+    "approxBody": "The full permission catalogue could not be loaded from the server, so a basic list is shown. Integrations and extensions do not appear until it loads.",
+    "origin": {
+      "core": "Core",
+      "integration": "Integration",
+      "extension": "Extension"
+    },
+    "dangerous": "Sensitive",
+    "dangerousTitle": "Sensitive permission: give it only to people you trust.",
+    "dangerConfirmTitle": "Allow “{{name}}”",
+    "dangerConfirmBody": "This is a sensitive permission: it allows far-reaching actions. Are you sure you want to allow it?",
+    "dangerConfirm": "Yes, allow",
+    "requires": "Needs “{{names}}”, which is not allowed here.",
+    "obsoleteTitle": "Obsolete permissions",
+    "obsoleteBody": "They come from an integration or extension that is no longer installed. They stay in the role but grant nothing, and cannot be edited.",
+    "obsoleteBadge": "Obsolete",
+    "obsoleteLocked": "Obsolete: its source is no longer installed.",
+    "obsoleteInOverrides": "There are obsolete permissions stored here that are not shown and grant nothing: {{keys}}."
+  },
+  "resource": {
+    "tab": "Permissions",
+    "share": "Share",
+    "tabs": "Sharing and permissions",
+    "intro": "Adjust who can view, comment, edit or manage. “Inherit” lets the next layer decide: member, group, role and finally everyone.",
+    "mine": "Your permission here",
+    "level": {
+      "manage": "You can manage it",
+      "edit": "You can edit it",
+      "comment": "You can comment",
+      "view": "You can only view it",
+      "none": "No access"
+    },
+    "everyone": "Everyone in the space",
+    "subjectType": {
+      "everyone": "Everyone",
+      "role": "Role",
+      "group": "Group",
+      "member": "Person"
+    },
+    "add": "Add",
+    "search": "Search a role, group or person",
+    "noResults": "No results.",
+    "remove": "Remove {{name}}",
+    "empty": "No special settings: the normal access applies.",
+    "save": "Save permissions",
+    "saved": "Permissions saved.",
+    "unsaved": "You have unsaved changes.",
+    "reset": "Discard",
+    "readOnly": "Only people who manage this item can change the permissions.",
+    "unavailable": "Detailed permissions are not available on this server yet.",
+    "perm": {
+      "resource_view": "View",
+      "resource_comment": "Comment",
+      "resource_edit": "Edit",
+      "resource_manage": "Manage"
+    }
+  }
+}

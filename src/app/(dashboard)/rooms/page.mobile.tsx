@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Hash, Link2, MessageSquare, Plus, FolderPlus } from "lucide-react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useSession } from "@/components/providers/session-provider";
-import { useActiveTeamRole } from "@/hooks/use-active-team-role";
+import { useTeamPermissions } from "@/hooks/use-team-permissions";
 import { listTeamRooms, listTeamRoomGroups, type Room, type RoomGroup } from "@/lib/api/rooms";
 import { CreateRoomModal } from "@/components/rooms/CreateRoomModal";
 import { CreateRoomGroupModal } from "@/components/rooms/CreateRoomGroupModal";
@@ -15,7 +15,8 @@ export default function RoomsPageMobile() {
   const router = useRouter();
   const t = useTranslations("rooms");
   const { accessToken, activeTeamId, user } = useSession();
-  const { isAdmin } = useActiveTeamRole(activeTeamId, accessToken, user?.id);
+  const { can: canTeam } = useTeamPermissions(activeTeamId, accessToken, user?.id);
+  const isAdmin = canTeam("rooms.manage");
 
   const [rooms, setRooms] = useState<Room[]>([]);
   const [groups, setGroups] = useState<RoomGroup[]>([]);

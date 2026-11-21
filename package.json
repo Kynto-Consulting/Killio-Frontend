@@ -10,6 +10,7 @@
     "test:history": "node --experimental-strip-types --test \"src/lib/history/*.test.ts\"",
     "test:latex": "node --experimental-strip-types --test \"src/lib/latex/*.test.ts\"",
     "test:palette-ask": "node --experimental-strip-types --test \"src/lib/palette-ask/*.test.ts\"",
+    "test:roles": "node --experimental-strip-types --test \"src/lib/roles/*.test.ts\"",
     "test:ui-mode": "node --experimental-strip-types --test \"src/lib/ui-mode/*.test.ts\"",
     "build:turbo": "next build --turbo"
   },

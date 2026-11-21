@@ -15,6 +15,10 @@ export interface TeamGroup {
   memberCount: number;
   /** Whether the current user belongs to it. */
   isMember: boolean;
+  /** Roles every member of the group inherits (roles API; absent on older servers). */
+  roleIds?: string[];
+  /** Boards / documents shared with the group (optional, read-only in the UI). */
+  resources?: Array<{ type: string; id: string; name: string; role?: string }>;
 }
 
 export interface GroupInput {

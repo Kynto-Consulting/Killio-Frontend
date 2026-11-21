@@ -16,6 +16,7 @@ import { getUserAvatarUrl } from "@/lib/gravatar";
 import { useAsyncAction } from "@/hooks/ui";
 import { GroupAccessSection } from "@/components/sharing/group-access-section";
 import { useSession } from "@/components/providers/session-provider";
+import { ResourcePermissionsPanel, ShareTabs } from "@/components/roles/resource-permissions-panel";
 
 interface DocumentShareModalProps {
   isOpen: boolean;
@@ -44,6 +45,7 @@ export function DocumentShareModal({
 }: DocumentShareModalProps) {
   const { activeTeamId } = useSession();
   const t = useTranslations("document-detail");
+  const [shareTab, setShareTab] = useState<"share" | "permissions">("share");
   const [visibility, setVisibility] = useState<"private" | "team" | "public_link">(initialVisibility);
   const [members, setMembers] = useState<DocumentMemberSummary[]>([]);
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
@@ -140,7 +142,13 @@ export function DocumentShareModal({
           <p className="text-sm text-muted-foreground">{t("shareModal.subtitle")}</p>
         </div>
 
-        <div className="p-4 space-y-6">
+        <ShareTabs active={shareTab} onChange={setShareTab} />
+        {shareTab === "permissions" && (
+          <div className="p-4" role="tabpanel" id="share-panel-permissions" aria-labelledby="share-tab-permissions">
+            <ResourcePermissionsPanel kind="document" id={documentId} teamId={teamId ?? activeTeamId} canManage={role === "owner" || role === "admin"} />
+          </div>
+        )}
+        <div className={`p-4 space-y-6 ${shareTab === "permissions" ? "hidden" : ""}`}>
           <div className="space-y-3">
             <label className="text-sm font-medium text-foreground">{t("shareModal.invitePeople")}</label>
             <div className="flex items-center space-x-2">

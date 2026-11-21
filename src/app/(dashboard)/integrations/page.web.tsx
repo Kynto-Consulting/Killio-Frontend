@@ -48,7 +48,7 @@ import { IntegrationCatalogGrid } from "@/components/integrations/integration-ca
 import { integrationsForScope } from "@/lib/integrations/integration-catalog";
 import { ScriptLogicGuide } from "@/components/scripts/ScriptLogicGuide";
 import { EnvVarsPanel } from "@/components/scripts/EnvVarsPanel";
-import { useActiveTeamRole } from "@/hooks/use-active-team-role";
+import { useTeamPermissions } from "@/hooks/use-team-permissions";
 import scriptPresetsCatalog from "@/config/script-presets.json";
 import { Zap, Loader2, BarChart3, Globe, Clock3, X, CheckCircle2, AlertCircle, Trash2, CreditCard } from "lucide-react";
 
@@ -188,7 +188,9 @@ export function IntegrationsPageView({
   const t = useTranslations("integrations");
   const billingEnabled = useTenant().billing.enabled;
   const { user, accessToken, activeTeamId } = useSession();
-  const { role, isAdmin, isLoading: isRoleLoading } = useActiveTeamRole(activeTeamId, accessToken, user?.id);
+  const { can: canTeam, isReady: roleReady, isLoading: isRoleLoading } = useTeamPermissions(activeTeamId, accessToken, user?.id);
+  const isAdmin = canTeam("integrations.manage");
+  const role = roleReady ? "resolved" : null;
 
   const [internalTab, setInternalTab] = useState<Tab>(mobileScriptsOptimized ? "scripts" : "integrations");
   // Route-controlled tab takes precedence over internal state.

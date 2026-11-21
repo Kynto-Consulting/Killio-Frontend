@@ -8,6 +8,7 @@ import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useAsyncAction } from "@/hooks/ui";
 import { GroupAccessSection } from "@/components/sharing/group-access-section";
+import { ResourcePermissionsPanel, ShareTabs } from "@/components/roles/resource-permissions-panel";
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ interface ShareModalProps {
 
 export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Workspace Team", initialVisibility = "team", accessToken, teamId, canManageGroups = false }: ShareModalProps) {
   const t = useTranslations("board-detail");
+  const [shareTab, setShareTab] = useState<"share" | "permissions">("share");
   const [visibility, setVisibility] = useState<"private" | "team" | "public_link">(initialVisibility);
   const [members, setMembers] = useState<BoardMemberSummary[]>([]);
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
@@ -133,7 +135,13 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
           <p className="text-sm text-muted-foreground">{t("shareModal.subtitle")}</p>
         </div>
 
-        <div className="p-4 space-y-6">
+        <ShareTabs active={shareTab} onChange={setShareTab} />
+        {shareTab === "permissions" && (
+          <div className="p-4" role="tabpanel" id="share-panel-permissions" aria-labelledby="share-tab-permissions">
+            <ResourcePermissionsPanel kind="board" id={boardId} teamId={teamId ?? activeTeamId} canManage={canManageGroups} />
+          </div>
+        )}
+        <div className={`p-4 space-y-6 ${shareTab === "permissions" ? "hidden" : ""}`}>
           {/* Add people */}
           <div className="space-y-3">
             <label className="text-sm font-medium text-foreground">{t("shareModal.invitePeople")}</label>
