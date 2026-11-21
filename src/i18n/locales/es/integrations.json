@@ -13,6 +13,7 @@
   "usage": {
     "loading": "Cargando uso mensual...",
     "title": "Uso mensual ({{plan}})",
+    "titleNoPlan": "Uso mensual",
     "executedNoLimit": "{{count}} ejecuciones",
     "executedWithLimit": "{{executed}}/{{limit}} ejecuciones",
     "reset": "Reinicio: {{date}}",

@@ -889,7 +889,9 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
                   <span className="text-xs text-muted-foreground w-full text-left truncate capitalize">
                     {localMode
                       ? "Local"
-                      : `${currentPlan === 'max' ? 'Max' : currentPlan === 'pro' ? 'Pro' : currentPlan === 'enterprise' ? 'Enterprise' : 'Free'} ${tDashboard("accountMenu.plan")}`}
+                      : !billingEnabled
+                        ? (user?.email ?? "")
+                        : `${currentPlan === 'max' ? 'Max' : currentPlan === 'pro' ? 'Pro' : currentPlan === 'enterprise' ? 'Enterprise' : 'Free'} ${tDashboard("accountMenu.plan")}`}
                   </span>
                 </div>
               )}

@@ -851,7 +851,7 @@ export function IntegrationsPageView({
               {usage.limit === null ? `${usage.executed}` : `${usage.executed}/${usage.limit}`}
             </span>
           </span>
-          <span className="hidden xl:inline truncate">{t("usage.title", { plan: usage.planTier })}</span>
+          <span className="hidden xl:inline truncate">{billingEnabled ? t("usage.title", { plan: usage.planTier }) : t("usage.titleNoPlan")}</span>
           {usageResetDate && <span className="hidden 2xl:inline">{t("usage.reset", { date: usageResetDate })}</span>}
           {billingEnabled && (
           <button
