@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Pin, PinOff, Send, X, MessagesSquare } from "lucide-react";
+import { Clock, Loader2, Pin, PinOff, Send, X, MessagesSquare } from "lucide-react";
+import { usePinClock } from "@/hooks/use-pin-expiry";
+import { canUnpinMessage, classifyPinError, formatPinCountdown, isPinActive, pinTimeLeft, sortPins, type PinCaps } from "@/lib/rooms/pins";
 import { parseAiMarkup } from "@/lib/ai-markup";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import type { RoomMessage } from "@/lib/api/rooms";
@@ -22,30 +24,48 @@ function PanelHeader({ title, onClose, closeLabel }: { title: string; onClose: (
 interface PinnedPanelProps {
   messages: RoomMessage[];
   isLoading?: boolean;
-  canUnpin: boolean;
+  /** The list could not be read (no permission to see pins, or a failure). */
+  error?: "forbidden" | "failed" | null;
+  /** Pin limit of the channel (null until the summary is known). */
+  limit: number | null;
+  currentUserId: string;
+  caps: PinCaps;
+  /** Display name of the person who pinned, when known. */
+  nameOf: (userId: string) => string | null;
   onUnpin: (messageId: string) => Promise<void>;
+  onChangeExpiry: (messageId: string) => void;
   onJump: (messageId: string) => void;
   onClose: () => void;
   t: TFn;
 }
 
-/** Pinned messages of the channel, newest pin first. A pin can be opened in the chat or removed by whoever may pin. */
-export function PinnedPanel({ messages, isLoading, canUnpin, onUnpin, onJump, onClose, t }: PinnedPanelProps) {
+/** Pinned messages of the channel, newest pin first, with who pinned, when and a live "expires in" counter. */
+export function PinnedPanel({ messages, isLoading, error: loadError, limit, currentUserId, caps, nameOf, onUnpin, onChangeExpiry, onJump, onClose, t }: PinnedPanelProps) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const now = usePinClock(messages);
+  const active = sortPins(messages.filter((m) => isPinActive(m, now)));
 
   const unpin = async (id: string) => {
     setBusyId(id);
     setError(null);
-    try { await onUnpin(id); } catch { setError(t("msg.errors.failed")); } finally { setBusyId(null); }
+    try { await onUnpin(id); } catch (e) { setError(t(`pins.errors.${classifyPinError(e).kind === "forbidden" ? "forbidden" : "generic"}`)); } finally { setBusyId(null); }
   };
+
+  const snippet = (m: RoomMessage) => (parseAiMarkup(m.content).visibleText || m.content).slice(0, 40);
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-card/40">
       <PanelHeader title={t("pins.title")} onClose={onClose} closeLabel={t("members.close")} />
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
+        {!isLoading && !loadError && (
+          <p className="mb-2 px-1 text-[11px] font-semibold text-muted-foreground" aria-label={limit ? t("pins.counterLabel", { count: active.length, limit }) : undefined}>
+            {limit ? t("pins.counter", { count: active.length, limit }) : String(active.length)}
+          </p>
+        )}
         {isLoading && <div className="flex justify-center py-4" role="status" aria-label={t("pins.loading")}><Loader2 className="h-4 w-4 animate-spin text-muted-foreground motion-reduce:animate-none" aria-hidden /></div>}
-        {!isLoading && messages.length === 0 && (
+        {loadError && <p role="alert" className="mb-2 text-xs text-destructive">{loadError === "forbidden" ? t("pins.viewForbidden") : t("pins.loadFailed")}</p>}
+        {!isLoading && !loadError && active.length === 0 && (
           <div className="flex flex-col items-center gap-2 px-3 py-8 text-center text-xs text-muted-foreground">
             <Pin className="h-6 w-6 opacity-50" aria-hidden />
             <p className="font-semibold text-foreground">{t("pins.emptyTitle")}</p>
@@ -54,24 +74,43 @@ export function PinnedPanel({ messages, isLoading, canUnpin, onUnpin, onJump, on
         )}
         {error && <p role="alert" className="mb-2 text-xs text-destructive">{error}</p>}
         <ul className="space-y-2">
-          {messages.map((m) => (
-            <li key={m.id} className="rounded-xl border-2 border-[var(--memphis-line)] bg-background p-2.5">
-              <div className="mb-1 flex items-center gap-2">
-                <img src={getUserAvatarUrl(m.user?.avatarUrl, m.user?.email, 20)} alt="" className="h-5 w-5 rounded-full border border-border object-cover" />
-                <span className="truncate text-xs font-bold">{m.user?.displayName ?? t("ai.unknown")}</span>
-                <time className="ml-auto shrink-0 text-[10px] text-muted-foreground" dateTime={m.createdAt}>{new Date(m.createdAt).toLocaleDateString()}</time>
-              </div>
-              <p className="line-clamp-4 whitespace-pre-wrap break-words text-xs text-foreground/90">{parseAiMarkup(m.content).visibleText || m.content}</p>
-              <div className="mt-2 flex gap-2 text-[11px]">
-                <button type="button" onClick={() => onJump(m.id)} className="rounded-md border border-border px-2 py-0.5 font-semibold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">{t("pins.jump")}</button>
-                {canUnpin && (
-                  <button type="button" onClick={() => void unpin(m.id)} disabled={busyId === m.id} className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] disabled:opacity-50">
-                    <PinOff className="h-3 w-3" aria-hidden />{t("msg.unpin")}
-                  </button>
-                )}
-              </div>
-            </li>
-          ))}
+          {active.map((m) => {
+            const left = pinTimeLeft(m, now);
+            const pinner = m.pinnedBy ? (m.pinnedBy === currentUserId ? t("pins.pinnedByYou") : nameOf(m.pinnedBy) ? t("pins.pinnedBy", { name: nameOf(m.pinnedBy) as string }) : t("pins.pinnedByUnknown")) : t("pins.pinnedByUnknown");
+            const mayUnpin = canUnpinMessage(m, currentUserId, caps);
+            return (
+              <li key={m.id} className="rounded-xl border-2 border-[var(--memphis-line)] bg-background p-2.5">
+                <div className="mb-1 flex items-center gap-2">
+                  <img src={getUserAvatarUrl(m.user?.avatarUrl, m.user?.email, 20)} alt="" className="h-5 w-5 rounded-full border border-border object-cover" />
+                  <span className="truncate text-xs font-bold">{m.user?.displayName ?? t("ai.unknown")}</span>
+                  <time className="ml-auto shrink-0 text-[10px] text-muted-foreground" dateTime={m.createdAt}>{new Date(m.createdAt).toLocaleDateString()}</time>
+                </div>
+                <p className="line-clamp-4 whitespace-pre-wrap break-words text-xs text-foreground/90">{parseAiMarkup(m.content).visibleText || m.content}</p>
+                <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-[10px] text-muted-foreground">
+                  <span>{pinner}</span>
+                  {m.pinnedAt && <><span aria-hidden>·</span><time dateTime={m.pinnedAt}>{new Date(m.pinnedAt).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}</time></>}
+                  <span aria-hidden>·</span>
+                  <span className="inline-flex items-center gap-0.5 font-semibold text-foreground/80" title={m.pinExpiresAt ? new Date(m.pinExpiresAt).toLocaleString() : undefined}>
+                    <Clock className="h-2.5 w-2.5" aria-hidden />
+                    {left === null ? t("pins.noExpiry") : t("pins.expiresIn", { time: formatPinCountdown(left) })}
+                  </span>
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                  <button type="button" onClick={() => onJump(m.id)} className="rounded-md border border-border px-2 py-0.5 font-semibold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">{t("pins.jump")}</button>
+                  {caps.canPin && (
+                    <button type="button" onClick={() => onChangeExpiry(m.id)} aria-label={t("pins.changeLabel", { text: snippet(m) })} className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">
+                      <Clock className="h-3 w-3" aria-hidden />{t("msg.changeExpiry")}
+                    </button>
+                  )}
+                  {mayUnpin && (
+                    <button type="button" onClick={() => void unpin(m.id)} disabled={busyId === m.id} aria-label={t("pins.unpinLabel", { text: snippet(m) })} className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] disabled:opacity-50">
+                      <PinOff className="h-3 w-3" aria-hidden />{t("msg.unpin")}
+                    </button>
+                  )}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       </div>
     </div>

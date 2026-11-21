@@ -11,12 +11,17 @@ import {
   editRoomMessage,
   deleteRoomMessage,
   pinRoomMessage,
+  updateRoomPinExpiry,
+  unpinRoomMessage,
+  type PinResponse,
   markMessagesAsRead,
   markAllMessagesAsRead,
   threadRootOf,
   RoomMessage,
   MessageStatus,
 } from "@/lib/api/rooms";
+import { applyPinPatch, normalizePinEvent, patchesFromPinResponse, type PinBody, type PinPatch } from "@/lib/rooms/pins";
+import { usePinExpiry } from "@/hooks/use-pin-expiry";
 
 /** Event names the backend may use for the same fact; the first is the preferred one. */
 const EDIT_EVENTS = ["room.message.edited", "room.message.updated"] as const;
@@ -49,7 +54,9 @@ export function useRoomChat(
   accessToken: string | null | undefined,
   currentUser?: CurrentUser | null,
   /** Creates the room on demand when there is none yet (lazy thread rooms: the first message creates it). */
-  ensureRoom?: () => Promise<string | null>
+  ensureRoom?: () => Promise<string | null>,
+  /** Every pin change (realtime event or answer of this user's own request), for lists the hook does not own. */
+  onPinPatch?: (patch: PinPatch) => void
 ) {
   const [messages, setMessages] = useState<RoomMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -59,6 +66,9 @@ export function useRoomChat(
 
   const messagesRef = useRef<RoomMessage[]>([]);
   messagesRef.current = messages;
+  const onPinPatchRef = useRef(onPinPatch);
+  onPinPatchRef.current = onPinPatch;
+  usePinExpiry(messages, setMessages);
   const typingTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const typingStopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingRef = useRef(false);
@@ -267,17 +277,11 @@ export function useRoomChat(
     };
 
     const onPinChanged = (msg: { name: string; data: unknown }) => {
-      const d = (msg.data ?? {}) as { id?: string; messageId?: string; pinned?: boolean; pinnedAt?: string | null; pinnedBy?: string | null };
-      const id = d.id ?? d.messageId;
-      if (!id) return;
-      const pinned = typeof d.pinned === "boolean" ? d.pinned : msg.name.endsWith(".pinned") ? true : Boolean(d.pinnedAt);
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === id
-            ? { ...m, pinnedAt: pinned ? d.pinnedAt ?? new Date().toISOString() : null, pinnedBy: pinned ? d.pinnedBy ?? m.pinnedBy ?? null : null }
-            : m
-        )
-      );
+      // pinned (also when only the expiry changes) and unpinned (manual, expired or replaced).
+      const patch = normalizePinEvent(msg.name, msg.data);
+      if (!patch) return;
+      setMessages((prev) => applyPinPatch(prev, patch));
+      onPinPatchRef.current?.(patch);
     };
 
     channel.subscribe("room.message", onMessage);
@@ -497,20 +501,38 @@ export function useRoomChat(
     [roomId, accessToken]
   );
 
-  const setPinned = useCallback(
-    async (messageId: string, pinned: boolean) => {
+  const applyPinResponse = useCallback((dto: PinResponse, messageId: string) => {
+    for (const patch of patchesFromPinResponse(dto, messageId)) {
+      setMessages((prev) => applyPinPatch(prev, patch));
+      onPinPatchRef.current?.(patch);
+    }
+  }, []);
+
+  /** Pins (PUT) or, with `change`, changes the expiry of a pin in force (PATCH). Errors are thrown for the UI to explain. */
+  const pinMessage = useCallback(
+    async (messageId: string, body?: PinBody, change = false): Promise<PinResponse | undefined> => {
+      if (!roomId || !accessToken) return undefined;
+      const dto = change && body ? await updateRoomPinExpiry(roomId, messageId, accessToken, body) : await pinRoomMessage(roomId, messageId, accessToken, body);
+      applyPinResponse(dto, messageId);
+      return dto;
+    },
+    [roomId, accessToken, applyPinResponse]
+  );
+
+  const unpinMessage = useCallback(
+    async (messageId: string) => {
       if (!roomId || !accessToken) return;
       const before = messagesRef.current.find((m) => m.id === messageId);
-      if (!before) return;
-      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, pinnedAt: pinned ? new Date().toISOString() : null } : m)));
+      if (before) setMessages((prev) => applyPinPatch(prev, { messageId, pinned: false, reason: "manual" }));
       try {
-        await pinRoomMessage(roomId, messageId, pinned, accessToken);
+        const dto = await unpinRoomMessage(roomId, messageId, accessToken);
+        applyPinResponse({ ...dto, pinned: false, pinnedAt: null } as PinResponse, messageId);
       } catch (e) {
-        setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, pinnedAt: before.pinnedAt ?? null } : m)));
+        if (before) setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, pinnedAt: before.pinnedAt ?? null, pinnedBy: before.pinnedBy ?? null, pinExpiresAt: before.pinExpiresAt ?? null } : m)));
         throw e;
       }
     },
-    [roomId, accessToken]
+    [roomId, accessToken, applyPinResponse]
   );
 
   /** Adds messages that are not loaded yet (a thread's replies), keeping the list ordered; known ids are left as they are. */
@@ -554,7 +576,8 @@ export function useRoomChat(
     addReaction: handleAddReaction,
     editMessage,
     deleteMessage,
-    setPinned,
+    pinMessage,
+    unpinMessage,
     mergeMessages,
     loadError,
     reload,

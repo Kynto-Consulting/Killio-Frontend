@@ -112,3 +112,18 @@ test("mute form values are sanitized", () => {
   assert.equal(sanitizeMuteReason("  spam \n  repetido  "), "spam repetido");
   assert.equal(sanitizeMuteReason("x".repeat(500)).length, 200);
 });
+
+test("the pin keys: pin, pin without expiry, unpin others and see pins are separate rights", () => {
+  const basic = normalizeRoomAccess({ permissions: ["room.view", "room.pin"] });
+  assert.equal(basic.canPin, true);
+  assert.equal(basic.canPinPermanent, false);
+  assert.equal(basic.canUnpinOthers, false);
+  assert.equal(basic.canViewPins, false);
+  const more = normalizeRoomAccess({ permissions: ["room.view", "room.pin", "room.pin_permanent", "room.unpin_others", "room.view_pins"] });
+  assert.equal(more.canPinPermanent && more.canUnpinOthers && more.canViewPins, true);
+  const admin = normalizeRoomAccess({ permissions: ["administrator"] });
+  assert.equal(admin.canPinPermanent && admin.canUnpinOthers, true);
+  const legacy = normalizeRoomAccess({ canPost: true, canPin: true });
+  assert.equal(legacy.canPinPermanent, false);
+  assert.equal(legacy.canViewPins, true, "an old server without the key does not hide the pins");
+});

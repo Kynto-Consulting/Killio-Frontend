@@ -1,4 +1,5 @@
 import { normalizeComposerCommands } from '@/lib/bots/model';
+import { normalizePinSummary, type PinBody, type PinSummary } from '@/lib/rooms/pins';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -120,6 +121,8 @@ export interface RoomMessage {
   threadRootId?: string;
   pinnedAt?: string | null;
   pinnedBy?: string | null;
+  /** When the pin expires (only sent while it is in force); null / missing = no expiry. */
+  pinExpiresAt?: string | null;
   /** Replies in this message thread, counted by the server (the loaded page may hold fewer). */
   replyCount?: number;
   /** Tombstone of a deleted message: the list never shows it. */
@@ -209,20 +212,32 @@ function authHeader(accessToken: string) {
  */
 export class RoomsApiError extends Error {
   readonly status: number;
-  constructor(message: string, status: number) {
+  /** Machine code of the backend error (`room_pin_limit`, ...), when it sends one. */
+  readonly code?: string;
+  /** The JSON body of the error answer (limits, ids), when there is one. */
+  readonly data?: Record<string, unknown>;
+  constructor(message: string, status: number, code?: string, data?: Record<string, unknown>) {
     super(message);
     this.name = 'RoomsApiError';
     this.status = status;
+    this.code = code;
+    this.data = data;
   }
   static async from(res: Response, fallback: string): Promise<RoomsApiError> {
     let message = fallback;
+    let code: string | undefined;
+    let data: Record<string, unknown> | undefined;
     try {
       const body = await res.clone().json();
       if (body && typeof body.message === 'string') message = body.message;
+      if (body && typeof body === 'object') {
+        data = body as Record<string, unknown>;
+        if (typeof body.code === 'string') code = body.code;
+      }
     } catch {
       // not JSON: keep the fallback
     }
-    return new RoomsApiError(message, res.status);
+    return new RoomsApiError(message, res.status, code, data);
   }
   get isForbidden() { return this.status === 403; }
   get isUnavailable() { return this.status === 404 || this.status === 405 || this.status === 501; }
@@ -385,12 +400,30 @@ export async function deleteRoomMessage(roomId: string, messageId: string, acces
   if (!res.ok) throw await RoomsApiError.from(res, 'Failed to delete message');
 }
 
-export async function pinRoomMessage(roomId: string, messageId: string, pinned: boolean, accessToken: string): Promise<void> {
+/** Message DTO the pin endpoints answer with (`replacedMessageId` when "replace the oldest" unpinned another one). */
+export type PinResponse = RoomMessage & { replacedMessageId?: string | null };
+
+async function pinRequest(roomId: string, messageId: string, method: 'PUT' | 'PATCH' | 'DELETE', accessToken: string, body?: PinBody): Promise<PinResponse> {
   const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/messages/${messageId}/pin`, {
-    method: pinned ? 'PUT' : 'DELETE',
+    method,
     headers: authHeader(accessToken),
+    ...(body ? { body: JSON.stringify(body) } : {}),
   });
   if (!res.ok) throw await RoomsApiError.from(res, 'Failed to pin message');
+  try { return (await res.json()) as PinResponse; } catch { return { id: messageId } as PinResponse; }
+}
+
+/** Pins a message (no body = no expiry); on one already pinned it changes the expiry. */
+export const pinRoomMessage = (roomId: string, messageId: string, accessToken: string, body?: PinBody) => pinRequest(roomId, messageId, 'PUT', accessToken, body);
+/** Changes the expiry of a pin in force (needs a date field). */
+export const updateRoomPinExpiry = (roomId: string, messageId: string, accessToken: string, body: PinBody) => pinRequest(roomId, messageId, 'PATCH', accessToken, body);
+/** Idempotent: unpinning something not pinned answers `pinned: false`. */
+export const unpinRoomMessage = (roomId: string, messageId: string, accessToken: string) => pinRequest(roomId, messageId, 'DELETE', accessToken);
+
+export async function getRoomPinSummary(roomId: string, accessToken: string): Promise<PinSummary | null> {
+  const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/pins/summary`, { headers: authHeader(accessToken) });
+  if (!res.ok) throw await RoomsApiError.from(res, 'Failed to fetch pin summary');
+  return normalizePinSummary(await res.json());
 }
 
 export async function listPinnedMessages(roomId: string, accessToken: string): Promise<RoomMessage[]> {

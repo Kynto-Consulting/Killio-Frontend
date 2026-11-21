@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  applyAnnouncementPreset, applyPrivatePreset, detectPreset, draftsToDtos, EVERYONE, nextState, normalizeOverridesResponse, removeSubject, setState,
+  applyAnnouncementPreset, applyPrivatePreset, detectPreset, draftsToDtos, EVERYONE, nextState, normalizeOverridesResponse, removeSubject, ROOM_PERMISSION_KEYS, setState,
   stateOf, subjectKey, summarize, toDraft, toDto, validateDrafts, type OverrideDraft,
 } from "./tristate.ts";
 
@@ -108,4 +108,10 @@ test("responses of any shape are normalised; garbage is ignored", () => {
 test("summary counts allows and denies", () => {
   const d = toDraft({ subjectType: "role", subjectId: "r1", allow: ["room.post", "room.pin"], deny: ["room.call"] });
   assert.deepEqual(summarize(d), { allow: 2, deny: 1 });
+});
+
+test("the three pin keys are part of the channel editor and round-trip", () => {
+  for (const k of ["room.pin_permanent", "room.unpin_others", "room.view_pins"]) assert.ok((ROOM_PERMISSION_KEYS as readonly string[]).includes(k), k);
+  const d = toDraft({ subjectType: "role", subjectId: "r1", allow: ["room.pin_permanent"], deny: ["room.unpin_others", "room.view_pins"] });
+  assert.deepEqual(toDto(d), { subjectType: "role", subjectId: "r1", allow: ["room.pin_permanent"], deny: ["room.unpin_others", "room.view_pins"] });
 });

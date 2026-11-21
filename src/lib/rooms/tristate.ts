@@ -16,6 +16,9 @@ export const ROOM_PERMISSION_KEYS = [
   "room.call",
   "room.manage_messages",
   "room.pin",
+  "room.pin_permanent",
+  "room.unpin_others",
+  "room.view_pins",
   "room.mention_everyone",
 ] as const;
 export type RoomPermissionKey = (typeof ROOM_PERMISSION_KEYS)[number];

@@ -449,6 +449,9 @@
         "call": "Call",
         "manage_messages": "Manage messages",
         "pin": "Pin messages",
+        "pin_permanent": "Pin without expiry",
+        "unpin_others": "Unpin other people's pins",
+        "view_pins": "See pinned messages",
         "mention_everyone": "Mention everyone"
       }
     },
@@ -460,6 +463,9 @@
         "call": "Start or join calls",
         "manage_messages": "Delete other people's messages",
         "pin": "Pin important messages",
+        "pin_permanent": "Pins that never expire on their own",
+        "unpin_others": "Remove pins made by someone else",
+        "view_pins": "Open the pinned messages panel",
         "mention_everyone": "Use @everyone and roles that are not mentionable"
       }
     }
@@ -490,6 +496,7 @@
     "delete": "Delete",
     "pin": "Pin",
     "unpin": "Unpin",
+    "changeExpiry": "Change expiry",
     "pinned": "Pinned",
     "info": "Message info",
     "save": "Save",
@@ -520,7 +527,60 @@
     "loading": "Loading pinned messages",
     "emptyTitle": "Nothing pinned",
     "emptyHint": "Pin a message from its actions to keep it at hand.",
-    "jump": "Go to message"
+    "jump": "Go to message",
+    "counter": "{{count}}/{{limit}}",
+    "counterLabel": "{{count}} of {{limit}} pins in use",
+    "pinnedBy": "Pinned by {{name}}",
+    "pinnedByYou": "Pinned by you",
+    "pinnedByUnknown": "Pinned by someone",
+    "pinnedOn": "{{date}}",
+    "expiresIn": "Expires in {{time}}",
+    "noExpiry": "No expiry",
+    "unpinLabel": "Unpin: {{text}}",
+    "changeLabel": "Change expiry: {{text}}",
+    "viewForbidden": "You do not have permission to see the pinned messages.",
+    "loadFailed": "Could not load the pinned messages.",
+    "badge": {
+      "plain": "Pinned",
+      "permanent": "Pinned · no expiry",
+      "expires": "Pinned · expires in {{time}} ({{date}})"
+    },
+    "presets": {
+      "1h": "1 hour",
+      "24h": "24 hours",
+      "7d": "7 days",
+      "30d": "30 days",
+      "never": "No expiry"
+    },
+    "dialog": {
+      "titlePin": "Pin message",
+      "titleChange": "Change expiry",
+      "hint": "Choose how long it stays pinned.",
+      "presetsLabel": "Expiry",
+      "custom": "Custom date and time",
+      "customLabel": "Expires on",
+      "willExpire": "It will be unpinned on {{date}}.",
+      "willStay": "It stays pinned until someone unpins it.",
+      "confirmPin": "Pin",
+      "confirmChange": "Save",
+      "cancel": "Cancel",
+      "close": "Close"
+    },
+    "errors": {
+      "limit": "This channel already has {{limit}} pinned messages.",
+      "limitNoNumber": "This channel reached its pin limit.",
+      "replaceOldest": "Replace the oldest",
+      "limitOthers": "The oldest pin was made by someone else and you cannot replace it. Unpin one yourself or ask for permission.",
+      "permanentForbidden": "You do not have permission to pin without an expiry. Choose a duration.",
+      "notActive": "This message is no longer pinned.",
+      "invalidDate": "That date is not valid. Pick a future date within the allowed range.",
+      "forbidden": "You do not have permission to do that.",
+      "generic": "Something went wrong. Try again.",
+      "customEmpty": "Pick a date and time.",
+      "customPast": "The date must be in the future.",
+      "customSoon": "Choose at least one minute from now.",
+      "customFar": "The date is beyond the maximum of {{days}} days."
+    }
   },
   "composer": {
     "announcement": "This is an announcement channel: only some roles can publish.",

@@ -18,6 +18,12 @@ export interface RoomAccess {
   canManage: boolean;
   canManageMessages: boolean;
   canPin: boolean;
+  /** Pin without an expiry (room.pin_permanent). */
+  canPinPermanent: boolean;
+  /** Unpin what other people pinned (room.unpin_others). */
+  canUnpinOthers: boolean;
+  /** See the pinned list (room.view_pins). */
+  canViewPins: boolean;
   canMentionEveryone: boolean;
   canMuteMembers: boolean;
   isMuted: boolean;
@@ -69,6 +75,9 @@ export function normalizeRoomAccess(raw: unknown): RoomAccess {
       canManage: has(keys, "room.manage"),
       canManageMessages: has(keys, "room.manage_messages"),
       canPin: has(keys, "room.pin") || has(keys, "room.manage_messages"),
+      canPinPermanent: has(keys, "room.pin_permanent"),
+      canUnpinOthers: has(keys, "room.unpin_others"),
+      canViewPins: has(keys, "room.view_pins"),
       canMentionEveryone: has(keys, "room.mention_everyone"),
       canMuteMembers: has(keys, "members.mute"),
       isMuted: Boolean(r.isMuted ?? r.muted),
@@ -89,6 +98,9 @@ export function normalizeRoomAccess(raw: unknown): RoomAccess {
     canManage: bool(r.canManage) ?? false,
     canManageMessages: bool(r.canManageMessages) ?? (bool(r.canManage) ?? false),
     canPin: bool(r.canPin) ?? (bool(r.canManageMessages) ?? (bool(r.canManage) ?? false)),
+    canPinPermanent: bool(r.canPinPermanent) ?? false,
+    canUnpinOthers: bool(r.canUnpinOthers) ?? false,
+    canViewPins: bool(r.canViewPins) ?? (bool(r.canView) ?? true),
     canMentionEveryone: bool(r.canMentionEveryone) ?? (bool(r.canManage) ?? false),
     canMuteMembers: bool(r.canMuteMembers) ?? (bool(r.canManage) ?? false),
     isMuted: Boolean(r.isMuted ?? r.muted),

@@ -26,6 +26,7 @@ import { updateMessageMetadata } from "@/lib/api/rooms";
 import { useSession } from "@/components/providers/session-provider";
 import { API_BASE_URL } from "@/lib/api/client";
 import { MessageInfoPanel } from "./MessageInfoPanel";
+import { canUnpinMessage, formatPinCountdown, pinNow, pinTimeLeft, type PinCaps } from "@/lib/rooms/pins";
 import { Portal } from "@/components/ui/portal";
 import { parseInlineToolEvents, resolveToolCallRenderState } from "@/hooks/use-agent-chat";
 
@@ -223,7 +224,10 @@ interface RoomMessageItemProps {
   actions?: MessageActions;
   onEdit?: (content: string) => Promise<void>;
   onDelete?: () => Promise<void>;
-  onTogglePin?: (pinned: boolean) => Promise<void>;
+  /** Pin menu: "pin" and "change" open the expiry picker, "unpin" takes the pin off. */
+  onTogglePin?: (action: "pin" | "change" | "unpin") => Promise<void> | void;
+  /** Pin rights (who may unpin what), from the pin summary. */
+  pinCaps?: Pick<PinCaps, "canUnpinOthers">;
   onOpenThread?: () => void;
   /** Replies in this message's thread. */
   threadCount?: number;
@@ -233,6 +237,19 @@ interface RoomMessageItemProps {
   /** Rendered inside the thread panel: no thread button, no thread chip. */
   inThread?: boolean;
   t: TFn;
+}
+
+/** Pin badge of a message: the tooltip says when the pin expires. */
+function PinBadge({ message, t }: { message: RoomMessage; t: TFn }) {
+  const left = pinTimeLeft(message, pinNow());
+  const label = left === null || !message.pinExpiresAt
+    ? t("pins.badge.permanent")
+    : t("pins.badge.expires", { time: formatPinCountdown(left), date: new Date(message.pinExpiresAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) });
+  return (
+    <span role="img" aria-label={label} title={label} className="inline-flex self-center text-muted-foreground">
+      <Pin className="h-3 w-3" aria-hidden />
+    </span>
+  );
 }
 
 function MessageStatusIcon({ status }: { status?: MessageStatus }) {
@@ -313,6 +330,7 @@ export function RoomMessageItem({
   onEdit,
   onDelete,
   onTogglePin,
+  pinCaps,
   onOpenThread,
   threadCount = 0,
   myRoleIds,
@@ -494,7 +512,7 @@ export function RoomMessageItem({
               <time className="text-[10px] text-muted-foreground" dateTime={message.createdAt}>
                 {new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
               </time>
-              {message.pinnedAt && <Pin className="h-3 w-3 self-center text-muted-foreground" aria-label={t("msg.pinned")} />}
+              {message.pinnedAt && <PinBadge message={message} t={t} />}
             </div>
           )}
 
@@ -1022,9 +1040,19 @@ export function RoomMessageItem({
                     <MessagesSquare className="h-3.5 w-3.5" aria-hidden />
                   </button>
                 )}
-                {actions?.canPin && onTogglePin && (
-                  <button type="button" onClick={() => void runAction(() => onTogglePin(!message.pinnedAt))} disabled={isBusy} aria-label={message.pinnedAt ? t("msg.unpin") : t("msg.pin")} title={message.pinnedAt ? t("msg.unpin") : t("msg.pin")} className={toolButton}>
-                    {message.pinnedAt ? <PinOff className="h-3.5 w-3.5" aria-hidden /> : <Pin className="h-3.5 w-3.5" aria-hidden />}
+                {onTogglePin && !message.pinnedAt && actions?.canPin && (
+                  <button type="button" onClick={() => void onTogglePin("pin")} disabled={isBusy} aria-label={t("msg.pin")} title={t("msg.pin")} className={toolButton}>
+                    <Pin className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                )}
+                {onTogglePin && message.pinnedAt && actions?.canPin && (
+                  <button type="button" onClick={() => void onTogglePin("change")} disabled={isBusy} aria-label={t("msg.changeExpiry")} title={t("msg.changeExpiry")} className={toolButton}>
+                    <Clock className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                )}
+                {onTogglePin && message.pinnedAt && canUnpinMessage(message, currentUserId ?? "", { canUnpinOthers: pinCaps?.canUnpinOthers ?? false }) && (
+                  <button type="button" onClick={() => void runAction(async () => { await onTogglePin("unpin"); })} disabled={isBusy} aria-label={t("msg.unpin")} title={t("msg.unpin")} className={toolButton}>
+                    <PinOff className="h-3.5 w-3.5" aria-hidden />
                   </button>
                 )}
                 {actions?.canEdit && onEdit && (

@@ -18,7 +18,7 @@ import { useRoomReferences } from "@/hooks/use-room-references";
 import { useRealtimeAccessRenewal } from "@/hooks/use-room-realtime-access";
 import { useCall } from "@/components/providers/call-provider";
 import {
-  getRoom, listRoomMembers, listRoomMessages, listPinnedMessages, listActiveMutes, deleteRoomGroup, reorderRoomGroups, setRoomLayout, findOrCreateDm, unmuteTeamMember, sendAiRoomMessage, getActiveCall,
+  getRoom, listRoomMembers, listRoomMessages, listPinnedMessages, listActiveMutes, deleteRoomGroup, reorderRoomGroups, setRoomLayout, findOrCreateDm, unmuteTeamMember, sendAiRoomMessage, getActiveCall, getRoomPinSummary,
   type Room, type RoomCall, type RoomMember, type RoomGroup, RoomMessage,
 } from "@/lib/api/rooms";
 import { buildSidebarModel, dmDisplayName } from "@/lib/rooms/channel-layout";
@@ -43,6 +43,9 @@ import { RoomChatArea } from "@/components/rooms/RoomChatArea";
 import { RoomMembersPanel } from "@/components/rooms/RoomMembersPanel";
 import { RoomMessageItem } from "@/components/rooms/RoomMessageItem";
 import { PinnedPanel, ThreadPanel } from "@/components/rooms/SidePanels";
+import { PinExpiryDialog } from "@/components/rooms/PinExpiryDialog";
+import { usePinExpiry } from "@/hooks/use-pin-expiry";
+import { applyPinPatch, resolvePinCaps, syncServerClock, type PinBody, type PinPatch, type PinSummary } from "@/lib/rooms/pins";
 import { MuteMemberModal } from "@/components/rooms/MuteMemberModal";
 import { ChannelSettingsModal } from "@/components/rooms/ChannelSettingsModal";
 import { CategorySettingsModal } from "@/components/rooms/CategorySettingsModal";
@@ -128,6 +131,12 @@ export default function RoomDetailWeb() {
   const [jumpToMessageId, setJumpToMessageId] = useState<string | null>(null);
   const [fetchedPins, setFetchedPins] = useState<RoomMessage[]>([]);
   const [pinsLoading, setPinsLoading] = useState(false);
+  const [pinsError, setPinsError] = useState<"forbidden" | "failed" | null>(null);
+  const [pinsReload, setPinsReload] = useState(0);
+  const [pinSummary, setPinSummary] = useState<PinSummary | null>(null);
+  const [pinSummaryVersion, setPinSummaryVersion] = useState(0);
+  const [pinDialog, setPinDialog] = useState<{ id: string; mode: "pin" | "change" } | null>(null);
+  const isPinsOpenRef = useRef(false);
   const [muteTarget, setMuteTarget] = useState<{ userId: string; displayName: string } | null>(null);
   const [activeMutes, setActiveMutes] = useState<Record<string, string | null>>({});
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -167,7 +176,14 @@ export default function RoomDetailWeb() {
     }
     : null;
 
-  const chatHook = useRoomChat(roomId, accessToken, user);
+  // Pin changes (realtime or this user's own): keep the panel's server copy in step and refresh the counter.
+  const handlePinPatch = useCallback((patch: PinPatch) => {
+    setFetchedPins((prev) => applyPinPatch(prev, patch));
+    setPinSummaryVersion((v) => v + 1);
+    if (patch.pinned && isPinsOpenRef.current) setPinsReload((v) => v + 1);
+  }, []);
+  usePinExpiry(fetchedPins, setFetchedPins);
+  const chatHook = useRoomChat(roomId, accessToken, user, undefined, handlePinPatch);
   const presenceMembers = useRoomPresence(roomId, userInfo, accessToken);
   const { call, activeRoomId, joinRoomCall, leaveRoomCall } = useCall();
   const callHistoryHook = useRoomCallHistory(roomId, accessToken);
@@ -211,6 +227,8 @@ export default function RoomDetailWeb() {
     setIsSearchOpen(false);
     setJumpToMessageId(null);
     setFetchedPins([]);
+    setPinSummary(null);
+    setPinDialog(null);
     setReplyTo(null);
     setChatInput("");
   }, [roomId]);
@@ -282,15 +300,32 @@ export default function RoomDetailWeb() {
 
   // Pinned messages the server lists (older than the loaded page); merged with the live ones below.
   useEffect(() => {
+    isPinsOpenRef.current = isPinsOpen;
     if (!isPinsOpen || !accessToken || !roomId) return;
     let cancelled = false;
     setPinsLoading(true);
     listPinnedMessages(roomId, accessToken)
-      .then((p) => { if (!cancelled) setFetchedPins(p); })
-      .catch(() => { /* old server: the loaded messages are enough */ })
+      .then((p) => { if (!cancelled) { setFetchedPins(p); setPinsError(null); } })
+      .catch((err) => {
+        if (cancelled) return;
+        const status = (err as { status?: number })?.status;
+        // An old server (404 / 405 / 501): the loaded messages are enough. A 403 is said out loud.
+        if (status === 403) setPinsError("forbidden");
+        else if (!(status === 404 || status === 405 || status === 501)) setPinsError("failed");
+      })
       .finally(() => { if (!cancelled) setPinsLoading(false); });
     return () => { cancelled = true; };
-  }, [isPinsOpen, roomId, accessToken]);
+  }, [isPinsOpen, roomId, accessToken, pinsReload]);
+
+  // Pin summary: limit, how many are in use, presets and rights; also tells how far the browser clock is from the server's.
+  useEffect(() => {
+    if (!accessToken || !roomId) return;
+    let cancelled = false;
+    getRoomPinSummary(roomId, accessToken)
+      .then((s) => { if (!cancelled && s) { setPinSummary(s); syncServerClock(s.serverNow); } })
+      .catch(() => { /* old server: no limit shown, rights come from the permission keys */ });
+    return () => { cancelled = true; };
+  }, [roomId, accessToken, pinSummaryVersion]);
 
   const handleAiTrigger = useCallback(async (content: string, approvalDecision?: 'approved' | 'rejected', approvalToolCall?: any) => {
     if (!roomId || !accessToken) return;
@@ -759,7 +794,20 @@ Team Context: ${activeTeamId}.`;
 
   const handleEdit = useCallback((id: string, content: string) => chatHook.editMessage(id, toWireMentions(neutralizeEveryone(content, controls.canMentionEveryone))), [chatHook, controls.canMentionEveryone]);
   const handleDelete = useCallback((id: string) => chatHook.deleteMessage(id), [chatHook]);
-  const handlePin = useCallback((id: string, pinned: boolean) => chatHook.setPinned(id, pinned), [chatHook]);
+  const pinCaps = useMemo(
+    () => resolvePinCaps(pinSummary, { canPin: controls.canPin, canPinPermanent: access.canPinPermanent, canUnpinOthers: access.canUnpinOthers }),
+    [pinSummary, controls.canPin, access.canPinPermanent, access.canUnpinOthers],
+  );
+  const chatControls = pinCaps.canPin === pageControls.canPin ? pageControls : { ...pageControls, canPin: pinCaps.canPin };
+  const handlePin = useCallback(async (id: string, action: "pin" | "change" | "unpin") => {
+    if (action === "unpin") { await chatHook.unpinMessage(id); return; }
+    setPinDialog({ id, mode: action });
+  }, [chatHook]);
+  const submitPin = useCallback(async (body: PinBody) => {
+    if (!pinDialog) return;
+    await chatHook.pinMessage(pinDialog.id, body, pinDialog.mode === "change");
+  }, [chatHook, pinDialog]);
+  const pinNameOf = useCallback((userId: string) => roomMembers.find((m) => m.userId === userId)?.displayName ?? null, [roomMembers]);
 
   const renderThreadMessage = (m: RoomMessage) => (
     <RoomMessageItem
@@ -775,7 +823,8 @@ Team Context: ${activeTeamId}.`;
       actions={messageActionsFor(m)}
       onEdit={(c) => handleEdit(m.id, c)}
       onDelete={() => handleDelete(m.id)}
-      onTogglePin={(p) => handlePin(m.id, p)}
+      onTogglePin={(a) => handlePin(m.id, a)}
+      pinCaps={pinCaps}
       myRoleIds={myRoleIds}
       myGroupIds={myGroupIds}
       t={t}
@@ -785,7 +834,7 @@ Team Context: ${activeTeamId}.`;
   const messageActionsFor = (m: RoomMessage) =>
     messageActions(m, user?.id ?? "", {
       canEditOwn: controls.canEditOwn, canDeleteOwn: controls.canDeleteOwn, canDeleteOthers: controls.canDeleteOthers,
-      canPin: controls.canPin, canReply: controls.canReply, showReactions: controls.showReactions,
+      canPin: pinCaps.canPin, canReply: controls.canReply, showReactions: controls.showReactions,
     });
 
   const rightPanel = (isMobileView: boolean) => {
@@ -818,8 +867,13 @@ Team Context: ${activeTeamId}.`;
         <PinnedPanel
           messages={pins}
           isLoading={pinsLoading && pins.length === 0}
-          canUnpin={controls.canPin}
-          onUnpin={(id) => chatHook.setPinned(id, false)}
+          error={pinsError}
+          limit={pinCaps.limit}
+          currentUserId={user?.id ?? ""}
+          caps={pinCaps}
+          nameOf={pinNameOf}
+          onUnpin={(id) => chatHook.unpinMessage(id)}
+          onChangeExpiry={(id) => setPinDialog({ id, mode: "change" })}
           onJump={(id) => { setSearchQuery(""); setIsSearchOpen(false); setJumpToMessageId(id); if (isMobileView) closePanels(); }}
           onClose={closePanels}
           t={t}
@@ -995,7 +1049,7 @@ Team Context: ${activeTeamId}.`;
                     onReply={setReplyTo}
                     currentUserId={user?.id ?? ""}
                     teamId={activeTeamId ?? undefined}
-                    controls={pageControls}
+                    controls={chatControls}
                     isCheckingAccess={!permissionsReady}
                     channelType={room.channelType ?? null}
                     muteMinutesLeft={muteLeft}
@@ -1018,6 +1072,7 @@ Team Context: ${activeTeamId}.`;
                     onEditMessage={handleEdit}
                     onDeleteMessage={handleDelete}
                     onTogglePin={handlePin}
+                    pinCaps={pinCaps}
                     onOpenThread={handleOpenThread}
                     threadReplies={threadReplies}
                     jumpToMessageId={jumpToMessageId}
@@ -1059,6 +1114,17 @@ Team Context: ${activeTeamId}.`;
           <div className="min-h-0 flex-1">{rightPanel(true)}</div>
         </div>
       )}
+
+      <PinExpiryDialog
+        open={Boolean(pinDialog)}
+        mode={pinDialog?.mode ?? "pin"}
+        message={pinDialog ? chatHook.messages.find((m) => m.id === pinDialog.id) ?? pins.find((m) => m.id === pinDialog.id) ?? null : null}
+        summary={pinSummary}
+        caps={pinCaps}
+        onClose={() => setPinDialog(null)}
+        onSubmit={submitPin}
+        t={t}
+      />
 
       <MuteMemberModal
         open={Boolean(muteTarget)}

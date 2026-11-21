@@ -74,7 +74,9 @@ interface RoomChatAreaProps {
   searchQuery?: string;
   onEditMessage?: (messageId: string, content: string) => Promise<void>;
   onDeleteMessage?: (messageId: string) => Promise<void>;
-  onTogglePin?: (messageId: string, pinned: boolean) => Promise<void>;
+  onTogglePin?: (messageId: string, action: "pin" | "change" | "unpin") => Promise<void> | void;
+  /** Pin rights from the pin summary (who may unpin other people's pins). */
+  pinCaps?: { canUnpinOthers: boolean };
   onOpenThread?: (rootId: string) => void;
   /** Replies per thread root, for the "N replies" chip. */
   threadReplies?: Map<string, RoomMessage[]>;
@@ -137,7 +139,7 @@ export function RoomChatArea({
   messages, callsById, isLoading, hasMore, typingUsers, inputValue, onInputChange, onSend, onLoadMore, onReact, onMarkRead, onTyping, onViewTranscript,
   onAiTrigger, currentUserId, teamId, canPost, controls: controlsProp, channelType, muteMinutesLeft, muteReason, isAiRoom, showReadReceipts, roomName,
   documents, boards, users, roles, commands, myRoleIds, myGroupIds, botUserIds, transcripts, activeCallId, resolverContext, availableTags, onOpenCopilot, onToolApproval,
-  replyTo, onReply, modelSelector, isCheckingAccess, loadError, onReload, searchQuery, onEditMessage, onDeleteMessage, onTogglePin, onOpenThread, threadReplies, jumpToMessageId,
+  replyTo, onReply, modelSelector, isCheckingAccess, loadError, onReload, searchQuery, onEditMessage, onDeleteMessage, onTogglePin, pinCaps, onOpenThread, threadReplies, jumpToMessageId,
   onJumped, t,
 }: RoomChatAreaProps) {
   const { accessToken } = useSession();
@@ -318,7 +320,8 @@ export function RoomChatArea({
                   actions={messageActions(msg, currentUserId, rights)}
                   onEdit={onEditMessage ? (content) => onEditMessage(msg.id, content) : undefined}
                   onDelete={onDeleteMessage ? () => onDeleteMessage(msg.id) : undefined}
-                  onTogglePin={onTogglePin ? (pinned) => onTogglePin(msg.id, pinned) : undefined}
+                  onTogglePin={onTogglePin ? (action) => onTogglePin(msg.id, action) : undefined}
+                  pinCaps={pinCaps}
                   onOpenThread={onOpenThread ? () => onOpenThread(msg.id) : undefined}
                   threadCount={replyTotal}
                   myRoleIds={myRoleIds}

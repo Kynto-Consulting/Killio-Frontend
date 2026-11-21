@@ -449,6 +449,9 @@
         "call": "Llamar",
         "manage_messages": "Gestionar mensajes",
         "pin": "Anclar mensajes",
+        "pin_permanent": "Anclar sin caducidad",
+        "unpin_others": "Desanclar lo de otras personas",
+        "view_pins": "Ver mensajes anclados",
         "mention_everyone": "Mencionar a todos"
       }
     },
@@ -460,6 +463,9 @@
         "call": "Iniciar o unirse a llamadas",
         "manage_messages": "Borrar mensajes de otras personas",
         "pin": "Fijar mensajes importantes",
+        "pin_permanent": "Anclajes que no caducan solos",
+        "unpin_others": "Quitar anclajes hechos por otra persona",
+        "view_pins": "Abrir el panel de mensajes anclados",
         "mention_everyone": "Usar @everyone y roles no mencionables"
       }
     }
@@ -490,6 +496,7 @@
     "delete": "Eliminar",
     "pin": "Anclar",
     "unpin": "Desanclar",
+    "changeExpiry": "Cambiar caducidad",
     "pinned": "Anclado",
     "info": "Información del mensaje",
     "save": "Guardar",
@@ -520,7 +527,60 @@
     "loading": "Cargando anclados",
     "emptyTitle": "Nada anclado",
     "emptyHint": "Ancla un mensaje desde sus acciones para tenerlo siempre a mano.",
-    "jump": "Ir al mensaje"
+    "jump": "Ir al mensaje",
+    "counter": "{{count}}/{{limit}}",
+    "counterLabel": "{{count}} de {{limit}} anclados en uso",
+    "pinnedBy": "Anclado por {{name}}",
+    "pinnedByYou": "Anclado por ti",
+    "pinnedByUnknown": "Anclado por alguien",
+    "pinnedOn": "{{date}}",
+    "expiresIn": "Caduca en {{time}}",
+    "noExpiry": "Sin caducidad",
+    "unpinLabel": "Desanclar: {{text}}",
+    "changeLabel": "Cambiar caducidad: {{text}}",
+    "viewForbidden": "No tienes permiso para ver los mensajes anclados.",
+    "loadFailed": "No se pudieron cargar los mensajes anclados.",
+    "badge": {
+      "plain": "Anclado",
+      "permanent": "Anclado · sin caducidad",
+      "expires": "Anclado · caduca en {{time}} ({{date}})"
+    },
+    "presets": {
+      "1h": "1 hora",
+      "24h": "24 horas",
+      "7d": "7 días",
+      "30d": "30 días",
+      "never": "Sin caducidad"
+    },
+    "dialog": {
+      "titlePin": "Anclar mensaje",
+      "titleChange": "Cambiar caducidad",
+      "hint": "Elige cuánto tiempo queda anclado.",
+      "presetsLabel": "Caducidad",
+      "custom": "Fecha y hora personalizadas",
+      "customLabel": "Caduca el",
+      "willExpire": "Se desanclará el {{date}}.",
+      "willStay": "Seguirá anclado hasta que alguien lo desancle.",
+      "confirmPin": "Anclar",
+      "confirmChange": "Guardar",
+      "cancel": "Cancelar",
+      "close": "Cerrar"
+    },
+    "errors": {
+      "limit": "Este canal ya tiene {{limit}} mensajes anclados.",
+      "limitNoNumber": "Este canal alcanzó su límite de anclados.",
+      "replaceOldest": "Reemplazar el más antiguo",
+      "limitOthers": "El anclado más antiguo lo hizo otra persona y no puedes reemplazarlo. Desancla uno tú o pide permiso.",
+      "permanentForbidden": "No tienes permiso para anclar sin caducidad. Elige una duración.",
+      "notActive": "Este mensaje ya no está anclado.",
+      "invalidDate": "Esa fecha no es válida. Elige una fecha futura dentro del rango permitido.",
+      "forbidden": "No tienes permiso para hacer eso.",
+      "generic": "Algo salió mal. Inténtalo de nuevo.",
+      "customEmpty": "Elige una fecha y una hora.",
+      "customPast": "La fecha debe estar en el futuro.",
+      "customSoon": "Elige al menos un minuto desde ahora.",
+      "customFar": "La fecha supera el máximo de {{days}} días."
+    }
   },
   "composer": {
     "announcement": "Este es un canal de anuncios: solo algunos roles pueden publicar.",
