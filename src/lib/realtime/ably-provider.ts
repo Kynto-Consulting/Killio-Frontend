@@ -7,6 +7,7 @@
  */
 
 import Ably from "ably";
+import { RenewalCoordinator, watchChannelFailures } from "./ably-recovery";
 import type {
   IRealtimeProvider,
   IRealtimeChannel,
@@ -117,6 +118,8 @@ class AblyChannel implements IRealtimeChannel {
 class AblyProvider implements IRealtimeProvider {
   private readonly _client: Ably.Realtime;
   private readonly _channels = new Map<string, AblyChannel>();
+  private readonly _renewal: RenewalCoordinator;
+  private readonly _stopWatching = new Map<string, () => void>();
 
   constructor(accessToken: string) {
     this._client = new Ably.Realtime({
@@ -138,18 +141,35 @@ class AblyProvider implements IRealtimeProvider {
     this._client.connection.on("failed", () => {
       console.error("[Realtime] Ably connection failed");
     });
+
+    this._renewal = new RenewalCoordinator(() => this._client.auth.authorize());
+  }
+
+  /** Re-issues the token so rooms created / shared after it was signed become reachable. */
+  renewAuth(): Promise<boolean> {
+    return this._renewal.renew();
   }
 
   getChannel(name: string): IRealtimeChannel {
     const cached = this._channels.get(name);
     if (cached) return cached;
 
-    const ch = new AblyChannel(this._client.channels.get(name));
+    const raw = this._client.channels.get(name);
+    const ch = new AblyChannel(raw);
     this._channels.set(name, ch);
+    // A channel refused for lack of capability (40160/40161) renews the token and re-attaches; its listeners survive.
+    this._stopWatching.set(
+      name,
+      watchChannelFailures(raw as any, () => this._renewal.renew(), {
+        onGiveUp: (error) => console.error(`[Realtime] channel ${name} refused after renewing the token`, error),
+      }),
+    );
     return ch;
   }
 
   disconnect(): void {
+    this._stopWatching.forEach((stop) => stop());
+    this._stopWatching.clear();
     this._channels.clear();
     this._client.close();
   }

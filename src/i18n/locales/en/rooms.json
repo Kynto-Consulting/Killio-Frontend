@@ -41,7 +41,31 @@
     "noChannels": "No channels yet",
     "noLinked": "No linked threads",
     "noDMs": "No direct messages",
-    "openKillioChat": "Chat with Killio"
+    "openKillioChat": "Chat with Killio",
+    "open": "Open channels",
+    "close": "Close channels",
+    "filter": "Find a channel",
+    "noMatches": "No channel matches",
+    "loading": "Loading channels",
+    "loadError": "Channels could not be loaded.",
+    "emptyCanCreate": "Create the first channel with the + button.",
+    "emptyNoCreate": "There are no channels for you yet.",
+    "createChannelIn": "New channel in {{name}}",
+    "dmSearch": "Find a person",
+    "dmNobody": "Nobody with that name",
+    "dmFailed": "The direct message could not be opened.",
+    "muted": "Muted",
+    "unreadMessages": "{{count}} unread messages",
+    "mentionsCount": "{{count}} mentions",
+    "entityRooms": "Documents and boards",
+    "entityType": {
+      "document": "Documents",
+      "board": "Boards",
+      "mesh": "Meshes",
+      "list": "Lists",
+      "card": "Cards",
+      "other": "Other"
+    }
   },
   "header": {
     "call": "Start call",
@@ -54,7 +78,20 @@
     "notifications": "Notification preferences",
     "notifAll": "All messages",
     "notifMentions": "Mentions only",
-    "notifNone": "Nothing"
+    "notifNone": "Nothing",
+    "search": "Search the channel",
+    "searchPlaceholder": "Search the loaded messages",
+    "searchResults": "{{count}} results",
+    "searchLoaded": "Loaded messages",
+    "searchClose": "Close search",
+    "pins": "Pinned messages",
+    "pinsCount": "Pinned messages ({{count}})",
+    "settings": "Channel settings",
+    "more": "More options",
+    "online": "{{count}} online",
+    "membersCount": "Members ({{count}})",
+    "callInProgress": "Call in progress",
+    "joinCall": "Join"
   },
   "chat": {
     "inputPlaceholder": "Message {{roomName}}... (#AI for copilot)",
@@ -82,7 +119,17 @@
       "original": "View original",
       "download": "Download",
       "attached": "Attached"
-    }
+    },
+    "send": "Send message",
+    "loading": "Loading messages",
+    "logLabel": "Messages in {{roomName}}",
+    "logLabelPlain": "Messages",
+    "emptyTitle": "The conversation starts here",
+    "emptyReadOnly": "When someone posts, you will see it here.",
+    "announcementEmptyTitle": "No announcements yet",
+    "searchEmptyTitle": "No results",
+    "searchEmptyHint": "Try other words. Only the loaded messages are searched.",
+    "dismissSuggestion": "Dismiss suggestion"
   },
   "call": {
     "joining": "Joining call...",
@@ -245,7 +292,21 @@
     "online": "Online",
     "offline": "Offline",
     "inCall": "In call",
-    "you": "(you)"
+    "you": "(you)",
+    "close": "Close panel",
+    "loading": "Loading members",
+    "loadError": "Members could not be loaded.",
+    "empty": "Nobody has access to this channel yet.",
+    "muted": "Muted",
+    "botLabel": "Bot",
+    "message": "Direct message",
+    "actions": "Actions for {{name}}",
+    "visibilityNote": "These are the people who can see this channel.",
+    "section": {
+      "online": "Online",
+      "bots": "Bots",
+      "offline": "Offline"
+    }
   },
   "vaultLanding": {
     "greeting": "Hi {{name}}, I'm Killio",
@@ -262,7 +323,13 @@
     ]
   },
   "errors": {
-    "recordFailed": "Recording is not supported in this browser."
+    "recordFailed": "Recording is not supported in this browser.",
+    "retry": "Try again",
+    "loadFailed": "The room could not be loaded.",
+    "noAccessTitle": "You cannot see this channel",
+    "noAccessHint": "The channel does not exist or you do not have access to it.",
+    "messagesFailed": "Messages could not be loaded",
+    "messagesFailedHint": "Check your connection and try again."
   },
   "info": {
     "title": "Message Info",
@@ -280,5 +347,193 @@
     "credits": "credits",
     "nobodyRead": "No one has read this message yet.",
     "createdAt": "Created on {{date}}"
+  },
+  "category": {
+    "menu": "Options for {{name}}",
+    "edit": "Rename and permissions",
+    "editTitle": "Edit category",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "delete": "Delete category",
+    "confirmDelete": "Confirm: its channels become uncategorized",
+    "moved": "{{name}} is now category {{position}}",
+    "permissionsHelp": "These rules apply to every channel in the category, unless a channel says otherwise.",
+    "permissionsAfter": "Once it is created you can choose who sees it and who writes in it.",
+    "errors": {
+      "saveFailed": "The category could not be saved.",
+      "reorderFailed": "The order could not be saved.",
+      "deleteFailed": "The category could not be deleted."
+    }
+  },
+  "channel": {
+    "close": "Close",
+    "editTitle": "Channel settings",
+    "save": "Save",
+    "delete": "Delete channel",
+    "confirmDelete": "Confirm: the channel will be deleted",
+    "typeLabel": "Channel type",
+    "type": {
+      "text": "Text",
+      "textHint": "Open conversation for everyone with access.",
+      "announcement": "Announcements",
+      "announcementHint": "Only some roles publish; everybody else reads and reacts."
+    },
+    "topicLabel": "Topic",
+    "categoryLabel": "Category",
+    "readReceipts": "Read receipts",
+    "readReceiptsHint": "Shows who has read each message.",
+    "tabs": {
+      "general": "General",
+      "permissions": "Permissions"
+    },
+    "errors": {
+      "forbidden": "You are not allowed to make this change.",
+      "unavailable": "This server does not support this action yet.",
+      "saveFailed": "The changes could not be saved.",
+      "deleteFailed": "The channel could not be deleted."
+    }
+  },
+  "perm": {
+    "help": "For each group of people: ✓ allow, ✗ deny, or – let the next rule decide. The most specific rule wins (person, group, role, everyone).",
+    "presets": "Shortcuts",
+    "presetAnnouncement": "Announcement channel (only some roles publish)",
+    "presetPrivate": "Private channel for roles",
+    "announcementPick": "Choose which roles can publish",
+    "announcementWho": "Only these publish: {{names}}",
+    "privatePick": "Choose which roles can see this channel",
+    "privateWho": "Only these see the channel: {{names}}",
+    "apply": "Apply",
+    "cancel": "Cancel",
+    "noRoles": "There are no roles yet. Create them under Team to choose who publishes.",
+    "loading": "Loading…",
+    "loadError": "Permissions could not be loaded.",
+    "unavailable": "This server does not support per-channel permissions yet.",
+    "unsupported": "Chats of documents and boards, and direct messages, take their access from the document, board or conversation itself.",
+    "inherited": "This channel inherits {{count}} rule(s) from its category.",
+    "everyone": "Everyone",
+    "roles": "Roles",
+    "groups": "Groups",
+    "members": "People",
+    "unknownRole": "Deleted role",
+    "unknownGroup": "Deleted group",
+    "unknownMember": "Person",
+    "noRules": "No rules",
+    "summary": "{{allow}} yes · {{deny}} no",
+    "removeSubject": "Remove rules for {{name}}",
+    "addLabel": "Add rules for a role, group or person",
+    "addPlaceholder": "Add a role, group or person…",
+    "add": "Add",
+    "allow": "Allow",
+    "inherit": "Inherit",
+    "deny": "Deny",
+    "warn": {
+      "hidden_from_everyone": "Nobody will see this channel except the roles that allow it and administrators.",
+      "nobody_can_post": "Nobody will be able to write except the roles that allow it and administrators."
+    },
+    "keys": {
+      "room.view": "See the channel",
+      "room.post": "Write messages",
+      "room.react": "React",
+      "room.call": "Call",
+      "room.manage_messages": "Manage messages",
+      "room.pin": "Pin messages",
+      "room.mention_everyone": "Mention everyone"
+    },
+    "keyHints": {
+      "room.view": "Shows in the list and can be read",
+      "room.post": "Send and reply",
+      "room.react": "Add emoji to messages",
+      "room.call": "Start or join calls",
+      "room.manage_messages": "Delete other people's messages",
+      "room.pin": "Pin important messages",
+      "room.mention_everyone": "Use @everyone and roles that are not mentionable"
+    }
+  },
+  "mod": {
+    "mute": "Mute",
+    "unmute": "Lift mute",
+    "muteTitle": "Mute {{name}}",
+    "muteHelp": "They can read, but not write, react or call in any room of the team until the mute ends.",
+    "durationLabel": "Duration",
+    "reasonLabel": "Reason",
+    "reasonPlaceholder": "Kept in the moderation log",
+    "duration": {
+      "minutes": "{{count}} minutes",
+      "hours": "{{count}} hours",
+      "days": "{{count}} days",
+      "forever": "Until someone lifts it"
+    },
+    "errors": {
+      "failed": "The mute could not be changed.",
+      "forbidden": "You cannot mute this person."
+    }
+  },
+  "msg": {
+    "tools": "Message actions",
+    "reply": "Reply",
+    "edit": "Edit",
+    "delete": "Delete",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "pinned": "Pinned",
+    "info": "Message info",
+    "save": "Save",
+    "edited": "(edited)",
+    "editLabel": "Edit message",
+    "editHint": "Enter saves · Esc cancels",
+    "deleteTitle": "Delete message",
+    "deleteOwn": "Delete your message?",
+    "deleteOther": "Delete someone else's message?",
+    "reactionCount": "{{emoji}} {{count}}",
+    "errors": {
+      "failed": "The action could not be completed.",
+      "forbidden": "You are not allowed to do that."
+    }
+  },
+  "thread": {
+    "title": "Thread",
+    "reply": "Reply in thread",
+    "replies": "{{count}} replies",
+    "noReplies": "No replies yet.",
+    "rootMissing": "The original message is no longer available.",
+    "inputLabel": "Reply in the thread",
+    "inputPlaceholder": "Reply in the thread…",
+    "readOnly": "You cannot reply in this thread."
+  },
+  "pins": {
+    "title": "Pinned messages",
+    "loading": "Loading pinned messages",
+    "emptyTitle": "Nothing pinned",
+    "emptyHint": "Pin a message from its actions to keep it at hand.",
+    "jump": "Go to message"
+  },
+  "composer": {
+    "announcement": "This is an announcement channel: only some roles can publish.",
+    "muted": "You are muted: you can read, but not write.",
+    "mutedFor": "You are muted for {{time}}: you can read, but not write.",
+    "mutedReason": "Reason: {{reason}}",
+    "attachments": "Attachments",
+    "removeAttachment": "Remove {{name}}",
+    "uploading": "Uploading file",
+    "uploadFailed": "{{name}} could not be uploaded.",
+    "commands": "Commands",
+    "builtin": {
+      "poll": "Create a single-answer poll",
+      "survey": "Create a multiple-answer poll"
+    }
+  },
+  "mention": {
+    "role": "Role",
+    "everyoneHint": "Notifies everyone in the channel"
+  },
+  "chatToggle": {
+    "title": "Chat of this item",
+    "label": "Turn the chat on",
+    "on": "The chat is on: it shows in Rooms, under Documents and boards.",
+    "off": "The chat is off: its room is hidden from Rooms and no messages can be sent. Messages are not deleted: they come back when you turn it on again.",
+    "cannotManage": "Only people who manage this item can turn its chat on or off.",
+    "saving": "Saving…",
+    "failed": "The chat could not be changed.",
+    "unavailable": "This server cannot turn the chat off yet."
   }
 }

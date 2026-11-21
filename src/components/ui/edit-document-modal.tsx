@@ -6,7 +6,7 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import { Folder } from "@/lib/api/folders";
 import { DocumentSummary } from "@/lib/api/documents";
 import { FolderSelect } from "@/components/ui/folder-select";
-import { useForm } from "@/hooks/ui";
+import { useForm } from "@/hooks/ui"; import { EntityChatToggle } from "@/components/rooms/EntityChatToggle"; import { useSession } from "@/components/providers/session-provider";
 
 interface EditDocumentModalProps {
   isOpen: boolean;
@@ -18,7 +18,7 @@ interface EditDocumentModalProps {
 
 export function EditDocumentModal({ isOpen, onClose, document, folders, onSubmit }: EditDocumentModalProps) {
   const t = useTranslations("documents");
-  const tCommon = useTranslations("common");
+  const tCommon = useTranslations("common"); const { accessToken, activeTeamId } = useSession();
   const [folderId, setFolderId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -89,7 +89,7 @@ export function EditDocumentModal({ isOpen, onClose, document, folders, onSubmit
             )}
           </div>
 
-          <div className="flex w-full items-center justify-end gap-3 pt-2">
+          {accessToken && activeTeamId ? <EntityChatToggle teamId={activeTeamId} entityType="document" entityId={document.id} accessToken={accessToken} /> : null}<div className="flex w-full items-center justify-end gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}

@@ -3,13 +3,29 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 export type RoomType = 'channel' | 'thread' | 'dm';
 export type RoomRole = 'admin' | 'member' | 'readonly';
 export type LinkedEntityType = 'board' | 'document' | 'mesh';
+export type ChannelType = 'text' | 'announcement';
 
+/**
+ * Answer of `GET /rooms/:id/permissions/me`. Today the backend sends the five legacy booleans; the extra fields are what
+ * the permission engine adds (src/lib/rooms/room-controls.ts normalises both shapes).
+ */
 export interface RoomPermissions {
   canPost: boolean;
   canCall: boolean;
   canInvite: boolean;
   canManage: boolean;
   canRecord: boolean;
+  canView?: boolean;
+  canReact?: boolean;
+  canManageMessages?: boolean;
+  canPin?: boolean;
+  canMentionEveryone?: boolean;
+  canMuteMembers?: boolean;
+  isMuted?: boolean;
+  mutedUntil?: string | null;
+  muteReason?: string | null;
+  /** Alternative shape: the resolved permission keys (`room.post`, ...). */
+  permissions?: string[];
 }
 
 export interface Room {
@@ -24,8 +40,26 @@ export interface Room {
   emoji?: string;
   defaultRole: RoomRole;
   showReadReceipts?: boolean;
+  /** `text` (default) or `announcement` (only some roles publish). */
+  channelType?: ChannelType;
+  /** Category (a room group). The backend still sends it as `groupId`. */
+  categoryId?: string;
+  /** Order of the channel inside its category (the server sorts by it). */
+  sortOrder?: number;
+  /** Document / board chat switched off by its owner: the room is hidden. */
+  chatEnabled?: boolean;
+  /** Optional counters when the backend provides them; otherwise the client counts live messages. */
+  unreadCount?: number;
+  mentionCount?: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface RoomMemberRole {
+  id: string;
+  name: string;
+  color?: string | null;
+  position?: number;
 }
 
 export interface RoomMember {
@@ -35,22 +69,56 @@ export interface RoomMember {
   email: string;
   avatarUrl?: string;
   joinedAt: string;
+  /** Team roles of the person (permission engine). The panel groups by the highest one. */
+  roles?: RoomMemberRole[];
+  isBot?: boolean;
+  /** Active timeout in this room. */
+  mutedUntil?: string | null;
 }
 
 export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
+
+/** Kinds stored in `room_messages.kind` (migration 0049 CHECK constraint). */
+export type RoomMessageType =
+  | 'text'
+  | 'ai'
+  | 'ai_response'
+  | 'system'
+  | 'call_started'
+  | 'call_ended'
+  | 'call_summary';
+
+export interface RoomMessageUser {
+  displayName: string;
+  email: string;
+  avatarUrl?: string;
+  /** Synthetic bot user (agent F): the message shows a BOT badge and the bot avatar and name. */
+  isBot?: boolean;
+  /** Colour of the author's highest role, when the backend sends it. */
+  roleColor?: string | null;
+}
 
 export interface RoomMessage {
   id: string;
   roomId: string;
   userId: string;
   content: string;
-  type: 'text' | 'ai' | 'system' | 'call_started' | 'call_ended';
+  type: RoomMessageType;
   metadata?: any;
   reactions?: Record<string, string[]>;
   callRef?: string;
   editedAt?: string;
+  /** Simple thread: the message this one answers in a thread (also mirrored in `metadata.threadRootId`). */
+  threadRootId?: string;
+  pinnedAt?: string | null;
+  pinnedBy?: string | null;
+  /** Replies in this message thread, counted by the server (the loaded page may hold fewer). */
+  replyCount?: number;
+  /** Tombstone of a deleted message: the list never shows it. */
+  deleted?: boolean;
+  deletedAt?: string | null;
   createdAt: string;
-  user?: { displayName: string; email: string; avatarUrl?: string };
+  user?: RoomMessageUser;
   status?: MessageStatus;
 }
 
@@ -101,18 +169,55 @@ export interface CreateRoomGroupInput {
   emoji?: string;
 }
 
+export interface RoomOverrideDto {
+  subjectType: 'everyone' | 'role' | 'group' | 'member';
+  subjectId: string | null;
+  allow: string[];
+  deny: string[];
+}
+
 export interface CreateRoomInput {
   name: string;
   type: RoomType;
   groupId?: string;
+  /** Same as `groupId`; sent too because the permission-engine API names it `categoryId`. */
+  categoryId?: string;
+  channelType?: ChannelType;
   linkedEntityType?: LinkedEntityType;
   linkedEntityId?: string;
   description?: string;
   emoji?: string;
+  /** Tri-state permission overrides applied when the channel is created. */
+  overrides?: RoomOverrideDto[];
 }
 
 function authHeader(accessToken: string) {
   return { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' };
+}
+
+/**
+ * Error of the rooms API that keeps the HTTP status, so the UI can tell "this server does not have it yet" (404/405)
+ * from "you are not allowed" (403).
+ */
+export class RoomsApiError extends Error {
+  readonly status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'RoomsApiError';
+    this.status = status;
+  }
+  static async from(res: Response, fallback: string): Promise<RoomsApiError> {
+    let message = fallback;
+    try {
+      const body = await res.clone().json();
+      if (body && typeof body.message === 'string') message = body.message;
+    } catch {
+      // not JSON: keep the fallback
+    }
+    return new RoomsApiError(message, res.status);
+  }
+  get isForbidden() { return this.status === 403; }
+  get isUnavailable() { return this.status === 404 || this.status === 405 || this.status === 501; }
 }
 
 export async function listTeamRooms(teamId: string, accessToken: string): Promise<Room[]> {
@@ -123,7 +228,7 @@ export async function listTeamRooms(teamId: string, accessToken: string): Promis
 
 export async function getRoom(roomId: string, accessToken: string): Promise<Room> {
   const res = await fetch(`${API_BASE_URL}/rooms/${roomId}`, { headers: authHeader(accessToken) });
-  if (!res.ok) throw new Error('Failed to fetch room');
+  if (!res.ok) throw await RoomsApiError.from(res, 'Failed to fetch room');
   return res.json();
 }
 
@@ -133,8 +238,31 @@ export async function createRoom(teamId: string, input: CreateRoomInput, accessT
     headers: authHeader(accessToken),
     body: JSON.stringify(input),
   });
-  if (!res.ok) throw new Error('Failed to create room');
+  if (!res.ok) throw await RoomsApiError.from(res, 'Failed to create room');
   return res.json();
+}
+
+export interface UpdateRoomInput {
+  name?: string;
+  description?: string | null;
+  channelType?: ChannelType;
+  categoryId?: string | null;
+}
+
+/** Rename / change topic, type or category of a channel. */
+export async function updateRoom(roomId: string, patch: UpdateRoomInput, accessToken: string): Promise<Room> {
+  const res = await fetch(`${API_BASE_URL}/rooms/${roomId}`, {
+    method: 'PATCH',
+    headers: authHeader(accessToken),
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) throw await RoomsApiError.from(res, 'Failed to update room');
+  return res.json();
+}
+
+export async function deleteRoom(roomId: string, accessToken: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/rooms/${roomId}`, { method: 'DELETE', headers: authHeader(accessToken) });
+  if (!res.ok) throw await RoomsApiError.from(res, 'Failed to delete room');
 }
 
 export async function findOrCreateDm(teamId: string, targetUserId: string, accessToken: string): Promise<Room> {
@@ -159,27 +287,49 @@ export async function findRoomByEntity(
   }
 }
 
+/** The thread root of a message however the backend delivered it. */
+export function threadRootOf(m: Pick<RoomMessage, 'threadRootId' | 'metadata'> & { thread_root_id?: string }): string | undefined {
+  return m.threadRootId ?? m.thread_root_id ?? (typeof m.metadata?.threadRootId === 'string' ? m.metadata.threadRootId : undefined);
+}
+
+function normalizeMessage(m: RoomMessage): RoomMessage {
+  const root = threadRootOf(m as RoomMessage & { thread_root_id?: string });
+  return root && !m.threadRootId ? { ...m, threadRootId: root } : m;
+}
+
 export async function listRoomMessages(
   roomId: string,
   accessToken: string,
   limit = 50,
-  before?: string
+  before?: string,
+  /** Only the replies of this thread root. */
+  threadRootId?: string
 ): Promise<RoomMessage[]> {
   const params = new URLSearchParams({ limit: String(limit) });
   if (before) params.set('before', before);
+  if (threadRootId) params.set('threadRootId', threadRootId);
   const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/messages?${params}`, { headers: authHeader(accessToken) });
-  if (!res.ok) throw new Error('Failed to fetch messages');
-  return res.json();
+  if (!res.ok) throw await RoomsApiError.from(res, 'Failed to fetch messages');
+  return ((await res.json()) as RoomMessage[]).filter((m) => !m.deleted).map(normalizeMessage);
 }
 
-export async function sendRoomMessage(roomId: string, content: string, accessToken: string, metadata?: any): Promise<RoomMessage> {
+export async function sendRoomMessage(
+  roomId: string,
+  content: string,
+  accessToken: string,
+  metadata?: any,
+  threadRootId?: string
+): Promise<RoomMessage> {
+  // The thread root travels as a field AND inside metadata: the stored `thread_root_id` column is not exposed by every
+  // backend build yet, while metadata always round-trips.
+  const meta = threadRootId ? { ...(metadata ?? {}), threadRootId } : metadata;
   const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/messages`, {
     method: 'POST',
     headers: authHeader(accessToken),
-    body: JSON.stringify({ content, metadata }),
+    body: JSON.stringify({ content, metadata: meta, ...(threadRootId ? { threadRootId } : {}) }),
   });
-  if (!res.ok) throw new Error('Failed to send message');
-  return res.json();
+  if (!res.ok) throw await RoomsApiError.from(res, 'Failed to send message');
+  return normalizeMessage(await res.json());
 }
 
 export async function sendAiRoomMessage(roomId: string, content: string, accessToken: string, metadata?: any): Promise<RoomMessage> {
@@ -207,18 +357,54 @@ export async function updateMessageMetadata(
   return res.json();
 }
 
+/** Edit the text of your own message. */
+export async function editRoomMessage(roomId: string, messageId: string, content: string, accessToken: string): Promise<RoomMessage> {
+  const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/messages/${messageId}`, {
+    method: 'PATCH',
+    headers: authHeader(accessToken),
+    body: JSON.stringify({ content }),
+  });
+  if (!res.ok) throw await RoomsApiError.from(res, 'Failed to edit message');
+  return normalizeMessage(await res.json());
+}
+
+/** Delete your own message, or any message when you can manage messages. */
+export async function deleteRoomMessage(roomId: string, messageId: string, accessToken: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/messages/${messageId}`, {
+    method: 'DELETE',
+    headers: authHeader(accessToken),
+  });
+  if (!res.ok) throw await RoomsApiError.from(res, 'Failed to delete message');
+}
+
+export async function pinRoomMessage(roomId: string, messageId: string, pinned: boolean, accessToken: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/messages/${messageId}/pin`, {
+    method: pinned ? 'PUT' : 'DELETE',
+    headers: authHeader(accessToken),
+  });
+  if (!res.ok) throw await RoomsApiError.from(res, 'Failed to pin message');
+}
+
+export async function listPinnedMessages(roomId: string, accessToken: string): Promise<RoomMessage[]> {
+  const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/pins`, { headers: authHeader(accessToken) });
+  if (!res.ok) throw await RoomsApiError.from(res, 'Failed to fetch pinned messages');
+  const data = await res.json();
+  return (Array.isArray(data) ? data : data?.messages ?? []).map(normalizeMessage);
+}
+
 export async function addReaction(
   roomId: string,
   messageId: string,
   emoji: string,
-  accessToken: string
+  accessToken: string,
+  action: 'add' | 'remove' = 'add'
 ): Promise<void> {
   const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/messages/${messageId}/reactions`, {
     method: 'POST',
     headers: authHeader(accessToken),
-    body: JSON.stringify({ emoji }),
+    body: JSON.stringify({ emoji, action }),
   });
-  if (!res.ok) throw new Error('Failed to add reaction');
+  if (!res.ok) throw await RoomsApiError.from(res, 'Failed to add reaction');
 }
 
 export async function listRoomMembers(roomId: string, accessToken: string): Promise<RoomMember[]> {
@@ -266,10 +452,58 @@ export async function removeMember(roomId: string, userId: string, accessToken: 
 export async function getMyRoomPermissions(roomId: string, accessToken: string): Promise<RoomPermissions> {
   const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/permissions/me`, { headers: authHeader(accessToken) });
   if (!res.ok) {
-    // Fallback: grant member-level permissions so UI is functional before backend is ready
-    return { canPost: true, canCall: true, canInvite: false, canManage: false, canRecord: true };
+    // The server could not say: offer nothing risky (read-only) instead of pretending the user may write.
+    throw await RoomsApiError.from(res, 'Failed to fetch room permissions');
   }
   return res.json();
+}
+
+/** Channel overrides: `GET /rooms/:id/permissions` (design section 6). The shape is normalised by tristate.ts. */
+export async function getRoomOverrides(roomId: string, accessToken: string): Promise<unknown> {
+  const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/permissions`, { headers: authHeader(accessToken) });
+  if (!res.ok) throw await RoomsApiError.from(res, 'Failed to fetch channel permissions');
+  return res.json();
+}
+
+export async function setRoomOverrides(roomId: string, overrides: RoomOverrideDto[], accessToken: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/permissions`, {
+    method: 'PUT',
+    headers: authHeader(accessToken),
+    body: JSON.stringify({ overrides }),
+  });
+  if (!res.ok) throw await RoomsApiError.from(res, 'Failed to save channel permissions');
+}
+
+/** A category has its own overrides, inherited by every channel in it: `GET/PUT /teams/:teamId/room-groups/:groupId/permissions`. */
+export async function getCategoryOverrides(teamId: string, groupId: string, accessToken: string): Promise<unknown> {
+  const res = await fetch(`${API_BASE_URL}/teams/${teamId}/room-groups/${groupId}/permissions`, { headers: authHeader(accessToken) });
+  if (!res.ok) throw await RoomsApiError.from(res, 'Failed to fetch category permissions');
+  return res.json();
+}
+
+export async function setCategoryOverrides(teamId: string, groupId: string, overrides: RoomOverrideDto[], accessToken: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/teams/${teamId}/room-groups/${groupId}/permissions`, {
+    method: 'PUT',
+    headers: authHeader(accessToken),
+    body: JSON.stringify({ overrides }),
+  });
+  if (!res.ok) throw await RoomsApiError.from(res, 'Failed to save category permissions');
+}
+
+/** What `GET /rooms/:id/permissions` says besides the rules themselves. */
+export interface RoomOverridesInfo {
+  /** false for DMs and for chats of a document / board: they take their access from elsewhere. */
+  supportsOverrides: boolean;
+  /** Rules the channel inherits from its category (read-only here). */
+  inheritedCount: number;
+}
+
+export function readOverridesInfo(raw: unknown): RoomOverridesInfo {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as { supportsOverrides?: unknown; inheritedFromCategory?: unknown };
+  return {
+    supportsOverrides: r.supportsOverrides !== false,
+    inheritedCount: Array.isArray(r.inheritedFromCategory) ? r.inheritedFromCategory.length : 0,
+  };
 }
 
 export async function updateRoomSettings(
@@ -283,6 +517,87 @@ export async function updateRoomSettings(
     body: JSON.stringify(settings),
   });
   if (!res.ok) throw new Error('Failed to update room settings');
+}
+
+
+// ─── Moderation: timeouts are per team (they apply in every room of the team) ───────────────────
+
+export interface TeamMute {
+  userId: string;
+  displayName?: string;
+  mutedUntil: string | null;
+  reason?: string;
+}
+
+/** `POST /teams/:teamId/members/:userId/mute`: a reason and a duration (null minutes = until someone lifts it). */
+export async function muteTeamMember(
+  teamId: string,
+  userId: string,
+  input: { reason: string; durationMinutes: number | null },
+  accessToken: string
+): Promise<TeamMute> {
+  const res = await fetch(`${API_BASE_URL}/teams/${teamId}/members/${userId}/mute`, {
+    method: 'POST',
+    headers: authHeader(accessToken),
+    body: JSON.stringify({
+      reason: input.reason || null,
+      ...(input.durationMinutes === null ? {} : { durationMinutes: input.durationMinutes }),
+    }),
+  });
+  if (!res.ok) throw await RoomsApiError.from(res, 'Failed to mute member');
+  return res.json();
+}
+
+export async function unmuteTeamMember(teamId: string, userId: string, accessToken: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/teams/${teamId}/members/${userId}/mute`, {
+    method: 'DELETE',
+    headers: authHeader(accessToken),
+  });
+  if (!res.ok) throw await RoomsApiError.from(res, 'Failed to lift the mute');
+}
+
+/** Members muted right now (`GET /teams/:teamId/mutes`). Not allowed or an old server: nobody is shown as muted. */
+export async function listActiveMutes(teamId: string, accessToken: string): Promise<TeamMute[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/teams/${teamId}/mutes`, { headers: authHeader(accessToken) });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (Array.isArray(data) ? data : []).filter((m) => m && typeof m.userId === 'string');
+  } catch {
+    return [];
+  }
+}
+
+// ─── Chat switch of a document / board / mesh ────────────────────────────────────────────────────
+
+export type ChatSwitchEntity = 'document' | 'board' | 'mesh';
+
+export interface EntityChatConfig {
+  chatEnabled: boolean;
+  /** The user may flip the switch (needs manage rights on the entity). */
+  canManage: boolean;
+}
+
+/** `GET /teams/:teamId/entity-chats/:entityType/:entityId/config`. Null when this server does not have the switch. */
+export async function getEntityChatConfig(teamId: string, entityType: ChatSwitchEntity, entityId: string, accessToken: string): Promise<EntityChatConfig | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/teams/${teamId}/entity-chats/${entityType}/${entityId}/config`, { headers: authHeader(accessToken) });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return { chatEnabled: data?.chatEnabled !== false, canManage: Boolean(data?.canManage) };
+  } catch {
+    return null;
+  }
+}
+
+/** `PATCH .../config` with `{ chatEnabled }`. Off archives the chat (nothing is deleted), on restores it. */
+export async function setEntityChatEnabled(teamId: string, entityType: ChatSwitchEntity, entityId: string, chatEnabled: boolean, accessToken: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/teams/${teamId}/entity-chats/${entityType}/${entityId}/config`, {
+    method: 'PATCH',
+    headers: authHeader(accessToken),
+    body: JSON.stringify({ chatEnabled }),
+  });
+  if (!res.ok) throw await RoomsApiError.from(res, 'Failed to change the chat switch');
 }
 
 export async function getActiveCall(roomId: string, accessToken: string): Promise<RoomCall | null> {
@@ -351,8 +666,33 @@ export async function createRoomGroup(teamId: string, input: CreateRoomGroupInpu
     headers: authHeader(accessToken),
     body: JSON.stringify(input),
   });
-  if (!res.ok) throw new Error('Failed to create room group');
+  if (!res.ok) throw await RoomsApiError.from(res, 'Failed to create room group');
   return res.json();
+}
+
+export async function updateRoomGroup(
+  teamId: string,
+  groupId: string,
+  patch: { name?: string; emoji?: string | null },
+  accessToken: string
+): Promise<RoomGroup> {
+  const res = await fetch(`${API_BASE_URL}/teams/${teamId}/room-groups/${groupId}`, {
+    method: 'PATCH',
+    headers: authHeader(accessToken),
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) throw await RoomsApiError.from(res, 'Failed to update room group');
+  return res.json();
+}
+
+/** Persist the order of the categories (ids, first to last). */
+export async function reorderRoomGroups(teamId: string, orderedIds: string[], accessToken: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/teams/${teamId}/room-groups/order`, {
+    method: 'PUT',
+    headers: authHeader(accessToken),
+    body: JSON.stringify({ ids: orderedIds }),
+  });
+  if (!res.ok) throw await RoomsApiError.from(res, 'Failed to reorder room groups');
 }
 
 export async function deleteRoomGroup(teamId: string, groupId: string, accessToken: string): Promise<void> {
@@ -360,7 +700,7 @@ export async function deleteRoomGroup(teamId: string, groupId: string, accessTok
     method: 'DELETE',
     headers: authHeader(accessToken),
   });
-  if (!res.ok) throw new Error('Failed to delete room group');
+  if (!res.ok) throw await RoomsApiError.from(res, 'Failed to delete room group');
 }
 
 export type RoomNotificationPref = 'all' | 'mentions' | 'none';
@@ -438,3 +778,92 @@ export async function getMessageInfo(
   return res.json();
 }
 
+// ─── Team roles and slash commands (other agents' endpoints, read-only here) ───────────────────
+
+export interface TeamRoleLite {
+  id: string;
+  name: string;
+  color: string | null;
+  position: number;
+  mentionable: boolean;
+}
+
+/** `GET /teams/:teamId/roles` (agent A). Failure or an old server: no roles, the UI falls back to the legacy ones. */
+export async function listTeamRolesLite(teamId: string, accessToken: string): Promise<TeamRoleLite[]> {
+  const res = await fetch(`${API_BASE_URL}/teams/${teamId}/roles`, { headers: authHeader(accessToken) });
+  if (!res.ok) return [];
+  const data = await res.json();
+  const list: any[] = Array.isArray(data) ? data : data?.roles ?? [];
+  return list
+    .filter((r) => r && typeof r.id === 'string' && typeof r.name === 'string')
+    .map((r) => ({
+      id: r.id,
+      name: r.name,
+      color: typeof r.color === 'string' ? r.color : null,
+      position: typeof r.position === 'number' ? r.position : 0,
+      mentionable: r.mentionable !== false,
+    }));
+}
+
+export interface BotCommand {
+  botId: string;
+  botName: string;
+  botAvatarUrl?: string;
+  name: string;
+  description: string;
+  usage?: string;
+}
+
+/**
+ * Slash commands the team bots registered (agent F). Read from `GET /teams/:teamId/bots`, each bot with a `commands`
+ * list `{ name, description, usage }`. Missing endpoint or empty answer: no commands, only the built-in ones show.
+ */
+export async function listBotCommands(teamId: string, accessToken: string): Promise<BotCommand[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/teams/${teamId}/bots`, { headers: authHeader(accessToken) });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const bots: any[] = Array.isArray(data) ? data : data?.bots ?? [];
+    const out: BotCommand[] = [];
+    for (const bot of bots) {
+      if (!bot || bot.isActive === false) continue;
+      for (const c of Array.isArray(bot.commands) ? bot.commands : []) {
+        if (c && typeof c.name === 'string') {
+          out.push({
+            botId: String(bot.id ?? bot.userId ?? ''),
+            botName: String(bot.name ?? 'Bot'),
+            botAvatarUrl: typeof bot.avatarUrl === 'string' ? bot.avatarUrl : undefined,
+            name: c.name,
+            description: typeof c.description === 'string' ? c.description : '',
+            usage: typeof c.usage === 'string' ? c.usage : undefined,
+          });
+        }
+      }
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+export interface MyTeamPermissions {
+  isOwner: boolean;
+  roles: Array<{ id: string; name: string; color?: string | null; position?: number }>;
+  permissions: string[];
+}
+
+/** `GET /teams/:teamId/me/permissions`: the resolved team permissions (design section 6). Null when the server cannot say. */
+export async function getMyTeamPermissions(teamId: string, accessToken: string): Promise<MyTeamPermissions | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/teams/${teamId}/me/permissions`, { headers: authHeader(accessToken) });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return {
+      isOwner: Boolean(data?.isOwner),
+      roles: Array.isArray(data?.roles) ? data.roles : [],
+      permissions: Array.isArray(data?.permissions) ? data.permissions.filter((p: unknown) => typeof p === 'string') : [],
+    };
+  } catch {
+    return null;
+  }
+}

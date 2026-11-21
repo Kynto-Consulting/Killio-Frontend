@@ -6,13 +6,15 @@ import {
   Check, CheckCheck, Clock, AlertCircle, Loader2, Bot, CornerUpLeft,
   ChevronDown, ChevronUp, Info, Wrench, Copy, ListChecks, FileCode,
   Terminal, FileText, ExternalLink, Columns, Layers, Code2, Image as ImageIcon, Database, ArrowRight, Maximize2, MessageSquare, Play,
-  ShieldAlert, X, Brain, ShieldCheck, Lightbulb, HelpCircle, Download, User, Phone,
+  ShieldAlert, X, Brain, ShieldCheck, Lightbulb, HelpCircle, Download, User, Phone, Pin, PinOff, Pencil, Trash2, MessagesSquare,
 } from "lucide-react";
 import { ToolCallChip, BatchToolChip, BuildingToolCallChip } from "@/components/agent/tool-call-chip";
 import { SubAgentActivity } from "@/components/agent/sub-agent-activity";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { RichText } from "@/components/ui/rich-text";
 import type { RoomMessage, MessageStatus } from "@/lib/api/rooms";
+import type { MessageActions } from "@/lib/rooms/message-structure";
+import { fromWireMentions, mentionsMe as mentionsMeFn } from "@/lib/rooms/mentions";
 import type { ResolverContext } from "@/lib/reference-resolver";
 import { getAiMarkupLabel, parseAiMarkup, parseContactBlock, parsePreThinkSections, splitAtPartialToolTag } from "@/lib/ai-markup";
 import { RoomCallHistoryCard } from "./RoomCallHistoryCard";
@@ -197,6 +199,9 @@ const PollRenderer = ({
 
 type TFn = (key: string, params?: Record<string, string | number>) => string;
 
+const toolButton =
+  "rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] disabled:opacity-50 motion-reduce:transition-none";
+
 interface RoomMessageItemProps {
   message: RoomMessage;
   isOwn: boolean;
@@ -214,6 +219,19 @@ interface RoomMessageItemProps {
   onToolApproval?: (toolName: string, input: any, decision: 'approved' | 'rejected') => void;
   onAiRetry?: () => void;
   onMarkRead?: (messageIds: string[]) => void;
+  /** What this message offers the user (edit / delete / pin / thread / react), already decided from the permissions. */
+  actions?: MessageActions;
+  onEdit?: (content: string) => Promise<void>;
+  onDelete?: () => Promise<void>;
+  onTogglePin?: (pinned: boolean) => Promise<void>;
+  onOpenThread?: () => void;
+  /** Replies in this message's thread. */
+  threadCount?: number;
+  /** Roles / groups of the current user, to highlight messages that mention them. */
+  myRoleIds?: readonly string[];
+  myGroupIds?: readonly string[];
+  /** Rendered inside the thread panel: no thread button, no thread chip. */
+  inThread?: boolean;
   t: TFn;
 }
 
@@ -291,9 +309,51 @@ export function RoomMessageItem({
   onToolApproval,
   onAiRetry,
   onMarkRead,
+  actions,
+  onEdit,
+  onDelete,
+  onTogglePin,
+  onOpenThread,
+  threadCount = 0,
+  myRoleIds,
+  myGroupIds,
+  inThread = false,
   t,
 }: RoomMessageItemProps) {
   const { accessToken } = useSession();
+  // Edit / delete flow of this message (hooks stay above every early return).
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [isBusy, setIsBusy] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  // On phones the tools show after a tap on the message (there is no hover).
+  const [toolsOpen, setToolsOpen] = useState(false);
+
+  const startEdit = () => { setDraft(fromWireMentions(message.content)); setActionError(null); setIsEditing(true); };
+  const runAction = async (fn: () => Promise<void>) => {
+    setIsBusy(true);
+    setActionError(null);
+    try {
+      await fn();
+      return true;
+    } catch (err) {
+      const status = (err as { status?: number })?.status;
+      setActionError(status === 403 ? t("msg.errors.forbidden") : status === 404 || status === 405 ? t("channel.errors.unavailable") : t("msg.errors.failed"));
+      return false;
+    } finally {
+      setIsBusy(false);
+    }
+  };
+  const saveEdit = async () => {
+    if (!onEdit) return;
+    if (!draft.trim() || draft.trim() === message.content) { setIsEditing(false); return; }
+    if (await runAction(() => onEdit(draft))) setIsEditing(false);
+  };
+  const confirmDelete = async () => {
+    if (!onDelete) return;
+    if (await runAction(onDelete)) setConfirmingDelete(false);
+  };
   async function fetchAndDownload(url: string, filename?: string) {
     try {
       const headers: Record<string, string> = {};
@@ -320,7 +380,7 @@ export function RoomMessageItem({
   const [expandedMarkup, setExpandedMarkup] = useState<Set<string>>(new Set());
   const platform = usePlatform();
   const isMobile = platform === "mobile";
-  const { blocks: markupBlocks, visibleText } = useMemo(() => parseAiMarkup(message.content), [message.content]);
+  const { blocks: markupBlocks, visibleText } = useMemo(() => parseAiMarkup(fromWireMentions(message.content)), [message.content]);
 
   const toggleMarkup = useCallback((key: string) => {
     setExpandedMarkup((prev) => {
@@ -353,7 +413,9 @@ export function RoomMessageItem({
     );
   }
 
-  const isAi = message.type === "ai";
+  const isAi = message.type === "ai" || message.type === "ai_response";
+  const isBot = Boolean(message.user?.isBot);
+  const mentionsMe = Boolean(currentUserId) && !isOwn && mentionsMeFn(message.content, { userId: currentUserId, roleIds: myRoleIds, groupIds: myGroupIds });
   const avatarUrl = message.user?.avatarUrl;
   const email = message.user?.email;
   const displayName = isAi ? (t("ai.copilotName") || "AI Copilot") : (message.user?.displayName ?? t("ai.unknown"));
@@ -383,7 +445,8 @@ export function RoomMessageItem({
     <>
       <div
         id={`msg-${message.id}`}
-        className={`group relative flex gap-2 ${showAvatar ? "mt-3" : "mt-0.5"} ${isOwn ? "flex-row-reverse" : "flex-row"}`}
+        onClick={isMobile ? (e) => { if (!(e.target as HTMLElement).closest("a,button,textarea,input,[role=toolbar]")) setToolsOpen((v) => !v); } : undefined}
+        className={`group relative flex gap-2.5 rounded-lg px-2 py-0.5 transition-colors hover:bg-muted/30 motion-reduce:transition-none ${showAvatar ? "mt-2.5" : ""} ${mentionsMe ? "bg-amber-500/10 hover:bg-amber-500/15 shadow-[inset_2px_0_0_0_rgb(245_158_11)]" : ""} ${message.pinnedAt ? "shadow-[inset_2px_0_0_0_var(--memphis-line)]" : ""}`}
       >
         {/* Avatar */}
         {showAvatar ? (
@@ -408,29 +471,35 @@ export function RoomMessageItem({
             </div>
           )
         ) : (
-          <div className={`${isMobile ? "w-6" : "w-7"} shrink-0`} />
+          <time
+            className={`${isMobile ? "w-6" : "w-7"} shrink-0 pt-1 text-right text-[9px] leading-5 text-muted-foreground/70 opacity-0 transition-opacity group-hover:opacity-100 motion-reduce:transition-none`}
+            dateTime={message.createdAt}
+          >
+            {new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+          </time>
         )}
 
-        <div className={`flex flex-col ${isOwn ? "items-end" : "items-start"} ${isMobile ? "max-w-[85%]" : "max-w-[75%]"}`}>
-          {showAvatar && !isOwn && (
-            <div className="flex items-center gap-1 mb-0.5 px-1">
-              <span className="text-[10px] font-semibold text-muted-foreground">
+        <div className="flex min-w-0 flex-1 flex-col items-start">
+          {showAvatar && (
+            <div className="mb-0.5 flex flex-wrap items-baseline gap-x-1.5">
+              <span className="text-[13px] font-bold" style={isBot || isAi ? undefined : message.user?.roleColor && /^#[0-9a-fA-F]{6}$/.test(message.user.roleColor) ? { color: message.user.roleColor } : undefined}>
                 {displayName}
               </span>
-              {isAi && (
-                <span className="bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 text-[8px] font-bold px-1 rounded flex items-center gap-0.5 uppercase tracking-tighter">
-                  <Bot className="w-2 h-2" />
+              {(isAi || isBot) && (
+                <span className="inline-flex items-center gap-0.5 self-center rounded bg-violet-500/15 px-1 text-[9px] font-bold uppercase tracking-tight text-violet-700 dark:text-violet-300">
+                  <Bot className="h-2.5 w-2.5" aria-hidden />
                   {t("ai.bot")}
                 </span>
               )}
+              <time className="text-[10px] text-muted-foreground" dateTime={message.createdAt}>
+                {new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </time>
+              {message.pinnedAt && <Pin className="h-3 w-3 self-center text-muted-foreground" aria-label={t("msg.pinned")} />}
             </div>
           )}
 
           <div
-            className={`relative rounded-2xl px-3.5 py-2 text-sm leading-relaxed ${isOwn
-              ? "bg-primary text-primary-foreground rounded-br-md [&_a]:text-primary-foreground [&_a]:underline"
-              : "bg-muted/60 text-foreground rounded-bl-md"
-              }`}
+            className="relative w-full min-w-0 text-sm leading-relaxed text-foreground [&_a]:underline"
           >
             {/* Quoted Message (Reply) */}
             {message.metadata?.replyTo && (
@@ -452,6 +521,29 @@ export function RoomMessageItem({
               </button>
             )}
 
+            {isEditing ? (
+              <div className="w-full">
+                <label className="sr-only" htmlFor={`edit-${message.id}`}>{t("msg.editLabel")}</label>
+                <textarea
+                  id={`edit-${message.id}`}
+                  autoFocus
+                  value={draft}
+                  rows={Math.min(8, Math.max(2, draft.split("\n").length))}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") { e.preventDefault(); setIsEditing(false); }
+                    else if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void saveEdit(); }
+                  }}
+                  disabled={isBusy}
+                  className="w-full resize-none rounded-lg border-2 border-[var(--memphis-line)] bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]"
+                />
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                  <span>{t("msg.editHint")}</span>
+                  <button type="button" onClick={() => void saveEdit()} disabled={isBusy || !draft.trim()} className="rounded-md border border-border px-2 py-0.5 font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] disabled:opacity-50">{t("msg.save")}</button>
+                  <button type="button" onClick={() => setIsEditing(false)} disabled={isBusy} className="rounded-md px-2 py-0.5 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">{t("createRoom.cancel")}</button>
+                </div>
+              </div>
+            ) : (
             <div className="flex flex-col gap-1.5 min-w-0">
               {markupBlocks.map((block, index) => {
                 const key = `${block.tag}-${index}`;
@@ -906,53 +998,101 @@ export function RoomMessageItem({
                 </div>
               )}
             </div>
+            )}
 
-            {/* Message Actions (Emoji + Reply) */}
-            <div className={`absolute -top-3.5 ${isOwn ? "left-2" : "right-2"} opacity-0 md:group-hover:opacity-100 transition-all duration-200 hidden md:flex items-center bg-card border border-border rounded-lg shadow-lg z-20 py-0.5 px-1`}>
-              <EmojiReactionPicker onReact={handleReact} isOwn={isOwn} t={t} />
-              <div className="w-[1px] h-3 bg-border mx-1" />
-              <button
-                onClick={() => onReply?.(message)}
-                className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-accent transition-colors"
-                title="Reply"
+            {message.editedAt && !isEditing && <span className="text-[10px] text-muted-foreground" title={new Date(message.editedAt).toLocaleString()}>{t("msg.edited")}</span>}
+
+            {/* Message tools: hover / focus on desktop, tap on phones. Only what the permissions allow. */}
+            {!isEditing && !confirmingDelete && (
+              <div
+                role="toolbar"
+                aria-label={t("msg.tools")}
+                className={`absolute -top-4 right-0 z-20 flex items-center rounded-lg border border-border bg-card px-1 py-0.5 shadow-md transition-opacity motion-reduce:transition-none ${
+                  toolsOpen ? "opacity-100" : "pointer-events-none opacity-0 focus-within:pointer-events-auto focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100"
+                }`}
               >
-                <CornerUpLeft className="w-3.5 h-3.5" />
-              </button>
-              <div className="w-[1px] h-3 bg-border mx-1" />
-              <button
-                onClick={() => setIsInfoOpen(true)}
-                className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-blue-500 transition-colors"
-                title="Message Info"
-              >
-                <Info className="w-3.5 h-3.5" />
-              </button>
-            </div>
+                {(actions?.canReact ?? true) && <EmojiReactionPicker onReact={handleReact} isOwn={isOwn} t={t} />}
+                {actions?.canReply && (
+                  <button type="button" onClick={() => onReply?.(message)} aria-label={t("msg.reply")} title={t("msg.reply")} className={toolButton}>
+                    <CornerUpLeft className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                )}
+                {actions?.canThread && !inThread && onOpenThread && (
+                  <button type="button" onClick={onOpenThread} aria-label={t("thread.reply")} title={t("thread.reply")} className={toolButton}>
+                    <MessagesSquare className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                )}
+                {actions?.canPin && onTogglePin && (
+                  <button type="button" onClick={() => void runAction(() => onTogglePin(!message.pinnedAt))} disabled={isBusy} aria-label={message.pinnedAt ? t("msg.unpin") : t("msg.pin")} title={message.pinnedAt ? t("msg.unpin") : t("msg.pin")} className={toolButton}>
+                    {message.pinnedAt ? <PinOff className="h-3.5 w-3.5" aria-hidden /> : <Pin className="h-3.5 w-3.5" aria-hidden />}
+                  </button>
+                )}
+                {actions?.canEdit && onEdit && (
+                  <button type="button" onClick={startEdit} aria-label={t("msg.edit")} title={t("msg.edit")} className={toolButton}>
+                    <Pencil className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                )}
+                {actions?.canDelete && onDelete && (
+                  <button type="button" onClick={() => { setActionError(null); setConfirmingDelete(true); }} aria-label={t("msg.delete")} title={t("msg.delete")} className={`${toolButton} hover:!text-destructive`}>
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                )}
+                <button type="button" onClick={() => setIsInfoOpen(true)} aria-label={t("msg.info")} title={t("msg.info")} className={toolButton}>
+                  <Info className="h-3.5 w-3.5" aria-hidden />
+                </button>
+              </div>
+            )}
           </div>
+
+          {confirmingDelete && (
+            <div role="alertdialog" aria-label={t("msg.deleteTitle")} className="mt-1 flex flex-wrap items-center gap-2 rounded-lg border-2 border-[var(--memphis-line)] bg-muted/50 px-3 py-1.5 text-xs">
+              <span className="font-medium">{message.userId === currentUserId ? t("msg.deleteOwn") : t("msg.deleteOther")}</span>
+              <button type="button" onClick={() => void confirmDelete()} disabled={isBusy} className="rounded-md bg-rose-600 px-2 py-0.5 font-semibold text-white hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] disabled:opacity-50">{t("msg.delete")}</button>
+              <button type="button" onClick={() => setConfirmingDelete(false)} disabled={isBusy} className="rounded-md px-2 py-0.5 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">{t("createRoom.cancel")}</button>
+            </div>
+          )}
+          {actionError && <p role="alert" className="mt-1 text-[11px] text-destructive">{actionError}</p>}
+
+          {/* Thread chip */}
+          {!inThread && threadCount > 0 && onOpenThread && (
+            <button type="button" onClick={onOpenThread} className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-border px-2 py-0.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-[var(--memphis-line)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] motion-reduce:transition-none">
+              <MessagesSquare className="h-3 w-3" aria-hidden />
+              {t("thread.replies", { count: threadCount })}
+            </button>
+          )}
 
           {/* Reactions */}
           {hasReactions && (
-            <div className="flex flex-wrap gap-1 mt-1 px-1">
-              {Object.entries(reactions).map(([emoji, users]) => (
-                <button
-                  key={emoji}
-                  onClick={() => handleReact(emoji)}
-                  className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-muted/60 border border-border/40 text-xs hover:bg-accent/10 transition-colors"
-                >
-                  <span>{emoji}</span>
-                  <span className="text-[10px] text-muted-foreground">{new Set(users as string[]).size}</span>
-                </button>
-              ))}
+            <div className="mt-1 flex flex-wrap gap-1">
+              {Object.entries(reactions).map(([emoji, users]) => {
+                const list = users as string[];
+                const mine = Boolean(currentUserId) && list.includes(currentUserId as string);
+                const canToggle = actions?.canReact ?? true;
+                return (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => handleReact(emoji)}
+                    disabled={!canToggle}
+                    aria-pressed={mine}
+                    aria-label={t("msg.reactionCount", { emoji, count: new Set(list).size })}
+                    className={`flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] disabled:cursor-default motion-reduce:transition-none ${
+                      mine ? "border-[var(--memphis-line)] bg-muted font-semibold" : "border-border/60 bg-muted/40 hover:bg-muted"
+                    }`}
+                  >
+                    <span aria-hidden>{emoji}</span>
+                    <span className="text-[10px] text-muted-foreground" aria-hidden>{new Set(list).size}</span>
+                  </button>
+                );
+              })}
             </div>
           )}
 
-          <div className={`flex items-center gap-1 mt-0.5 ${isOwn ? "justify-end" : "justify-start"}`}>
-            <span className="text-[9px] text-muted-foreground/60">
-              {new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-            </span>
-            {isOwn && showReadReceipts && (
+          {isOwn && showReadReceipts && (
+            <div className="mt-0.5 flex items-center gap-1">
               <MessageStatusIcon status={message.status} />
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 

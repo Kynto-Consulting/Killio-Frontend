@@ -349,6 +349,20 @@ export function RichText({
                 return <KqlPill key={partIdx} script={part.script} mode={part.mode} label={part.label} />;
               }
 
+              if (part.type === "mention" && (part.mentionType === "role" || part.mentionType === "everyone")) {
+                // Room mention of a role (its colour) or of everyone: an inert pill, nothing to open.
+                const c = typeof part.color === "string" && /^#[0-9a-fA-F]{6}$/.test(part.color) ? part.color : null;
+                return (
+                  <span
+                    key={partIdx}
+                    className={`inline-flex items-center rounded px-1.5 py-0.5 text-[0.85em] font-medium ${c ? "text-foreground" : "bg-primary/10 text-primary"}`}
+                    style={c ? { background: `${c}26`, boxShadow: `inset 0 0 0 1px ${c}66` } : undefined}
+                  >
+                    @{part.name}
+                  </span>
+                );
+              }
+
               if (part.type === "mention") {
                 const mentionClick = onReferenceClick
                   ? () => onReferenceClick(part.mentionType, part.id)

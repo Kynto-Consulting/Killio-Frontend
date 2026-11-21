@@ -2036,6 +2036,7 @@ export default function BoardPage() {
         onOpenDelete={handleDeleteBoard}
         onUploadImage={handleUploadBoardImage}
         kanbanLists={lists.map(l => ({ id: l.id, name: l.title }))}
+        chatSwitch={!localMode && activeTeamId && accessToken ? { teamId: activeTeamId, entityType: "board", entityId: boardId, accessToken } : undefined}
       />
 
       <ShareModal

@@ -8,11 +8,20 @@ import {
   listRoomMessages,
   sendRoomMessage,
   addReaction,
+  editRoomMessage,
+  deleteRoomMessage,
+  pinRoomMessage,
   markMessagesAsRead,
   markAllMessagesAsRead,
+  threadRootOf,
   RoomMessage,
   MessageStatus,
 } from "@/lib/api/rooms";
+
+/** Event names the backend may use for the same fact; the first is the preferred one. */
+const EDIT_EVENTS = ["room.message.edited", "room.message.updated"] as const;
+const DELETE_EVENTS = ["room.message.deleted"] as const;
+const PIN_EVENTS = ["room.message.pinned", "room.message.unpinned"] as const;
 
 interface TypingUser {
   userId: string;
@@ -48,6 +57,8 @@ export function useRoomChat(
   const [hasMore, setHasMore] = useState(false);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
 
+  const messagesRef = useRef<RoomMessage[]>([]);
+  messagesRef.current = messages;
   const typingTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const typingStopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingRef = useRef(false);
@@ -57,18 +68,29 @@ export function useRoomChat(
   // useRealtime() may return null when the provider is not yet mounted.
   const realtime = useRealtime();
 
-  // Initial load
+  // Initial load (also re-run by `reload` after a failure)
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [loadError, setLoadError] = useState<"forbidden" | "failed" | null>(null);
   useEffect(() => {
     if (!roomId || !accessToken) return;
+    let cancelled = false;
     setIsLoading(true);
+    setLoadError(null);
     listRoomMessages(roomId, accessToken, 50)
       .then((msgs) => {
+        if (cancelled) return;
         setMessages(msgs); // Now msgs already have the correct status from backend
         setHasMore(msgs.length === 50);
       })
-      .catch(console.error)
-      .finally(() => setIsLoading(false));
-  }, [roomId, accessToken]);
+      .catch((err) => {
+        if (cancelled) return;
+        console.error(err);
+        setLoadError((err as { status?: number })?.status === 403 ? "forbidden" : "failed");
+      })
+      .finally(() => { if (!cancelled) setIsLoading(false); });
+    return () => { cancelled = true; };
+  }, [roomId, accessToken, loadAttempt]);
+  const reload = useCallback(() => setLoadAttempt((n) => n + 1), []);
 
   // Realtime subscription
   useEffect(() => {
@@ -78,7 +100,9 @@ export function useRoomChat(
     channelRef.current = channel;
 
     const onMessage = (msg: { name: string; data: unknown; clientId?: string }) => {
-      const payload = msg.data as RoomMessage;
+      const raw = msg.data as RoomMessage;
+      const root = threadRootOf(raw as RoomMessage & { thread_root_id?: string });
+      const payload: RoomMessage = root && !raw.threadRootId ? { ...raw, threadRootId: root } : raw;
       setMessages((prev) => {
         const nonceId = (payload.metadata as any)?.localBotId;
         if (nonceId) {
@@ -142,16 +166,19 @@ export function useRoomChat(
     };
 
     const onReaction = (msg: { name: string; data: unknown }) => {
-      const { messageId, emoji, userId, action } = msg.data as {
+      const { messageId, emoji, userId, action, reactions: fullMap } = msg.data as {
         messageId: string;
         emoji: string;
         userId: string;
         action: "add" | "remove";
+        /** The backend sends the resulting map of the message: the most reliable thing to show. */
+        reactions?: Record<string, string[]>;
       };
       if (userId === currentUser?.id) return;
       setMessages((prev) =>
         prev.map((m) => {
           if (m.id !== messageId) return m;
+          if (fullMap && typeof fullMap === "object" && !Array.isArray(fullMap)) return { ...m, reactions: fullMap };
           const reactions = { ...(m.reactions ?? {}) };
           const users = [...(reactions[emoji] ?? [])];
           if (action === "add" && !users.includes(userId)) {
@@ -214,7 +241,49 @@ export function useRoomChat(
       setTypingUsers((prev) => prev.filter((u) => u.userId !== userId));
     };
 
+    // Edits and pins: the backend sends the changed message (or at least its id and the changed fields).
+    const onEdited = (msg: { name: string; data: unknown }) => {
+      const d = (msg.data ?? {}) as Partial<RoomMessage> & { messageId?: string };
+      const id = d.id ?? d.messageId;
+      if (!id) return;
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== id) return m;
+          return {
+            ...m,
+            content: typeof d.content === "string" ? d.content : m.content,
+            editedAt: d.editedAt ?? new Date().toISOString(),
+            ...(d.metadata ? { metadata: d.metadata } : {}),
+          };
+        })
+      );
+    };
+
+    const onDeleted = (msg: { name: string; data: unknown }) => {
+      const d = (msg.data ?? {}) as { id?: string; messageId?: string };
+      const id = d.id ?? d.messageId;
+      if (!id) return;
+      setMessages((prev) => prev.filter((m) => m.id !== id));
+    };
+
+    const onPinChanged = (msg: { name: string; data: unknown }) => {
+      const d = (msg.data ?? {}) as { id?: string; messageId?: string; pinned?: boolean; pinnedAt?: string | null; pinnedBy?: string | null };
+      const id = d.id ?? d.messageId;
+      if (!id) return;
+      const pinned = typeof d.pinned === "boolean" ? d.pinned : msg.name.endsWith(".pinned") ? true : Boolean(d.pinnedAt);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === id
+            ? { ...m, pinnedAt: pinned ? d.pinnedAt ?? new Date().toISOString() : null, pinnedBy: pinned ? d.pinnedBy ?? m.pinnedBy ?? null : null }
+            : m
+        )
+      );
+    };
+
     channel.subscribe("room.message", onMessage);
+    EDIT_EVENTS.forEach((e) => channel.subscribe(e, onEdited));
+    DELETE_EVENTS.forEach((e) => channel.subscribe(e, onDeleted));
+    PIN_EVENTS.forEach((e) => channel.subscribe(e, onPinChanged));
     channel.subscribe("room.message.reaction", onReaction);
     channel.subscribe("room.message.delivered", onDelivered);
     channel.subscribe("room.message.read", onRead);
@@ -223,6 +292,9 @@ export function useRoomChat(
 
     return () => {
       try { channel.unsubscribe("room.message", onMessage); } catch {}
+      EDIT_EVENTS.forEach((e) => { try { channel.unsubscribe(e, onEdited); } catch {} });
+      DELETE_EVENTS.forEach((e) => { try { channel.unsubscribe(e, onDeleted); } catch {} });
+      PIN_EVENTS.forEach((e) => { try { channel.unsubscribe(e, onPinChanged); } catch {} });
       try { channel.unsubscribe("room.message.reaction", onReaction); } catch {}
       try { channel.unsubscribe("room.message.delivered", onDelivered); } catch {}
       try { channel.unsubscribe("room.message.read", onRead); } catch {}
@@ -234,7 +306,7 @@ export function useRoomChat(
   }, [roomId, realtime, currentUser?.id]);
 
   const sendMessage = useCallback(
-    async (content: string, metadata?: any) => {
+    async (content: string, metadata?: any, threadRootId?: string) => {
       if (!accessToken || !content.trim()) return;
       const targetRoomId = roomId ?? (ensureRoom ? await ensureRoom() : null);
       if (!targetRoomId) return;
@@ -246,7 +318,8 @@ export function useRoomChat(
         userId: currentUser?.id ?? "",
         content,
         type: "text",
-        metadata,
+        metadata: threadRootId ? { ...(metadata ?? {}), threadRootId } : metadata,
+        threadRootId,
         createdAt: new Date().toISOString(),
         status: "sending",
         user: {
@@ -257,7 +330,7 @@ export function useRoomChat(
       };
       setMessages((prev) => [...prev, optimistic]);
       try {
-        const real = await sendRoomMessage(targetRoomId, content, accessToken, metadata);
+        const real = await sendRoomMessage(targetRoomId, content, accessToken, metadata, threadRootId);
         setMessages((prev) => {
           // A first message may create the room: the reload that follows can drop the optimistic row.
           if (!prev.some((m) => m.id === tempId)) {
@@ -301,13 +374,15 @@ export function useRoomChat(
   const handleAddReaction = useCallback(
     async (messageId: string, emoji: string) => {
       if (!roomId || !accessToken || !currentUser?.id) return;
+      const current = messagesRef.current.find((m) => m.id === messageId);
+      const action: "add" | "remove" = (current?.reactions?.[emoji] ?? []).includes(currentUser.id) ? "remove" : "add";
       setMessages((prev) =>
         prev.map((m) => {
           if (m.id !== messageId) return m;
           const reactions = { ...(m.reactions ?? {}) };
           const users = [...(reactions[emoji] ?? [])];
-          if (!users.includes(currentUser.id!)) {
-            reactions[emoji] = [...users, currentUser.id!];
+          if (action === "add") {
+            if (!users.includes(currentUser.id!)) reactions[emoji] = [...users, currentUser.id!];
           } else {
             reactions[emoji] = users.filter((u) => u !== currentUser.id);
             if (reactions[emoji].length === 0) delete reactions[emoji];
@@ -316,7 +391,8 @@ export function useRoomChat(
         })
       );
       try {
-        await addReaction(roomId, messageId, emoji, accessToken);
+        // The server publishes `room.message.reaction` (with the resulting map), which is what the others receive.
+        await addReaction(roomId, messageId, emoji, accessToken, action);
       } catch (e) {
         console.error(e);
         listRoomMessages(roomId, accessToken, 50).then((msgs) =>
@@ -380,6 +456,73 @@ export function useRoomChat(
     [roomId, currentUser]
   );
 
+  /** Edit your own message: shown at once, restored when the server refuses. Throws so the caller can explain. */
+  const editMessage = useCallback(
+    async (messageId: string, content: string) => {
+      if (!roomId || !accessToken) return;
+      const trimmed = content.trim();
+      const before = messagesRef.current.find((m) => m.id === messageId);
+      if (!before || !trimmed || trimmed === before.content) return;
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, content: trimmed, editedAt: new Date().toISOString() } : m)));
+      try {
+        const updated = await editRoomMessage(roomId, messageId, trimmed, accessToken);
+        setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, content: updated.content ?? trimmed, editedAt: updated.editedAt ?? m.editedAt } : m)));
+      } catch (e) {
+        setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, content: before.content, editedAt: before.editedAt } : m)));
+        throw e;
+      }
+    },
+    [roomId, accessToken]
+  );
+
+  /** Delete a message (own, or any with the manage-messages right). Removed at once, put back when refused. */
+  const deleteMessage = useCallback(
+    async (messageId: string) => {
+      if (!roomId || !accessToken) return;
+      const index = messagesRef.current.findIndex((m) => m.id === messageId);
+      const before = messagesRef.current[index];
+      if (!before) return;
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+      try {
+        await deleteRoomMessage(roomId, messageId, accessToken);
+      } catch (e) {
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === messageId)) return prev;
+          const next = [...prev, before];
+          return next.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+        });
+        throw e;
+      }
+    },
+    [roomId, accessToken]
+  );
+
+  const setPinned = useCallback(
+    async (messageId: string, pinned: boolean) => {
+      if (!roomId || !accessToken) return;
+      const before = messagesRef.current.find((m) => m.id === messageId);
+      if (!before) return;
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, pinnedAt: pinned ? new Date().toISOString() : null } : m)));
+      try {
+        await pinRoomMessage(roomId, messageId, pinned, accessToken);
+      } catch (e) {
+        setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, pinnedAt: before.pinnedAt ?? null } : m)));
+        throw e;
+      }
+    },
+    [roomId, accessToken]
+  );
+
+  /** Adds messages that are not loaded yet (a thread's replies), keeping the list ordered; known ids are left as they are. */
+  const mergeMessages = useCallback((incoming: RoomMessage[]) => {
+    if (incoming.length === 0) return;
+    setMessages((prev) => {
+      const known = new Set(prev.map((m) => m.id));
+      const fresh = incoming.filter((m) => !known.has(m.id)).map((m) => ({ ...m, status: "sent" as MessageStatus }));
+      return fresh.length === 0 ? prev : [...prev, ...fresh].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    });
+  }, []);
+
   const addLocalMessage = useCallback((message: RoomMessage) => {
     setMessages((prev) => [...prev, message]);
   }, []);
@@ -409,6 +552,12 @@ export function useRoomChat(
     publishMessage,
     loadMore,
     addReaction: handleAddReaction,
+    editMessage,
+    deleteMessage,
+    setPinned,
+    mergeMessages,
+    loadError,
+    reload,
     markAsRead,
     markAllAsRead,
     setTyping,

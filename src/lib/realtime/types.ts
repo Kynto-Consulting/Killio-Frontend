@@ -58,4 +58,9 @@ export interface IRealtimeProvider {
   getChannel(name: string): IRealtimeChannel;
   /** Gracefully disconnect and clean up all channels. */
   disconnect(): void;
+  /**
+   * Ask the server for fresh channel permissions (Ably: re-issue the token). Call it right after the user creates a room
+   * or is given access to one. Resolves false when it could not renew. Providers that authorise per team omit it.
+   */
+  renewAuth?(): Promise<boolean>;
 }

@@ -41,7 +41,19 @@ const SEARCHABLE_KINDS: Record<string, Set<string>> = {
 };
 const isSearchable = (provider: string, kind: string) => !!SEARCHABLE_KINDS[provider]?.has(kind);
 
-type MentionType = "board" | "mesh" | "doc" | "card" | "user" | "group" | "folder" | "room" | "thread" | "transcript" | "kql";
+type MentionType = "board" | "mesh" | "doc" | "card" | "user" | "group" | "role" | "everyone" | "folder" | "room" | "thread" | "transcript" | "kql";
+
+/** A ready-made `@` row supplied by the caller (room roles, `@everyone`). */
+export interface ReferencePickerExtraMention {
+  token: string;
+  label: string;
+  mentionType: "role" | "everyone";
+  /** `#rrggbb` of the role. */
+  color?: string | null;
+  subtitle?: string;
+  search?: string;
+}
+const NO_EXTRA_MENTIONS: ReferencePickerExtraMention[] = [];
 type AllowedMentionType = MentionType | "document" | "kql";
 
 type ActiveBrick = {
@@ -61,6 +73,8 @@ export interface ReferencePickerSelection {
 }
 
 interface MentionResult extends ReferencePickerSelection {
+  /** `#rrggbb` of a role (colours its icon in the list). */
+  color?: string | null;
   search: string;
   subtitle?: string;
   avatarUrl?: string | null;
@@ -85,6 +99,7 @@ interface ReferencePickerProps {
   transcripts?: Array<{ callId: string; roomId: string; roomName: string; startedAt: string }>;
   activeCallId?: string;
   extensions?: ExtensionEntry[];
+  extraMentions?: ReferencePickerExtraMention[];
   activeBricks?: ActiveBrick[];
   localScopeId?: string;
   docScopeId?: string;
@@ -246,6 +261,7 @@ export function ReferencePicker({
   transcripts = [],
   activeCallId,
   extensions = [],
+  extraMentions = NO_EXTRA_MENTIONS,
   activeBricks = [],
   localScopeId = "local",
   allowedTypes,
@@ -351,6 +367,16 @@ export function ReferencePicker({
   const mentionResults = useMemo(() => {
     const q = query.toLowerCase().trim();
     let mentions: MentionResult[] = [
+      // Caller-supplied rows first: `@everyone` and roles are what people look for when they type `@` in a room.
+      ...extraMentions.map((m) => ({
+        token: m.token,
+        label: m.label,
+        category: "mention" as const,
+        mentionType: m.mentionType,
+        subtitle: m.subtitle,
+        color: m.color ?? null,
+        search: (m.search ?? `${m.mentionType} ${m.label}`).toLowerCase(),
+      })),
       ...boards.filter((b) => b.boardType !== "mesh").map((b) => ({
         token: `@[board:${b.id}:${b.name}]`,
         label: b.name,
@@ -478,7 +504,7 @@ export function ReferencePicker({
     });
 
     return { filteredMentions, extra };
-  }, [boards, meshBoards, documents, users, teamGroups, tg, cards, folders, rooms, transcripts, activeCallId, extensions, query, normalizedAllowedTypes, t, tk]);
+  }, [boards, meshBoards, documents, users, teamGroups, tg, cards, folders, rooms, transcripts, activeCallId, extensions, extraMentions, query, normalizedAllowedTypes, t, tk]);
 
   const currentSelectors = useMemo(() => {
     if (!selectedBrick) return [] as SelectorOption[];
@@ -1056,6 +1082,7 @@ export function ReferencePicker({
                   {item.category === "mention" && item.mentionType === "user" &&
                     (item.avatarUrl ? <img src={item.avatarUrl} className="h-4 w-4 rounded-full" alt="avatar" /> : <User className="h-4 w-4 opacity-70" />)}
                   {item.category === "mention" && item.mentionType === "group" && <Users className="h-4 w-4 opacity-70" />}
+                  {item.category === "mention" && (item.mentionType === "role" || item.mentionType === "everyone") && <Users className="h-4 w-4" style={item.color ? { color: item.color } : undefined} />}
                   {item.category === "mention" && item.mentionType === "transcript" && item.label === "Llamada en curso" && <Radio className="h-4 w-4 text-red-500 animate-pulse" />}
                   {item.category === "mention" && item.mentionType === "transcript" && item.label !== "Llamada en curso" && <ScrollText className="h-4 w-4 opacity-70" />}
                   {item.category === "extension" && (() => {

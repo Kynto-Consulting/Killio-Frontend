@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { X, ImagePlus, Trash2, Waves, Trees, Sun, Sparkles, Settings2, Share2, AlertTriangle, Palette } from "lucide-react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useAsyncAction } from "@/hooks/ui";
+import { EntityChatToggle } from "@/components/rooms/EntityChatToggle";
 
 type CoverKind = "none" | "preset" | "image" | "color" | "gradient";
 
@@ -126,6 +127,8 @@ export type BoardSettingsModalProps = {
   onOpenShare: () => void;
   onOpenDelete: () => void;
   onUploadImage?: (file: File) => Promise<string>;
+  /** Online boards and meshes: lets whoever manages the board switch its chat on or off. */
+  chatSwitch?: { teamId: string; entityType: "board" | "mesh"; entityId: string; accessToken: string };
   /** Kanban-only: list data to enable per-column color pickers */
   kanbanLists?: Array<{ id: string; name: string }>;
 };
@@ -157,6 +160,7 @@ export function BoardSettingsModalWeb({
   onOpenShare,
   onOpenDelete,
   onUploadImage,
+  chatSwitch,
   kanbanLists,
 }: BoardSettingsModalProps) {
   const t = useTranslations("board-detail");
@@ -337,6 +341,7 @@ export function BoardSettingsModalWeb({
                   placeholder={t("boardSettingsModal.general.descriptionPlaceholder")}
                 />
               </div>
+              {chatSwitch ? <EntityChatToggle teamId={chatSwitch.teamId} entityType={chatSwitch.entityType} entityId={chatSwitch.entityId} accessToken={chatSwitch.accessToken} /> : null}
               <div className="flex justify-end">
                 <button onClick={saveGeneral} disabled={saveGeneralAction.isPending || !canEdit} className="h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
                   {saveGeneralAction.isPending ? t("boardSettingsModal.general.saving") : t("boardSettingsModal.general.save")}

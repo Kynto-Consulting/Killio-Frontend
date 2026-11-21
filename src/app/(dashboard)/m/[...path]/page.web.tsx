@@ -5941,6 +5941,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       boardAppearance={meshAppearance as any}
       canManageBoard={true}
       canEdit={true}
+      chatSwitch={!localMode && meshId && activeTeamId && accessToken ? { teamId: activeTeamId, entityType: "mesh", entityId: meshId, accessToken } : undefined}
       onSaveGeneral={async ({ name, description }) => {
         if (!meshId || !accessToken) return;
         await updateBoardDetails(meshId, { name, description }, accessToken);

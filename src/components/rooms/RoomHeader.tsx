@@ -1,85 +1,114 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, useEffect } from "react";
-import { Phone, PhoneOff, Bot, Users, Settings, Layout, FileText, GitBranch, Captions, ChevronLeft, Bell, Check } from "lucide-react";
+import { useEffect, useId, useRef, useState } from "react";
+import {
+  Bell, BellOff, Bot, Captions, Check, FileText, GitBranch, Hash, Layout, Megaphone, Menu, MessageSquare, MoreHorizontal, Phone, PhoneOff,
+  Pin, Search, Settings, Users, List, StickyNote,
+} from "lucide-react";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import type { Room, RoomNotificationPref } from "@/lib/api/rooms";
 import type { RoomPresenceMember } from "@/hooks/use-room-presence";
+import type { RoomControls } from "@/lib/rooms/room-controls";
 import { usePlatform } from "@/components/providers/platform-provider";
 import { useRoomNotificationPref } from "@/hooks/use-room-notification-pref";
 
-type TFn = (key: string) => string;
+type TFn = (key: string, params?: Record<string, string | number>) => string;
 
 interface RoomHeaderProps {
   room: Room;
+  /** Shown name: the other person for a DM, the document / board title for an entity room, else the channel name. */
+  title: string;
   presenceMembers: RoomPresenceMember[];
+  /** People who can see this room (the panel list), not just who is online. */
+  memberCount?: number;
   isInCall: boolean;
   isAiPanelOpen: boolean;
   isMembersPanelOpen: boolean;
-  canCall: boolean;
-  canManage: boolean;
-  /** AI assistant room (Killio "vault" group): hide member/permission management. */
+  isPinsOpen: boolean;
+  isSearchOpen: boolean;
+  pinCount: number;
+  controls: RoomControls;
+  /** AI assistant room (Killio "vault" group): hide member / settings management. */
   isAiRoom?: boolean;
+  onOpenSidebar?: () => void;
   onStartCall: () => void;
   onLeaveCall: () => void;
   onToggleAiPanel: () => void;
   onToggleMembersPanel: () => void;
-  onOpenPermissions: () => void;
+  onTogglePins: () => void;
+  onToggleSearch: () => void;
+  onOpenSettings: () => void;
   t: TFn;
 }
 
-interface NotificationPrefButtonProps {
-  roomId: string;
-  t: TFn;
-}
-
-const NOTIF_OPTIONS: Array<{ pref: RoomNotificationPref; labelKey: string; icon: string }> = [
-  { pref: "all", labelKey: "header.notifAll", icon: "🔔" },
-  { pref: "mentions", labelKey: "header.notifMentions", icon: "🔕" },
-  { pref: "none", labelKey: "header.notifNone", icon: "🚫" },
+const NOTIF_OPTIONS: Array<{ pref: RoomNotificationPref; labelKey: string }> = [
+  { pref: "all", labelKey: "header.notifAll" },
+  { pref: "mentions", labelKey: "header.notifMentions" },
+  { pref: "none", labelKey: "header.notifNone" },
 ];
 
-function NotificationPrefButton({ roomId, t }: NotificationPrefButtonProps) {
-  const { pref, setPref } = useRoomNotificationPref(roomId);
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+const ENTITY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  board: Layout,
+  document: FileText,
+  mesh: GitBranch,
+  list: List,
+  card: StickyNote,
+};
 
+const btn =
+  "relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] motion-reduce:transition-none";
+const btnOn = "bg-muted text-foreground";
+
+function IconButton({ label, pressed, onClick, children, tone }: { label: string; pressed?: boolean; onClick: () => void; children: React.ReactNode; tone?: "danger" }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      aria-pressed={pressed}
+      className={`${btn} ${pressed ? btnOn : ""} ${tone === "danger" ? "!bg-rose-600/15 !text-rose-600 hover:!bg-rose-600/25" : ""}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function useDismiss(open: boolean, close: () => void, ref: React.RefObject<HTMLElement | null>) {
   useEffect(() => {
     if (!open) return;
-    function onClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [open]);
+    const onDown = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) close(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
+  }, [open, close, ref]);
+}
+
+function NotificationPrefButton({ pref, setPref, t }: { pref: RoomNotificationPref; setPref: (p: RoomNotificationPref) => void | Promise<void>; t: TFn }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const menuId = useId();
+  useDismiss(open, () => setOpen(false), ref);
 
   return (
-    <div ref={containerRef} className="relative">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        title={t("header.notifications")}
-        className="flex items-center justify-center w-7 h-7 rounded-md hover:bg-accent/10 text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <Bell className="w-3.5 h-3.5" />
+    <div ref={ref} className="relative">
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuId : undefined} aria-label={t("header.notifications")} title={t("header.notifications")} className={`${btn} ${open ? btnOn : ""}`}>
+        {pref === "none" ? <BellOff className="h-4 w-4" aria-hidden /> : <Bell className="h-4 w-4" aria-hidden />}
       </button>
-
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 w-44 rounded-md border border-border/60 bg-popover shadow-md py-1">
+        <div id={menuId} role="menu" className="absolute right-0 top-full z-50 mt-1 w-48 overflow-hidden rounded-xl border-2 border-[var(--memphis-line)] bg-popover py-1 shadow-[3px_3px_0_0_var(--memphis-shadow)]">
           {NOTIF_OPTIONS.map((opt) => (
             <button
               key={opt.pref}
-              onClick={() => {
-                setPref(opt.pref);
-                setOpen(false);
-              }}
-              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left hover:bg-accent/10 transition-colors"
+              role="menuitemradio"
+              aria-checked={pref === opt.pref}
+              onClick={() => { setPref(opt.pref); setOpen(false); }}
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
             >
-              <span className="text-sm leading-none">{opt.icon}</span>
-              <span className="flex-1 text-foreground">{t(opt.labelKey)}</span>
-              {pref === opt.pref && <Check className="w-3 h-3 text-accent shrink-0" />}
+              <span className="flex-1">{t(opt.labelKey)}</span>
+              {pref === opt.pref && <Check className="h-3 w-3 shrink-0" aria-hidden />}
             </button>
           ))}
         </div>
@@ -88,211 +117,141 @@ function NotificationPrefButton({ roomId, t }: NotificationPrefButtonProps) {
   );
 }
 
-const ENTITY_ICONS: Record<string, React.FC<{ className?: string }>> = {
-  board: Layout,
-  document: FileText,
-  mesh: GitBranch,
-};
-
-function roomPrefix(room: Room): string {
-  if (room.type === "channel") return "#";
-  if (room.type === "dm") return "";
-  return "🔗";
+function Overflow({ children, label }: { children: (close: () => void) => React.ReactNode; label: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const menuId = useId();
+  useDismiss(open, () => setOpen(false), ref);
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuId : undefined} aria-label={label} title={label} className={`${btn} ${open ? btnOn : ""}`}>
+        <MoreHorizontal className="h-4 w-4" aria-hidden />
+      </button>
+      {open && (
+        <div id={menuId} role="menu" className="absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-xl border-2 border-[var(--memphis-line)] bg-popover py-1 shadow-[3px_3px_0_0_var(--memphis-shadow)]">
+          {children(() => setOpen(false))}
+        </div>
+      )}
+    </div>
+  );
 }
 
+const menuItem = "flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-muted focus-visible:bg-muted focus-visible:outline-none";
+
 export function RoomHeader({
-  room,
-  presenceMembers,
-  isInCall,
-  isAiPanelOpen,
-  isMembersPanelOpen,
-  canCall,
-  canManage,
-  isAiRoom = false,
-  onStartCall,
-  onLeaveCall,
-  onToggleAiPanel,
-  onToggleMembersPanel,
-  onOpenPermissions,
-  t,
+  room, title, presenceMembers, memberCount, isInCall, isAiPanelOpen, isMembersPanelOpen, isPinsOpen, isSearchOpen, pinCount, controls, isAiRoom = false,
+  onOpenSidebar, onStartCall, onLeaveCall, onToggleAiPanel, onToggleMembersPanel, onTogglePins, onToggleSearch, onOpenSettings, t,
 }: RoomHeaderProps) {
   const platform = usePlatform();
-
-  // Mobile-optimized header
-  if (platform === "mobile") {
-    const onlineCount = presenceMembers.length;
-    return (
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 bg-background/60 backdrop-blur shrink-0">
-        <div className="flex items-center gap-2 min-w-0">
-          <Link href="/rooms" className="p-2 rounded-md text-muted-foreground hover:bg-accent/10">
-            <ChevronLeft className="w-5 h-5" />
-          </Link>
-          <div className="min-w-0">
-            <div className="text-sm font-semibold truncate">
-              {roomPrefix(room)} {room.name}
-            </div>
-            {onlineCount > 0 && (
-              <div className="text-xs text-muted-foreground truncate">{onlineCount} online</div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-1">
-          {canCall && (
-            <button
-              onClick={isInCall ? onLeaveCall : onStartCall}
-              title={isInCall ? t("header.leaveCall") : t("header.call")}
-              className="p-2 rounded-md hover:bg-accent/10 text-muted-foreground"
-            >
-              {isInCall ? <PhoneOff className="w-5 h-5" /> : <Phone className="w-5 h-5" />}
-            </button>
-          )}
-
-          <button
-            onClick={onToggleAiPanel}
-            title={t("header.copilot")}
-            className={`p-2 rounded-md ${isAiPanelOpen ? "bg-accent/20 text-accent" : "hover:bg-accent/10 text-muted-foreground"}`}
-          >
-            <Bot className="w-5 h-5" />
-          </button>
-
-          {!isAiRoom && (
-            <button
-              onClick={onToggleMembersPanel}
-              title={t("header.members")}
-              className={`p-2 rounded-md ${isMembersPanelOpen ? "bg-accent/20 text-accent" : "hover:bg-accent/10 text-muted-foreground"}`}
-            >
-              <Users className="w-5 h-5" />
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  const onlineCount = presenceMembers.length;
-  const visibleAvatars = presenceMembers.slice(0, 4);
-  const extraCount = onlineCount - 4;
+  const isMobile = platform === "mobile";
+  const { pref: notifPref, setPref: setNotifPref } = useRoomNotificationPref(room.id);
 
   const EntityIcon = room.linkedEntityType ? ENTITY_ICONS[room.linkedEntityType] : null;
+  const LeadIcon = room.type === "dm" ? MessageSquare : EntityIcon ?? (room.channelType === "announcement" ? Megaphone : Hash);
+  const onlineCount = presenceMembers.length;
+  const visibleAvatars = presenceMembers.slice(0, 4);
+  const extraCount = onlineCount - visibleAvatars.length;
+  const entityHref = room.linkedEntityType && room.linkedEntityId
+    ? `/${room.linkedEntityType === "board" || room.linkedEntityType === "mesh" ? "b" : room.linkedEntityType === "document" ? "d" : "b"}/${room.linkedEntityId}`
+    : null;
+
+  const showMembers = !isAiRoom && room.type !== "dm";
+  const callButton = controls.showCall ? (
+    <IconButton label={isInCall ? t("header.leaveCall") : t("header.call")} onClick={isInCall ? onLeaveCall : onStartCall} tone={isInCall ? "danger" : undefined}>
+      {isInCall ? <PhoneOff className="h-4 w-4" aria-hidden /> : <Phone className="h-4 w-4" aria-hidden />}
+    </IconButton>
+  ) : null;
 
   return (
-    <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/50 bg-background/60 backdrop-blur shrink-0">
-      {/* Left: room name */}
-      <div className="flex items-center gap-2 min-w-0">
-        <span className="text-sm font-semibold text-foreground truncate">
-          {roomPrefix(room)} {room.name}
-        </span>
-        {room.description && (
-          <span className="text-xs text-muted-foreground truncate hidden md:block">
-            · {room.description}
-          </span>
-        )}
-        {room.linkedEntityType && room.linkedEntityId && (
-          <Link
-            href={`/${room.linkedEntityType === "board" ? "b" : room.linkedEntityType === "document" ? "d" : "m"}/${room.linkedEntityId}`}
-            className="flex items-center gap-1 text-[10px] text-accent/80 hover:text-accent border border-accent/20 rounded-full px-2 py-0.5 transition-colors"
-          >
-            {EntityIcon && <EntityIcon className="w-2.5 h-2.5" />}
-            <span>{t("header.linkedTo")}</span>
-          </Link>
-        )}
-      </div>
-
-      {/* Right: actions */}
-      <div className="flex items-center gap-1.5 shrink-0">
-        {/* Presence avatars */}
-        {onlineCount > 0 && (
-          <div className="flex items-center -space-x-1.5 mr-1">
-            {visibleAvatars.map((m) => (
-              <div
-                key={m.clientId}
-                className="w-6 h-6 rounded-full border-2 border-background overflow-hidden bg-muted"
-                title={m.data.displayName}
-              >
-                <img
-                  src={getUserAvatarUrl(m.data.avatarUrl ?? undefined, m.data.email, 24)}
-                  alt={m.data.displayName}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            ))}
-            {extraCount > 0 && (
-              <div className="w-6 h-6 rounded-full border-2 border-background bg-muted flex items-center justify-center text-[9px] font-bold text-muted-foreground">
-                +{extraCount}
-              </div>
-            )}
+    <header className="shrink-0 border-b-2 border-[var(--memphis-line)] bg-background/70 backdrop-blur">
+      <div className="flex min-h-[48px] items-center justify-between gap-2 px-3 py-1.5 md:px-4">
+        {/* Left: channel identity */}
+        <div className="flex min-w-0 items-center gap-2">
+          {onOpenSidebar && (
+            <button type="button" onClick={onOpenSidebar} aria-label={t("sidebar.open")} className={`${btn} md:hidden`}>
+              <Menu className="h-4 w-4" aria-hidden />
+            </button>
+          )}
+          <LeadIcon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+          <div className="min-w-0">
+            <h1 className="truncate text-sm font-bold leading-tight text-foreground">{title}</h1>
+            {room.description && isMobile && <p className="truncate text-[11px] leading-tight text-muted-foreground">{room.description}</p>}
           </div>
-        )}
+          {room.description && !isMobile && (
+            <>
+              <span className="hidden h-4 w-px shrink-0 bg-border md:block" aria-hidden />
+              <p className="hidden min-w-0 truncate text-xs text-muted-foreground md:block" title={room.description}>{room.description}</p>
+            </>
+          )}
+          {entityHref && !isMobile && (
+            <Link href={entityHref} className="hidden shrink-0 items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] md:flex">
+              {EntityIcon && <EntityIcon className="h-2.5 w-2.5" />}
+              {t("header.linkedTo")}
+            </Link>
+          )}
+        </div>
 
-        {/* Transcript / Captions button */}
-        {canCall && (
-          <Link
-            href={`/rooms/${room.id}/transcripts`}
-            title={t("header.transcripts")}
-            className="flex items-center justify-center w-7 h-7 rounded-md hover:bg-accent/10 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <Captions className="w-3.5 h-3.5" />
-          </Link>
-        )}
+        {/* Right: actions */}
+        <div className="flex shrink-0 items-center gap-0.5">
+          {!isMobile && onlineCount > 0 && (
+            <div className="mr-1.5 flex items-center -space-x-1.5" aria-label={t("header.online", { count: onlineCount })}>
+              {visibleAvatars.map((m) => (
+                <img key={m.clientId} src={getUserAvatarUrl(m.data.avatarUrl ?? undefined, m.data.email, 24)} alt="" title={m.data.displayName} className="h-6 w-6 rounded-full border-2 border-background object-cover" />
+              ))}
+              {extraCount > 0 && <span className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-background bg-muted text-[9px] font-bold text-muted-foreground">+{extraCount}</span>}
+            </div>
+          )}
 
-        {/* Call button */}
-        {canCall && (
-          <button
-            onClick={isInCall ? onLeaveCall : onStartCall}
-            title={isInCall ? t("header.leaveCall") : t("header.call")}
-            className={`flex items-center justify-center w-7 h-7 rounded-md transition-colors ${
-              isInCall
-                ? "bg-red-600/20 text-red-500 hover:bg-red-600/30"
-                : "hover:bg-accent/10 text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {isInCall ? <PhoneOff className="w-3.5 h-3.5" /> : <Phone className="w-3.5 h-3.5" />}
-          </button>
-        )}
+          {callButton}
+          <IconButton label={t("header.search")} pressed={isSearchOpen} onClick={onToggleSearch}><Search className="h-4 w-4" aria-hidden /></IconButton>
 
-        {/* AI Copilot button */}
-        <button
-          onClick={onToggleAiPanel}
-          title={t("header.copilot")}
-          className={`flex items-center justify-center w-7 h-7 rounded-md transition-colors ${
-            isAiPanelOpen
-              ? "bg-accent/20 text-accent"
-              : "hover:bg-accent/10 text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Bot className="w-3.5 h-3.5" />
-        </button>
+          {!isMobile && (
+            <>
+              <IconButton label={pinCount > 0 ? t("header.pinsCount", { count: pinCount }) : t("header.pins")} pressed={isPinsOpen} onClick={onTogglePins}>
+                <Pin className="h-4 w-4" aria-hidden />
+                {pinCount > 0 && <span className="absolute -right-0.5 -top-0.5 min-w-[14px] rounded-full bg-foreground px-1 text-[9px] font-bold leading-[14px] text-background">{pinCount}</span>}
+              </IconButton>
+              {controls.showTranscripts && (
+                <Link href={`/rooms/${room.id}/transcripts`} aria-label={t("header.transcripts")} title={t("header.transcripts")} className={btn}>
+                  <Captions className="h-4 w-4" aria-hidden />
+                </Link>
+              )}
+              <IconButton label={t("header.copilot")} pressed={isAiPanelOpen} onClick={onToggleAiPanel}><Bot className="h-4 w-4" aria-hidden /></IconButton>
+              <NotificationPrefButton pref={notifPref} setPref={setNotifPref} t={t} />
+            </>
+          )}
 
-        {/* Members button — hidden in AI rooms (private 1:1 with Killio, no humans to manage) */}
-        {!isAiRoom && (
-          <button
-            onClick={onToggleMembersPanel}
-            title={t("header.members")}
-            className={`flex items-center justify-center w-7 h-7 rounded-md transition-colors ${
-              isMembersPanelOpen
-                ? "bg-accent/20 text-accent"
-                : "hover:bg-accent/10 text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Users className="w-3.5 h-3.5" />
-          </button>
-        )}
+          {showMembers && (
+            <IconButton label={memberCount !== undefined ? t("header.membersCount", { count: memberCount }) : t("header.members")} pressed={isMembersPanelOpen} onClick={onToggleMembersPanel}>
+              <Users className="h-4 w-4" aria-hidden />
+            </IconButton>
+          )}
 
-        {/* Notification preference button */}
-        <NotificationPrefButton roomId={room.id} t={t} />
+          {controls.showSettings && !isAiRoom && (
+            <IconButton label={t("header.settings")} onClick={onOpenSettings}><Settings className="h-4 w-4" aria-hidden /></IconButton>
+          )}
 
-        {/* Permissions button — hidden in AI rooms (no roles/members/invites to manage) */}
-        {canManage && !isAiRoom && (
-          <button
-            onClick={onOpenPermissions}
-            title={t("header.permissions")}
-            className="flex items-center justify-center w-7 h-7 rounded-md hover:bg-accent/10 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <Settings className="w-3.5 h-3.5" />
-          </button>
-        )}
+          {isMobile && (
+            <Overflow label={t("header.more")}>
+              {(close) => (
+                <>
+                  <button role="menuitem" className={menuItem} onClick={() => { close(); onTogglePins(); }}><Pin className="h-3.5 w-3.5" aria-hidden />{pinCount > 0 ? t("header.pinsCount", { count: pinCount }) : t("header.pins")}</button>
+                  <button role="menuitem" className={menuItem} onClick={() => { close(); onToggleAiPanel(); }}><Bot className="h-3.5 w-3.5" aria-hidden />{t("header.copilot")}</button>
+                  {controls.showTranscripts && (
+                    <Link role="menuitem" href={`/rooms/${room.id}/transcripts`} className={menuItem} onClick={close}><Captions className="h-3.5 w-3.5" aria-hidden />{t("header.transcripts")}</Link>
+                  )}
+                  {entityHref && <Link role="menuitem" href={entityHref} className={menuItem} onClick={close}>{EntityIcon && <EntityIcon className="h-3.5 w-3.5" aria-hidden />}{t("header.linkedTo")}</Link>}
+                  {NOTIF_OPTIONS.map((opt) => (
+                    <button key={opt.pref} role="menuitemradio" aria-checked={notifPref === opt.pref} className={menuItem} onClick={() => { void setNotifPref(opt.pref); close(); }}>
+                      <Bell className="h-3.5 w-3.5" aria-hidden /><span className="flex-1">{t(opt.labelKey)}</span>{notifPref === opt.pref && <Check className="h-3 w-3" aria-hidden />}
+                    </button>
+                  ))}
+                </>
+              )}
+            </Overflow>
+          )}
+        </div>
       </div>
-    </div>
+    </header>
   );
 }
