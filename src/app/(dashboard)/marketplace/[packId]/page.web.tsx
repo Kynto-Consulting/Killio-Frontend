@@ -184,7 +184,7 @@ export function MarketplaceDetailView({ packId, compact = false }: { packId: str
 
       {/* ── HERO ── */}
       <div className="grid gap-6 lg:grid-cols-5">
-        <div className="overflow-hidden rounded-3xl border-2 border-[var(--memphis-line)] shadow-[6px_6px_0_0_var(--memphis-shadow)] lg:col-span-3">
+        <div className="self-start overflow-hidden rounded-3xl border-2 border-[var(--memphis-line)] shadow-[6px_6px_0_0_var(--memphis-shadow)] lg:col-span-3">
           <PackCover pack={pack} />
         </div>
         <div className="flex flex-col gap-4 lg:col-span-2">
