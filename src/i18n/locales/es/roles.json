@@ -538,6 +538,27 @@
     "deleteTitle": "Borrar el espacio",
     "deleteWarn": "Esta acción borra todo el contenido del espacio y no se puede deshacer."
   },
+  "catalog": {
+    "coreName": "Killio",
+    "approxTitle": "Lista aproximada.",
+    "approxBody": "No se pudo cargar el catálogo completo de permisos del servidor, así que se muestra una lista básica. Las integraciones y extensiones no aparecen hasta que cargue.",
+    "origin": {
+      "core": "Núcleo",
+      "integration": "Integración",
+      "extension": "Extensión"
+    },
+    "dangerous": "Delicado",
+    "dangerousTitle": "Permiso delicado: dalo solo a quien confíes.",
+    "dangerConfirmTitle": "Permitir «{{name}}»",
+    "dangerConfirmBody": "Es un permiso delicado: permite acciones con mucho alcance. ¿Seguro que quieres permitirlo?",
+    "dangerConfirm": "Sí, permitir",
+    "requires": "Necesita «{{names}}», que no está permitido aquí.",
+    "obsoleteTitle": "Permisos obsoletos",
+    "obsoleteBody": "Vienen de una integración o extensión que ya no está instalada. Se conservan en el rol pero no conceden nada, y no se pueden editar.",
+    "obsoleteBadge": "Obsoleto",
+    "obsoleteLocked": "Obsoleto: su origen ya no está instalado.",
+    "obsoleteInOverrides": "Hay permisos obsoletos guardados aquí que no se muestran ni conceden nada: {{keys}}."
+  },
   "resource": {
     "tab": "Permisos",
     "share": "Compartir",

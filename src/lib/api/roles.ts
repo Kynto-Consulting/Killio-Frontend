@@ -6,6 +6,7 @@
  */
 
 import { fetchApi } from "@/lib/api/client";
+import { normalizeCatalog, type PermissionCatalog } from "@/lib/roles/catalog";
 import {
   normalizeOverride,
   normalizeRole,
@@ -26,6 +27,15 @@ export async function getMyTeamPermissions(teamId: string, accessToken: string):
     roles: Array.isArray(raw?.roles) ? raw.roles.map((r: any) => ({ id: String(r.id), name: String(r.name), color: r.color ?? null, position: Number(r.position) || 0 })) : [],
     permissions: Array.isArray(raw?.permissions) ? raw.permissions.filter((p: unknown) => typeof p === "string") : [],
   };
+}
+
+/* ── permission catalogue (addendum A7): the editors are built only from this ── */
+/** Throws when the endpoint is missing or answers something that is not a catalogue (callers fall back to the approximate one). */
+export async function getPermissionCatalog(teamId: string, accessToken: string, locale = "en"): Promise<PermissionCatalog> {
+  const raw = await fetchApi<unknown>(`/teams/${q(teamId)}/permissions/catalog`, { accessToken });
+  const catalog = normalizeCatalog(raw, locale);
+  if (!catalog || catalog.providers.length === 0) throw new Error("Empty permission catalog");
+  return catalog;
 }
 
 /* ── roles ── */

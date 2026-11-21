@@ -9,8 +9,10 @@ import { invalidateTeamPermissions } from "@/hooks/use-team-permissions";
 import { invalidateTeamRoles } from "@/hooks/use-team-roles";
 import { transferOwnership } from "@/lib/api/roles";
 import { toast } from "@/lib/toast";
-import { confirmationMatches, groupHeldPermissions, sortRoles } from "@/lib/roles/model";
-import { permI18n } from "./role-permissions-editor";
+import { usePermissionCatalog } from "@/hooks/use-permission-catalog";
+import { groupHeldByCatalog } from "@/lib/roles/catalog";
+import { confirmationMatches, sortRoles } from "@/lib/roles/model";
+import { OriginBadge, usePermText, useProviderText } from "./role-permissions-editor";
 import { useSettings } from "./settings-context";
 import { Avatar, Dialog, RoleChip, btn, btnDanger, btnPrimary, card, cx, inputCls } from "./ui";
 
@@ -24,7 +26,10 @@ export function OverviewTab({ onRenamed }: { onRenamed: (name: string) => void }
 
   const teamName = s.team?.name ?? "";
   const myRoles = sortRoles(s.perms.roles.map((r) => ({ ...r })));
-  const held = groupHeldPermissions(s.perms.permissions);
+  const { catalog } = usePermissionCatalog(s.teamId);
+  const text = usePermText();
+  const prov = useProviderText();
+  const held = groupHeldByCatalog(s.perms.permissions, catalog);
   const isOwner = s.perms.isOwner;
 
   const rename = async () => {
@@ -87,11 +92,14 @@ export function OverviewTab({ onRenamed }: { onRenamed: (name: string) => void }
           ) : (
             <div className="space-y-2">
               {held.map((g) => (
-                <div key={g.group}>
-                  <div className="mb-0.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{t(`group.${g.group}`)}</div>
+                <div key={`${g.providerId}/${g.group}`}>
+                  <div className="mb-0.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    {text.group(g.group, g.groupLabel)}
+                    {g.providerId !== "core" && <><span className="normal-case">{prov.label({ id: g.providerId, label: catalog.providers.find((p) => p.id === g.providerId)?.label ?? "" })}</span><OriginBadge providerId={g.providerId} /></>}
+                  </div>
                   <ul className="flex flex-wrap gap-1">
                     {g.keys.map((k) => (
-                      <li key={k} title={t(`perm.${permI18n(k)}.desc`)} className="rounded-md border border-border bg-muted/40 px-2 py-0.5 text-xs text-foreground">{t(`perm.${permI18n(k)}.name`)}</li>
+                      <li key={k} className="rounded-md border border-border bg-muted/40 px-2 py-0.5 text-xs text-foreground">{text.nameOfKey(catalog, k)}</li>
                     ))}
                   </ul>
                 </div>

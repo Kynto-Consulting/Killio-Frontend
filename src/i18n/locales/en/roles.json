@@ -538,6 +538,27 @@
     "deleteTitle": "Delete the space",
     "deleteWarn": "This deletes all the space content and cannot be undone."
   },
+  "catalog": {
+    "coreName": "Killio",
+    "approxTitle": "Approximate list.",
+    "approxBody": "The full permission catalogue could not be loaded from the server, so a basic list is shown. Integrations and extensions do not appear until it loads.",
+    "origin": {
+      "core": "Core",
+      "integration": "Integration",
+      "extension": "Extension"
+    },
+    "dangerous": "Sensitive",
+    "dangerousTitle": "Sensitive permission: give it only to people you trust.",
+    "dangerConfirmTitle": "Allow “{{name}}”",
+    "dangerConfirmBody": "This is a sensitive permission: it allows far-reaching actions. Are you sure you want to allow it?",
+    "dangerConfirm": "Yes, allow",
+    "requires": "Needs “{{names}}”, which is not allowed here.",
+    "obsoleteTitle": "Obsolete permissions",
+    "obsoleteBody": "They come from an integration or extension that is no longer installed. They stay in the role but grant nothing, and cannot be edited.",
+    "obsoleteBadge": "Obsolete",
+    "obsoleteLocked": "Obsolete: its source is no longer installed.",
+    "obsoleteInOverrides": "There are obsolete permissions stored here that are not shown and grant nothing: {{keys}}."
+  },
   "resource": {
     "tab": "Permissions",
     "share": "Share",

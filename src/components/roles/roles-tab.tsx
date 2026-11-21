@@ -10,10 +10,12 @@ import { invalidateTeamPermissions } from "@/hooks/use-team-permissions";
 import { createRole, deleteRole, reorderRoles, setMemberRoles, updateRole } from "@/lib/api/roles";
 import { toast } from "@/lib/toast";
 import {
-  ALL_PERMISSION_KEYS, ROLE_NAME_RE, canManageRole, canMoveRole, countStates, dropId, effectiveRoles, enforcePinned, groupRoleIds, isOwnerRole, isPinnedRole, memberRoleIds,
+  ROLE_NAME_RE, canManageRole, canMoveRole, countStates, dropId, effectiveRoles, enforcePinned, groupRoleIds, isOwnerRole, isPinnedRole, memberRoleIds,
   moveId, permissionsChanged, simulateTeamPermission, sortRoles, type PermissionMap, type TeamRole,
 } from "@/lib/roles/model";
-import { RolePermissionsEditor, permI18n } from "./role-permissions-editor";
+import { usePermissionCatalog } from "@/hooks/use-permission-catalog";
+import { groupCatalog } from "@/lib/roles/catalog";
+import { ApproxBanner, RolePermissionsEditor, usePermText } from "./role-permissions-editor";
 import { useSettings, type SettingsMember } from "./settings-context";
 import { ApiNotice, Avatar, ColorField, EmptyState, RoleChip, Switch, TabBar, btn, btnDanger, btnPrimary, card, cx, inputCls } from "./ui";
 
@@ -182,6 +184,7 @@ export function RolesTab() {
 function RoleEditor({ role, canEdit, onDuplicate, onDelete }: { role: TeamRole; canEdit: boolean; onDuplicate: () => void; onDelete: () => void }) {
   const t = useTranslations("roles");
   const s = useSettings();
+  const { catalog } = usePermissionCatalog(s.teamId);
   const [sub, setSub] = useState<"display" | "permissions" | "members">("display");
   const [name, setName] = useState(role.name);
   const [color, setColor] = useState<string | null>(role.color);
@@ -277,7 +280,7 @@ function RoleEditor({ role, canEdit, onDuplicate, onDelete }: { role: TeamRole; 
             </div>
           </div>
         )}
-        {sub === "permissions" && <RolePermissionsEditor role={role} value={perms} onChange={setPerms} actor={s.actor} locked={!manageable} lockedReason={lockedReason} />}
+        {sub === "permissions" && <RolePermissionsEditor role={role} value={perms} onChange={setPerms} actor={s.actor} locked={!manageable} lockedReason={lockedReason} catalog={catalog} />}
         {sub === "members" && <RoleMembersPanel role={role} />}
       </div>
 
@@ -377,6 +380,9 @@ type ReactNodeLike = React.ReactNode;
 function PermissionSimulator() {
   const t = useTranslations("roles");
   const s = useSettings();
+  const { catalog } = usePermissionCatalog(s.teamId);
+  const text = usePermText();
+  const keys = useMemo(() => groupCatalog(catalog, ["team", "room"]).flatMap((sec) => sec.groups.flatMap((g) => g.permissions.map((d) => d.key))), [catalog]);
   const [open, setOpen] = useState(false);
   const [userId, setUserId] = useState("");
   const [query, setQuery] = useState("");
@@ -391,10 +397,10 @@ function PermissionSimulator() {
       personalRoles: eff.filter((e) => e.source.kind === "personal").map((e) => e.role),
       defaultRole: s.roles.find((r) => r.isDefault) ?? null,
     };
-    return ALL_PERMISSION_KEYS.map((k) => ({ key: k, ...simulateTeamPermission(k, input) }));
-  }, [member, s.roles, s.groups]);
+    return keys.map((k) => ({ key: k, ...simulateTeamPermission(k, input) }));
+  }, [member, s.roles, s.groups, keys]);
 
-  const visible = rows.filter((r) => !query.trim() || `${t(`perm.${permI18n(r.key)}.name`)} ${r.key}`.toLowerCase().includes(query.trim().toLowerCase()));
+  const visible = rows.filter((r) => !query.trim() || `${text.nameOfKey(catalog, r.key)} ${r.key}`.toLowerCase().includes(query.trim().toLowerCase()));
 
   return (
     <section className={cx(card, "p-3")}>
@@ -404,6 +410,7 @@ function PermissionSimulator() {
       </button>
       {open && (
         <div className="mt-3 space-y-3">
+          {catalog.source === "approx" && <ApproxBanner />}
           <p className="text-xs text-muted-foreground">{t("sim.help")}</p>
           <select value={userId} onChange={(e) => setUserId(e.target.value)} aria-label={t("sim.pick")} className={inputCls}>
             <option value="">{t("sim.pick")}</option>
@@ -417,7 +424,7 @@ function PermissionSimulator() {
               <ul className="divide-y divide-border rounded-lg border border-border">
                 {visible.map((r) => (
                   <li key={r.key} className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 text-xs">
-                    <span className="font-medium text-foreground">{t(`perm.${permI18n(r.key)}.name`)}</span>
+                    <span className="font-medium text-foreground">{text.nameOfKey(catalog, r.key)}</span>
                     <span className="flex items-center gap-2">
                       <span className={r.state === "allow" ? "font-bold text-emerald-700 dark:text-emerald-300" : "font-bold text-red-700 dark:text-red-300"}>{r.state === "allow" ? t("sim.can") : t("sim.cannot")}</span>
                       <span className="text-muted-foreground">

@@ -10,12 +10,14 @@ import { useTeamRoles } from "@/hooks/use-team-roles";
 import { listTeamMembers, type TeamMemberSummary } from "@/lib/api/contracts";
 import { getMyResourcePermissions, getResourceOverrides, putResourceOverrides, type ResourceKind } from "@/lib/api/roles";
 import { toast } from "@/lib/toast";
+import { usePermissionCatalog } from "@/hooks/use-permission-catalog";
+import { groupCatalog, needsDangerConfirm, obsoleteKeys, unmetRequires } from "@/lib/roles/catalog";
 import {
-  RESOURCE_PERMISSION_KEYS, isEmptyOverride, overrideKey, overrideState, resourceLevel, setOverrideState, type ResourceOverride, type TriState,
+  isEmptyOverride, overrideKey, overrideState, resourceLevel, setOverrideState, type ResourceOverride, type TriState,
 } from "@/lib/roles/model";
-import { Avatar, RoleChip, TriStateControl, btn, btnPrimary, cx, inputCls } from "./ui";
+import { ApproxBanner, DangerBadge, OriginBadge, usePermText } from "./role-permissions-editor";
+import { Avatar, Dialog, RoleChip, TriStateControl, btn, btnDanger, btnPrimary, cx, inputCls } from "./ui";
 
-const permLabelKey = (k: string) => k.replace(/[.]/g, "_");
 const EVERYONE: ResourceOverride = { subjectType: "everyone", subjectId: null, allow: [], deny: [] };
 const sameList = (a: ResourceOverride[], b: ResourceOverride[]) => JSON.stringify(a.map((o) => [overrideKey(o), [...o.allow].sort(), [...o.deny].sort()]).sort()) === JSON.stringify(b.map((o) => [overrideKey(o), [...o.allow].sort(), [...o.deny].sort()]).sort());
 
@@ -29,6 +31,9 @@ export function ResourcePermissionsPanel({ kind, id, teamId, canManage }: { kind
   const { accessToken } = useSession();
   const { roles } = useTeamRoles(teamId);
   const { groups } = useTeamGroups(teamId);
+  const { catalog } = usePermissionCatalog(teamId);
+  const text = usePermText();
+  const [pendingDanger, setPendingDanger] = useState<{ key: string; subject: string; next: TriState } | null>(null);
   const [members, setMembers] = useState<TeamMemberSummary[]>([]);
   const [saved, setSaved] = useState<ResourceOverride[]>([]);
   const [draft, setDraft] = useState<ResourceOverride[]>([]);
@@ -94,6 +99,14 @@ export function ResourcePermissionsPanel({ kind, id, teamId, canManage }: { kind
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, draft, roles, groups, members]);
 
+  // Keys of this resource kind straight from the catalogue (new providers and keys appear on their own).
+  const defs = useMemo(() => groupCatalog(catalog, ["resource"], kind).flatMap((sec) => sec.groups.flatMap((g) => g.permissions)), [catalog, kind]);
+  const staleKeys = useMemo(() => obsoleteKeys([...new Set(draft.flatMap((o) => [...o.allow, ...o.deny]))], catalog), [draft, catalog]);
+  const requestPatch = (key: string, permKey: string, next: TriState) => {
+    const current = draft.find((o) => overrideKey(o) === key);
+    if (current && overrideState(current, permKey) !== "allow" && needsDangerConfirm(catalog, permKey, next)) setPendingDanger({ key, subject: permKey, next });
+    else patch(key, permKey, next);
+  };
   const patch = (key: string, permKey: string, s: TriState) => setDraft((prev) => prev.map((o) => (overrideKey(o) === key ? setOverrideState(o, permKey, s) : o)));
 
   const save = async () => {
@@ -123,6 +136,7 @@ export function ResourcePermissionsPanel({ kind, id, teamId, canManage }: { kind
   return (
     <div className="space-y-3">
       {mine && <MyLevel perms={mine} />}
+      {catalog.source === "approx" && <ApproxBanner />}
       <p className="text-xs text-muted-foreground">{t("resource.intro")}</p>
       {!mayEdit && <p className="text-[11px] text-muted-foreground">{t("resource.readOnly")}</p>}
 
@@ -172,19 +186,34 @@ export function ResourcePermissionsPanel({ kind, id, teamId, canManage }: { kind
                   </button>
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-4">
-                {RESOURCE_PERMISSION_KEYS.map((pk) => (
-                  <div key={pk} className="flex items-center justify-between gap-1.5">
-                    <span className="text-xs text-foreground">{t(`resource.perm.${permLabelKey(pk)}`)}</span>
-                    <TriStateControl value={overrideState(o, pk)} disabled={!mayEdit} label={`${n.label}: ${t(`resource.perm.${permLabelKey(pk)}`)}`} onChange={(s) => patch(key, pk, s)} />
-                  </div>
-                ))}
+              <div className="grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-2">
+                {defs.map((d) => {
+                  const st = overrideState(o, d.key);
+                  const missing = st === "allow" ? unmetRequires(d.key, (k) => o.allow.includes(k), catalog) : [];
+                  return (
+                    <div key={d.key} className="space-y-0.5">
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span className="flex min-w-0 flex-wrap items-center gap-1 text-xs text-foreground">
+                          <span className="truncate">{text.name(d)}</span>
+                          {d.dangerous && <DangerBadge />}
+                          {d.providerId !== "core" && <OriginBadge providerId={d.providerId} />}
+                        </span>
+                        <TriStateControl value={st} disabled={!mayEdit} label={`${n.label}: ${text.name(d)}`} onChange={(next) => requestPatch(key, d.key, next)} />
+                      </div>
+                      {missing.length > 0 && <p className="text-[11px] text-amber-700 dark:text-amber-300">{t("catalog.requires", { names: missing.map((k) => text.nameOfKey(catalog, k)).join(", ") })}</p>}
+                    </div>
+                  );
+                })}
               </div>
             </li>
           );
         })}
         {draft.length === 0 && <li className="px-3 py-3 text-xs text-muted-foreground">{t("resource.empty")}</li>}
       </ul>
+
+      {staleKeys.length > 0 && (
+        <p role="status" className="rounded-lg border border-dashed border-border px-3 py-2 text-[11px] text-muted-foreground opacity-80">{t("catalog.obsoleteInOverrides", { keys: staleKeys.join(", ") })}</p>
+      )}
 
       {mayEdit && (
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -194,6 +223,20 @@ export function ResourcePermissionsPanel({ kind, id, teamId, canManage }: { kind
             <button type="button" className={cx(btnPrimary)} disabled={!dirty || saving} onClick={save}>{t("resource.save")}</button>
           </span>
         </div>
+      )}
+      {pendingDanger && (
+        <Dialog
+          title={t("catalog.dangerConfirmTitle", { name: text.nameOfKey(catalog, pendingDanger.subject) })}
+          onClose={() => setPendingDanger(null)}
+          footer={
+            <>
+              <button type="button" className={btn} onClick={() => setPendingDanger(null)}>{t("common.cancel")}</button>
+              <button type="button" className={btnDanger} onClick={() => { patch(pendingDanger.key, pendingDanger.subject, pendingDanger.next); setPendingDanger(null); }}>{t("catalog.dangerConfirm")}</button>
+            </>
+          }
+        >
+          <p className="text-sm text-foreground">{t("catalog.dangerConfirmBody")}</p>
+        </Dialog>
       )}
     </div>
   );
