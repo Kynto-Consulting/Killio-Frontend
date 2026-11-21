@@ -223,7 +223,7 @@ function RoleEditor({ role, canEdit, onDuplicate, onDelete }: { role: TeamRole; 
   };
 
   return (
-    <section aria-label={role.name} className={cx(card, "min-w-0 p-3")}>
+    <section aria-label={role.name} className={cx(card, "flex min-h-0 min-w-0 flex-col p-3 lg:sticky lg:top-3 lg:max-h-[calc(100dvh-7rem)] max-h-[calc(100dvh-9rem)]")}>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <RoleChip name={name.trim() || role.name} color={color} />
@@ -258,7 +258,7 @@ function RoleEditor({ role, canEdit, onDuplicate, onDelete }: { role: TeamRole; 
         ]}
       />
 
-      <div className="pt-3" role="tabpanel" id={`role-editor-panel-${sub}`} aria-labelledby={`role-editor-tab-${sub}`}>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-0.5 pb-1 pt-3" role="tabpanel" id={`role-editor-panel-${sub}`} aria-labelledby={`role-editor-tab-${sub}`}>
         {sub === "display" && (
           <div className="space-y-4">
             <label className="block">
@@ -285,7 +285,7 @@ function RoleEditor({ role, canEdit, onDuplicate, onDelete }: { role: TeamRole; 
       </div>
 
       {(sub !== "members") && manageable && (
-        <div className="sticky bottom-0 mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--memphis-line)] bg-card px-3 py-2">
+        <div className="mt-3 flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--memphis-line)] bg-card px-3 py-2">
           <span className="text-xs text-muted-foreground" role="status">{dirty ? t("editor.unsaved") : t("editor.saved")}</span>
           <div className="flex gap-1.5">
             <button type="button" className={btn} disabled={!dirty || saving} onClick={reset}>{t("editor.reset")}</button>

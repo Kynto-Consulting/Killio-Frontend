@@ -213,7 +213,7 @@ export function TabBar({ tabs, active, onChange, label, idPrefix = "settings" }:
     e.preventDefault();
   };
   return (
-    <div role="tablist" aria-label={label} onKeyDown={onKeyDown} className="-mx-1 flex max-w-full gap-1 overflow-x-auto border-b border-border px-1 [scrollbar-width:thin]">
+    <div role="tablist" aria-label={label} onKeyDown={onKeyDown} className="-mx-1 flex max-w-full shrink-0 gap-1 overflow-x-auto overflow-y-hidden border-b border-border px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {tabs.map((tab) => {
         const on = tab.id === active;
         return (
