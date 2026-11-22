@@ -8,6 +8,7 @@ import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import { useSession } from "@/components/providers/session-provider";
 import { useTenant } from "@/components/providers/tenant-provider";
 import { FOCUS_RING, SOFT_PRIMARY, SOFT_SECONDARY, MemphisIllustration, PackCard, PackCardSkeleton, useCategoryLabel } from "@/components/marketplace/pack-ui";
+import { InstalledPacksSection } from "@/components/marketplace/pack-update";
 import { formatPackPrice, newIdempotencyKey, nextHubAction, parsePurchaseReturn } from "@/lib/marketplace/pricing";
 import { categoriesFromPacks, coverBgVar, coverFamily, filterPacks, parseInstallParam, SORT_MODES, sortPacks, type SortMode } from "@/lib/marketplace/presentation";
 import {
@@ -418,6 +419,9 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
             );
           })}
         </div>
+
+        {/* ── packs installed in this workspace, with their updates ── */}
+        {accessToken ? <InstalledPacksSection teamId={activeTeamId} /> : null}
 
         {/* ── NOTICES ── */}
         {purchaseReturn ? (

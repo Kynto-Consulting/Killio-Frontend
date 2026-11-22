@@ -318,5 +318,112 @@
       "category": "Enter a category of 2 to 32 letters, numbers or hyphens.",
       "save": "The presentation could not be saved."
     }
+  },
+  "update": {
+    "title": "Update pack",
+    "available": "Update available ({{from}} → {{to}})",
+    "availableRevision": "Update available (revision of {{version}})",
+    "revisionOf": "Revision of {{version}}",
+    "upToDate": "Up to date ({{version}})",
+    "unavailable": "Could not check",
+    "conflictsBadge": "{{count}} in conflict",
+    "installedVersion": "Installed: {{version}}",
+    "installedOn": "since {{date}}",
+    "installedSection": "Packs installed in this workspace",
+    "updatesCount": "{{count}} with an update",
+    "check": "Check for updates",
+    "viewChanges": "View changes",
+    "apply": "Update",
+    "applyWithOverwrite": "Update and overwrite {{count}}",
+    "applying": "Updating...",
+    "close": "Close",
+    "reassure": "Your documents, boards, messages and members are not touched and nothing is deleted. Only settings (roles, groups, channels and bots) your team has not changed are updated.",
+    "changelog": "What's new",
+    "noChanges": "There is nothing to apply.",
+    "changes": "Changes: {{fields}}",
+    "placeholdersTitle": "Values needed",
+    "placeholdersHint": "The new version asks for values you do not have yet. Fill them in to update.",
+    "overwrite": "Overwrite with the pack's version",
+    "overwriteHint": "Your team changed this. If you overwrite it, those changes are lost.",
+    "overwriteNoPermission": "Only people who manage packs in this workspace can overwrite.",
+    "sections": {
+      "conflicts": {
+        "title": "In conflict",
+        "hint": "Your team changed these settings. They are left as they are, unless you choose to overwrite them one by one."
+      },
+      "updated": {
+        "title": "Will be updated",
+        "hint": "Settings the pack changed and nobody on your team had touched."
+      },
+      "added": {
+        "title": "Will be added",
+        "hint": "New items from the pack, next to what you already have."
+      },
+      "keptContent": {
+        "title": "Content that is kept",
+        "hint": "The pack changed these items, but they are your team content: they are never overwritten."
+      },
+      "removed": {
+        "title": "No longer part of the pack",
+        "hint": "The pack dropped them. They stay in your workspace as they are; nothing is deleted."
+      },
+      "skipped": {
+        "title": "Skipped",
+        "hint": "Not touched."
+      }
+    },
+    "reasons": {
+      "baseline_unknown": "We cannot tell whether your team changed it (it was installed before updates existed). It is left as it is.",
+      "edited_locally": "Your team changed it since it was installed.",
+      "content_not_overwritten": "It is your team content: your copy is kept.",
+      "removed_from_pack_kept": "It is no longer part of the pack. It stays in your workspace.",
+      "deleted_locally": "You deleted it: it is not created again.",
+      "locked_by_workspace": "Locked in this workspace: unlock it to receive the update."
+    },
+    "results": {
+      "title": "Result",
+      "done": "Updated to {{version}}",
+      "noop": "There was nothing to update.",
+      "withErrors": "Updated, but {{count}} items failed",
+      "status": {
+        "updated": "Updated",
+        "added": "Added",
+        "kept": "Kept",
+        "skipped": "Skipped",
+        "conflict": "Conflict",
+        "error": "Error"
+      }
+    },
+    "legacy": {
+      "title": "Installed before updates",
+      "hint": "It was installed before updates existed. You can turn them on: only items that still exist are followed and nothing your team changed is overwritten.",
+      "enable": "Turn on updates",
+      "enabling": "Turning on...",
+      "enabled": "Updates turned on ({{count}} items)"
+    },
+    "errors": {
+      "preview": "The update could not be calculated",
+      "apply": "The pack could not be updated",
+      "adopt": "Updates could not be turned on"
+    },
+    "fields": {
+      "color": "color",
+      "mentionable": "mentionable",
+      "selfAssignable": "self-assignable",
+      "permissions": "permissions",
+      "description": "description",
+      "roleIds": "group roles",
+      "emoji": "emoji",
+      "channelType": "channel type",
+      "slowmodeSeconds": "slowmode",
+      "categoryId": "category",
+      "overrides": "channel permissions",
+      "name": "name",
+      "avatarUrl": "avatar",
+      "allowBotTriggers": "triggered by other bots",
+      "commands": "commands",
+      "roomPermissions": "bot permissions in channels",
+      "graph": "script"
+    }
   }
 }

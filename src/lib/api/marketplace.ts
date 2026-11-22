@@ -440,3 +440,112 @@ export async function importHubPack(packId: string, input: MarketplaceImportInpu
 export async function startHubConnect(accessToken: string) {
   return fetchApi<{ authorizationUrl: string }>(`/oauth/connect/start`, { method: "POST", accessToken });
 }
+
+/* ── installed packs and in-place updates ── */
+
+export type PackInstallEntry = {
+  packId: string;
+  source: "local" | "hub";
+  slug: string | null;
+  title: string | null;
+  installedVersionId: string;
+  installedVersion: string;
+  installedAt: string;
+  installedByUserId: string | null;
+  lastUpdatedAt: string | null;
+  origin: "install" | "adopted";
+  latest: { versionId: string; version: string; publishedAt: string | null; changelog: string | null } | null;
+  /** null = unknown (a pack from the hub is checked on demand). */
+  updateAvailable: boolean | null;
+  pending: { added: number; updated: number; conflicts: number; removedKept: number; keptContent: number } | null;
+  reason: "hub_check_required" | "pack_unavailable" | "check_failed" | null;
+};
+
+export type LegacyInstallEntry = {
+  packId: string;
+  title: string | null;
+  slug: string | null;
+  lastInstalledVersionId: string | null;
+  lastInstalledAt: string | null;
+  canAdopt: boolean;
+  reason: "legacy_install";
+};
+
+export type PackInstallsResponse = { teamId: string; canManage: boolean; installs: PackInstallEntry[]; legacy: LegacyInstallEntry[] };
+
+export type UpdateDecision = "add" | "apply" | "conflict" | "keep_content" | "keep_removed" | "skip_missing" | "skip_locked" | "noop";
+export type UpdateReason =
+  | "new_in_pack" | "pack_changed" | "unchanged" | "content_not_overwritten" | "edited_locally" | "baseline_unknown"
+  | "removed_from_pack_kept" | "already_removed_from_pack" | "deleted_locally" | "locked_by_workspace" | "overwrite_requested" | "publisher_lock_replaced";
+
+export type UpdatePlanItem = {
+  logicalKey: string;
+  assetType: string;
+  name: string | null;
+  kind: "config" | "content";
+  change: "added" | "modified" | "removed" | "unchanged";
+  decision: UpdateDecision;
+  reason: UpdateReason;
+  localEdited: boolean | null;
+  overwritable: boolean;
+  overwritten: boolean;
+  /** Which settings change (roles, channels and bots that will be updated or are in conflict). */
+  fields: string[];
+};
+
+export type UpdatePreview = {
+  dryRun: true;
+  pack: { id: string; title: string; slug: string };
+  from: { versionId: string; version: string };
+  to: { versionId: string; version: string; changelog: string | null };
+  locale: string;
+  summary: { added: number; updated: number; conflicts: number; keptContent: number; removedKept: number; unchanged: number; skipped: number };
+  noop: boolean;
+  canOverwrite: boolean;
+  missingPlaceholders: Array<{ key: string; valueType: string; description: string | null; defaultValue: unknown }>;
+  items: UpdatePlanItem[];
+  warnings: string[];
+};
+
+export type UpdateItemResult = {
+  logicalKey: string;
+  assetType: string;
+  name: string | null;
+  status: "added" | "updated" | "unchanged" | "kept" | "skipped" | "conflict" | "error";
+  reason: string;
+  fields?: string[];
+  message?: string;
+};
+
+export type UpdateApplyResult = {
+  noop: boolean;
+  jobId: string | null;
+  from: { versionId: string; version: string };
+  to: { versionId: string; version: string };
+  summary: Record<string, number>;
+  results: UpdateItemResult[];
+  warnings: string[];
+};
+
+export type UpdateRequest = { targetVersionId?: string; locale?: string; placeholderValues?: Record<string, unknown>; overwrite?: string[] };
+
+const installsBase = (teamId: string, packId: string, hub: boolean) =>
+  `${hub ? "/marketplace/hub" : "/marketplace"}/teams/${encodeURIComponent(teamId)}/installs/${encodeURIComponent(packId)}`;
+
+export async function listTeamPackInstalls(teamId: string, accessToken: string): Promise<PackInstallsResponse> {
+  return fetchApi<PackInstallsResponse>(`/marketplace/teams/${encodeURIComponent(teamId)}/installs`, { accessToken });
+}
+
+/** "Ver cambios": the plan of the update, nothing is written. `hub` = the pack came from the hub (tenant workspaces). */
+export async function previewPackUpdate(teamId: string, packId: string, body: UpdateRequest, accessToken: string, hub = false): Promise<UpdatePreview> {
+  return fetchApi<UpdatePreview>(`${installsBase(teamId, packId, hub)}/update/preview`, { method: "POST", accessToken, body: JSON.stringify(body) });
+}
+
+export async function applyPackUpdate(teamId: string, packId: string, body: UpdateRequest, accessToken: string, hub = false): Promise<UpdateApplyResult> {
+  return fetchApi<UpdateApplyResult>(`${installsBase(teamId, packId, hub)}/update`, { method: "POST", accessToken, body: JSON.stringify(body) });
+}
+
+/** Enables updates for a pack installed before the install registry existed. */
+export async function adoptLegacyPackInstall(teamId: string, packId: string, accessToken: string) {
+  return fetchApi<{ packId: string; version: string; tracked: number; deletedByTeam: number; ofAssets: number; baseline: "unknown" }>(`${installsBase(teamId, packId, false)}/adopt`, { method: "POST", accessToken });
+}

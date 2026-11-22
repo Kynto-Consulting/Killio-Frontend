@@ -12,6 +12,7 @@ import { PackGallery } from "@/components/marketplace/pack-gallery";
 import { PackDocument } from "@/components/marketplace/pack-document";
 import { PackSubscriptionPanel } from "@/components/marketplace/pack-subscription-panel";
 import { CategoryChip, FOCUS_RING, SOFT_PRIMARY, SOFT_SECONDARY, MemphisIllustration, PackCard, PackCover, PriceBadge } from "@/components/marketplace/pack-ui";
+import { PackUpdateNotice } from "@/components/marketplace/pack-update";
 import { formatPackPrice, nextHubAction } from "@/lib/marketplace/pricing";
 import { groupAssets, humanizeFieldKey, relatedPacks, resolvePlaceholderText } from "@/lib/marketplace/presentation";
 import {
@@ -51,7 +52,7 @@ export function MarketplaceDetailView({ packId, compact = false }: { packId: str
   const { locale } = useI18n();
   const t = useTranslations("marketplace");
   const router = useRouter();
-  const { accessToken } = useSession();
+  const { accessToken, activeTeamId } = useSession();
   const isTenant = useTenant().mode === "tenant";
 
   const [detail, setDetail] = useState<MarketplacePackDetail | null>(null);
@@ -183,6 +184,9 @@ export function MarketplaceDetailView({ packId, compact = false }: { packId: str
   return (
     <div className="mx-auto w-full max-w-6xl px-4 pb-12 pt-6 sm:px-6">
       {breadcrumb}
+
+      {/* ── an update of THIS pack in the active workspace ── */}
+      {accessToken ? <div className="mb-5 empty:hidden"><PackUpdateNotice teamId={activeTeamId} packId={pack.id} packTitle={title} hub={isTenant} /></div> : null}
 
       {/* ── HERO ── */}
       <div className="grid gap-6 lg:grid-cols-5">

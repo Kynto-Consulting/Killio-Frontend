@@ -318,5 +318,112 @@
       "category": "Escribe una categoría de 2 a 32 letras, números o guiones.",
       "save": "No se pudo guardar la presentación."
     }
+  },
+  "update": {
+    "title": "Actualizar pack",
+    "available": "Actualización disponible ({{from}} → {{to}})",
+    "availableRevision": "Actualización disponible (revisión de {{version}})",
+    "revisionOf": "Revisión de {{version}}",
+    "upToDate": "Al día ({{version}})",
+    "unavailable": "No se pudo comprobar",
+    "conflictsBadge": "{{count}} en conflicto",
+    "installedVersion": "Instalado: {{version}}",
+    "installedOn": "desde {{date}}",
+    "installedSection": "Packs instalados en este espacio",
+    "updatesCount": "{{count}} con actualización",
+    "check": "Buscar actualización",
+    "viewChanges": "Ver cambios",
+    "apply": "Actualizar",
+    "applyWithOverwrite": "Actualizar y sobrescribir {{count}}",
+    "applying": "Actualizando...",
+    "close": "Cerrar",
+    "reassure": "Tus documentos, tableros, mensajes y miembros no se tocan y nada se borra. Solo se actualizan ajustes (roles, grupos, canales y bots) que tu equipo no haya cambiado.",
+    "changelog": "Novedades",
+    "noChanges": "No hay cambios que aplicar.",
+    "changes": "Cambia: {{fields}}",
+    "placeholdersTitle": "Faltan valores",
+    "placeholdersHint": "La nueva versión pide valores que aún no tienes. Complétalos para actualizar.",
+    "overwrite": "Sobrescribir con la versión del pack",
+    "overwriteHint": "Tu equipo cambió esto. Si lo sobrescribes, esos cambios se pierden.",
+    "overwriteNoPermission": "Solo quien gestiona los packs del espacio puede sobrescribir.",
+    "sections": {
+      "conflicts": {
+        "title": "En conflicto",
+        "hint": "Tu equipo cambió estos ajustes. Se dejan como están, salvo que elijas sobrescribirlos uno por uno."
+      },
+      "updated": {
+        "title": "Se actualizarán",
+        "hint": "Ajustes que el pack cambió y que nadie de tu equipo había tocado."
+      },
+      "added": {
+        "title": "Se añadirán",
+        "hint": "Elementos nuevos del pack, junto a lo que ya tienes."
+      },
+      "keptContent": {
+        "title": "Contenido que se conserva",
+        "hint": "El pack cambió estos elementos, pero son contenido de tu equipo: nunca se sobrescriben."
+      },
+      "removed": {
+        "title": "Ya no forman parte del pack",
+        "hint": "El pack los quitó. En tu espacio se quedan tal como están; no se borra nada."
+      },
+      "skipped": {
+        "title": "Omitidos",
+        "hint": "No se tocan."
+      }
+    },
+    "reasons": {
+      "baseline_unknown": "No se puede saber si tu equipo lo cambió (se instaló antes de que existieran las actualizaciones). Se deja como está.",
+      "edited_locally": "Tu equipo lo cambió desde que se instaló.",
+      "content_not_overwritten": "Es contenido de tu equipo: se conserva tu copia.",
+      "removed_from_pack_kept": "Ya no forma parte del pack. Se queda en tu espacio.",
+      "deleted_locally": "Lo borraste: no se vuelve a crear.",
+      "locked_by_workspace": "Bloqueado en este espacio: desbloquéalo para recibir la actualización."
+    },
+    "results": {
+      "title": "Resultado",
+      "done": "Actualizado a {{version}}",
+      "noop": "No había nada que actualizar.",
+      "withErrors": "Actualizado, pero {{count}} elementos fallaron",
+      "status": {
+        "updated": "Actualizado",
+        "added": "Añadido",
+        "kept": "Conservado",
+        "skipped": "Omitido",
+        "conflict": "Conflicto",
+        "error": "Error"
+      }
+    },
+    "legacy": {
+      "title": "Instalado antes de las actualizaciones",
+      "hint": "Se instaló antes de que existieran las actualizaciones. Puedes activarlas: solo se siguen los elementos que aún existen y no se sobrescribe nada que tu equipo haya cambiado.",
+      "enable": "Activar actualizaciones",
+      "enabling": "Activando...",
+      "enabled": "Actualizaciones activadas ({{count}} elementos)"
+    },
+    "errors": {
+      "preview": "No se pudo calcular la actualización",
+      "apply": "No se pudo actualizar el pack",
+      "adopt": "No se pudieron activar las actualizaciones"
+    },
+    "fields": {
+      "color": "color",
+      "mentionable": "mencionable",
+      "selfAssignable": "autoasignable",
+      "permissions": "permisos",
+      "description": "descripción",
+      "roleIds": "roles del grupo",
+      "emoji": "emoji",
+      "channelType": "tipo de canal",
+      "slowmodeSeconds": "modo lento",
+      "categoryId": "categoría",
+      "overrides": "permisos del canal",
+      "name": "nombre",
+      "avatarUrl": "avatar",
+      "allowBotTriggers": "activación por otros bots",
+      "commands": "comandos",
+      "roomPermissions": "permisos del bot en canales",
+      "graph": "script"
+    }
   }
 }
