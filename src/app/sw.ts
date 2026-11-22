@@ -10,6 +10,7 @@ import {
   Strategy,
   type StrategyHandler,
 } from "serwist";
+import { TWEMOJI_ORIGIN, TWEMOJI_PATH_PREFIX } from "../lib/emoji/twemoji-url";
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -172,6 +173,15 @@ const serwist = new Serwist({
       }),
     },
     // Images - Cache first, network fallback
+    // Twemoji SVGs (pinned version, immutable): their own cache so they never evict other images, and they stay
+    // available offline once seen. Requested with crossOrigin="anonymous", so the responses are cacheable.
+    {
+      matcher: ({ url }) => url.origin === TWEMOJI_ORIGIN && url.pathname.startsWith(TWEMOJI_PATH_PREFIX),
+      handler: new CacheFirst({
+        cacheName: "twemoji-cache-v1",
+        plugins: [new ExpirationPlugin({ maxEntries: 1500, maxAgeSeconds: 365 * 24 * 60 * 60 })],
+      }),
+    },
     {
       matcher: ({ request, url }) =>
         request.destination === "image" ||

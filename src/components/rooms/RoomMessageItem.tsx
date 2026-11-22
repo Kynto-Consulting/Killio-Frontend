@@ -31,6 +31,7 @@ import { MessageInfoPanel } from "./MessageInfoPanel";
 import { canUnpinMessage, formatPinCountdown, pinNow, pinTimeLeft, type PinCaps } from "@/lib/rooms/pins";
 import { Portal } from "@/components/ui/portal";
 import { parseInlineToolEvents, resolveToolCallRenderState } from "@/hooks/use-agent-chat";
+import { Emoji } from "@/components/emoji";
 
 const resolveAssetUrl = (url: string) => {
   if (!url) return "";
@@ -1152,7 +1153,7 @@ export function RoomMessageItem({
                       mine ? "border-primary bg-primary/5 ring-1 ring-primary/30 font-semibold" : "border-border/60 bg-muted/40 hover:bg-muted"
                     }`}
                   >
-                    <span aria-hidden>{emoji}</span>
+                    <span aria-hidden><Emoji value={emoji} size={16} label="" /></span>
                     <span className="text-[10px] text-muted-foreground" aria-hidden>{new Set(list).size}</span>
                   </button>
                 );

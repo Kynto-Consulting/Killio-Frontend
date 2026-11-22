@@ -17,10 +17,22 @@
     "path": {
       "privacy": "Privacy",
       "terms": "Terms",
-      "cookies": "Cookies"
+      "cookies": "Cookies",
+      "credits": "Credits"
     }
   },
   "pages": {
+    "credits": {
+      "eyebrow": "Credits",
+      "title": "Third-party material used in the product.",
+      "intro": "Killio uses open source emoji artwork and data. The credits and licenses below are shown as required by their authors.",
+      "updated": "November 21, 2026",
+      "contact": "For questions about these notices, use your usual support channel with Kynto.",
+      "sections": {
+        "twemoji": { "title": "Twemoji graphics", "body": "Emoji images are Twemoji, maintained in the @twemoji/api project (jdecked/twemoji). Graphics copyright 2014-2021 Twitter, Inc. and other contributors, licensed under CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/). The project code is licensed under the MIT License." },
+        "emojiData": { "title": "Emoji data", "body": "Emoji names, keywords and categories come from @emoji-mart/data, licensed under the MIT License." }
+      }
+    },
     "privacy": {
       "eyebrow": "Privacy Policy",
       "title": "How Killio handles account, workspace, and product data.",

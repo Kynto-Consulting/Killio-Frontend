@@ -18,6 +18,7 @@ import { AiSuggestion } from "./ai-suggestion";
 // Registers KaTeX extensions (mhchem \ce{}) on the shared KaTeX instance.
 import "@/lib/latex/katex-config";
 import { BlockMath, InlineMath } from "react-katex";
+import { EmojiText } from "@/components/emoji";
 
 interface RichTextProps {
   content: string;
@@ -431,19 +432,19 @@ function renderInlineMarkdown(text: string, availableTags: any[], noSize = false
       const chunks = input.split(/(\*\*[\s\S]+?\*\*|__[\s\S]+?__|~~[\s\S]+?~~|\*[^*\n]+?\*|(?<![A-Za-z0-9])_[^_\n]+?_(?![A-Za-z0-9]))/g);
       return chunks.map((chunk, index) => {
         if (chunk.startsWith("**") && chunk.endsWith("**") && chunk.length > 4) {
-          return <strong key={`${decorationPrefix}-bold-${index}`}>{chunk.slice(2, -2)}</strong>;
+          return <strong key={`${decorationPrefix}-bold-${index}`}><EmojiText text={chunk.slice(2, -2)} /></strong>;
         }
         if (chunk.startsWith("__") && chunk.endsWith("__") && chunk.length > 4) {
-          return <u key={`${decorationPrefix}-underline-${index}`}>{chunk.slice(2, -2)}</u>;
+          return <u key={`${decorationPrefix}-underline-${index}`}><EmojiText text={chunk.slice(2, -2)} /></u>;
         }
         if (chunk.startsWith("~~") && chunk.endsWith("~~") && chunk.length > 4) {
-          return <s key={`${decorationPrefix}-strike-${index}`}>{chunk.slice(2, -2)}</s>;
+          return <s key={`${decorationPrefix}-strike-${index}`}><EmojiText text={chunk.slice(2, -2)} /></s>;
         }
         if (chunk.length > 2 && chunk.startsWith("*") && chunk.endsWith("*")) {
-          return <em key={`${decorationPrefix}-italic-${index}`}>{chunk.slice(1, -1)}</em>;
+          return <em key={`${decorationPrefix}-italic-${index}`}><EmojiText text={chunk.slice(1, -1)} /></em>;
         }
         if (chunk.length > 2 && chunk.startsWith("_") && chunk.endsWith("_")) {
-          return <em key={`${decorationPrefix}-italic2-${index}`}>{chunk.slice(1, -1)}</em>;
+          return <em key={`${decorationPrefix}-italic2-${index}`}><EmojiText text={chunk.slice(1, -1)} /></em>;
         }
 
         const tagChunks = chunk.split(/(tag\.(?:native|custom)\.[a-zA-Z0-9.\-]+)/g);
@@ -459,7 +460,7 @@ function renderInlineMarkdown(text: string, availableTags: any[], noSize = false
                   </span>
                 );
               }
-              return <Fragment key={`${decorationPrefix}-frag-${tcIdx}`}>{tc}</Fragment>;
+              return <Fragment key={`${decorationPrefix}-frag-${tcIdx}`}><EmojiText text={tc} /></Fragment>;
             })}
           </Fragment>
         );

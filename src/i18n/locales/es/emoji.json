@@ -1,0 +1,44 @@
+{
+  "picker": {
+    "label": "Selector de emojis",
+    "search": "Buscar emoji",
+    "searchPlaceholder": "Buscar emoji…",
+    "clear": "Borrar búsqueda",
+    "noResults": "No se encontró ningún emoji",
+    "noResultsHint": "Prueba con otra palabra o un :código:",
+    "loading": "Cargando emojis…",
+    "loadError": "No se pudo cargar la lista de emojis",
+    "retry": "Reintentar",
+    "close": "Cerrar",
+    "previewEmpty": "Elige un emoji",
+    "results": "Resultados de la búsqueda",
+    "categoriesNav": "Categorías",
+    "skinTone": "Tono de piel"
+  },
+  "categories": {
+    "frequent": "Frecuentes",
+    "people": "Gente",
+    "nature": "Naturaleza",
+    "foods": "Comida",
+    "activity": "Actividades",
+    "places": "Viajes",
+    "objects": "Objetos",
+    "symbols": "Símbolos",
+    "flags": "Banderas",
+    "custom": "Servidor"
+  },
+  "tones": {
+    "0": "Predeterminado",
+    "1": "Claro",
+    "2": "Medio-claro",
+    "3": "Medio",
+    "4": "Medio-oscuro",
+    "5": "Oscuro"
+  },
+  "custom": {
+    "empty": "Este espacio aún no tiene emojis personalizados"
+  },
+  "image": {
+    "fallbackLabel": "Emoji"
+  }
+}

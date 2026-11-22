@@ -6,7 +6,7 @@ import { ChevronLeft, FileText, Lock, ScrollText } from "lucide-react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { PublicFooter } from "@/components/marketing/public-footer";
 
-type LegalPageKey = "privacy" | "terms" | "cookies";
+type LegalPageKey = "privacy" | "terms" | "cookies" | "credits";
 
 type LegalDocumentPageProps = {
   page: LegalPageKey;
@@ -16,12 +16,14 @@ const PAGE_ICONS = {
   privacy: Lock,
   terms: ScrollText,
   cookies: FileText,
+  credits: FileText,
 } as const;
 
 const PAGE_SECTIONS = {
   privacy: ["collection", "usage", "sharing", "retention", "rights"],
   terms: ["access", "accounts", "acceptableUse", "ownership", "termination"],
   cookies: ["whatTheyAre", "howWeUse", "choices", "thirdParties", "updates"],
+  credits: ["twemoji", "emojiData"],
 } as const;
 
 export function LegalDocumentPage({ page }: LegalDocumentPageProps) {

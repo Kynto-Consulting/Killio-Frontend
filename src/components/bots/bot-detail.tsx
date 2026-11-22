@@ -21,6 +21,7 @@ import { sortRoles } from "@/lib/roles/model";
 import { toast } from "@/lib/toast";
 import { BotAvatar, StatusChip } from "./bot-parts";
 import { OptionsEditor } from "./options-editor";
+import { EmojiText } from "@/components/emoji";
 
 type Sub = "general" | "commands" | "script" | "rooms";
 
@@ -435,7 +436,7 @@ function RoomsPane({ bot }: { bot: Bot }) {
             <li key={row.room.id} className="rounded-lg border border-border px-2 py-2">
               <div className="grid items-center gap-2 sm:grid-cols-[1fr_repeat(3,7rem)_auto]">
                 <div className="min-w-0 truncate text-sm font-semibold text-foreground">
-                  <span aria-hidden>{row.room.emoji ?? "#"}</span> {row.room.name}
+                  <span aria-hidden>{row.room.emoji ? <EmojiText text={row.room.emoji} /> : "#"}</span> {row.room.name}
                   {row.error && <span className="ml-2 text-[10px] font-normal text-amber-700 dark:text-amber-300">{t("rooms.noAccess")}</span>}
                 </div>
                 {BOT_ROOM_KEYS.map((k) => (

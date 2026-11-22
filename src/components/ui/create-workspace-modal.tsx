@@ -6,6 +6,7 @@ import type { TeamRole } from "@/lib/api/contracts";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useForm, useListField, useInput } from "@/hooks/ui";
 import { Select } from "@/components/ui/select";
+import { Emoji } from "@/components/emoji";
 
 type InviteRole = Exclude<TeamRole, "owner">;
 
@@ -119,7 +120,7 @@ export function CreateWorkspaceModal({ isOpen, onClose, onSubmit }: CreateWorksp
                         onClick={() => { setIcon(emoji); setShowIconPicker(false); }}
                         className="flex h-8 w-8 items-center justify-center rounded hover:bg-accent/20 text-base transition-colors"
                       >
-                        {emoji}
+                        <Emoji value={emoji} size={20} label="" />
                       </button>
                     ))}
                   </div>

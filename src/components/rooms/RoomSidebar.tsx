@@ -14,6 +14,7 @@ import {
   type LayoutRoom,
 } from "@/lib/rooms/channel-layout";
 import { moveChannel, sameLayout, shiftChannel, toLayoutItems, type ChannelSection, type LayoutItem } from "@/lib/rooms/channel-order";
+import { Emoji } from "@/components/emoji";
 
 type TFn = (key: string, params?: Record<string, string | number>) => string;
 
@@ -113,7 +114,7 @@ function RoomItem({ room, title, isActive, peer, t }: { room: SidebarRoom; title
       {room.type === "dm" && peer ? (
         <img src={getUserAvatarUrl(peer.avatarUrl, peer.email, 20)} alt="" className="h-5 w-5 shrink-0 rounded-full border border-border object-cover" />
       ) : room.emoji && room.type === "channel" ? (
-        <span className="w-4 shrink-0 text-center text-xs" aria-hidden>{room.emoji}</span>
+        <span className="w-4 shrink-0 text-center text-xs" aria-hidden><Emoji value={room.emoji} size={14} label="" /></span>
       ) : (
         <Icon className="h-4 w-4 shrink-0 opacity-70" />
       )}

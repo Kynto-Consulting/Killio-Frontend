@@ -60,6 +60,8 @@ import enQueryFlow from "@/i18n/locales/en/query-flow.json";
 import esQueryFlow from "@/i18n/locales/es/query-flow.json";
 import enBots from "@/i18n/locales/en/bots.json";
 import esBots from "@/i18n/locales/es/bots.json";
+import enEmoji from "@/i18n/locales/en/emoji.json";
+import esEmoji from "@/i18n/locales/es/emoji.json";
 import enRoles from "@/i18n/locales/en/roles.json";
 import esRoles from "@/i18n/locales/es/roles.json";
 import enOnboarding from "@/i18n/locales/en/onboarding.json";
@@ -77,7 +79,7 @@ export const NAMESPACES = [
   "history", "board-detail", "document-detail", "notifications",
   "landing", "legal", "integrations", "pricing", "marketplace", "rooms", "mesh",
   "share-local", "vault", "groups", "board-filters", "kql",
-  "file-options", "query-flow", "onboarding", "roles", "bots",
+  "file-options", "query-flow", "onboarding", "roles", "bots", "emoji",
 ] as const;
 
 export type Namespace = (typeof NAMESPACES)[number];
@@ -123,6 +125,7 @@ const dictionaries: Record<Locale, LocaleMessages> = {
     onboarding: enOnboarding,
     roles: enRoles,
     bots: enBots,
+    emoji: enEmoji,
   },
   es: {
     common: esCommon,
@@ -158,6 +161,7 @@ const dictionaries: Record<Locale, LocaleMessages> = {
     onboarding: esOnboarding,
     roles: esRoles,
     bots: esBots,
+    emoji: esEmoji,
   },
 };
 

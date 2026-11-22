@@ -10,6 +10,7 @@ import {
   Music,
   Video,
 } from "lucide-react";
+import { EmojiText } from "@/components/emoji";
 
 /** kebab/space → PascalCase ("book-open" → "BookOpen"). */
 function toPascal(name: string): string {
@@ -71,7 +72,7 @@ export function FolderIconDisplay({
   if (icon && !IconComp && isTextFallback) {
     return (
       <span className={className} style={{ color: color || undefined, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-        {icon}
+        <EmojiText text={icon} />
       </span>
     );
   }

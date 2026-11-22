@@ -36,6 +36,9 @@
               <Link href="/cookies" className="transition-colors hover:text-foreground">
                 {t("kl.footer.cookies")}
               </Link>
+              <Link href="/credits" className="transition-colors hover:text-foreground">
+                {t("kl.footer.credits")}
+              </Link>
               {contactHref && (
                 <Link href={contactHref} className="transition-colors hover:text-foreground">
                   {t("kl.footer.contact")}

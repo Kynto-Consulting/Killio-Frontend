@@ -13,6 +13,8 @@ import type { ComposerMode } from "@/lib/rooms/room-controls";
 import { activeSlashQuery, buildSlashCandidates, BUILTIN_COMMANDS, type SlashCommand } from "@/lib/rooms/message-structure";
 import { EVERYONE_TOKEN, fromWireMentions, roleMentionToken, toWireMentions } from "@/lib/rooms/mentions";
 import { analyzeArgs, checkSlashInput, type ArgSuggestion } from "@/lib/bots/command-args";
+import { EmojiPickerButton, useEmojiDataset } from "@/components/emoji";
+import { replaceCompletedShortcodes } from "@/lib/emoji/shortcodes";
 
 const resolveAssetUrl = (url: string) => {
   if (!url) return "";
@@ -126,13 +128,14 @@ export function RoomInput({
   const argOpen = argSuggestions.length > 0;
   const argActive = Math.min(argIndex, Math.max(0, argSuggestions.length - 1));
 
+  const { dataset: emojiDs } = useEmojiDataset();
   const handleChange = (v: string) => {
     setSlashDismissed(false);
     setSlashIndex(0);
     setArgDismissed(false);
     setArgIndex(0);
     setArgProblem(null);
-    onChange(v);
+    onChange(emojiDs ? replaceCompletedShortcodes(v, emojiDs) : v);
     onTyping?.();
   };
 
@@ -326,6 +329,7 @@ export function RoomInput({
           <ImageIcon className="h-4 w-4" aria-hidden />
         </button>
 
+        <EmojiPickerButton onSelect={(v) => handleChange(`${value}${v}`)} disabled={disabled || isUploading} />
         <div className="relative min-w-0 flex-1">
           {slashOpen && (
             <ul

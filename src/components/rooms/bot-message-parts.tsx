@@ -16,6 +16,7 @@ import {
   interactErrorKey, isExpired, readComponentRows, validSelection, type ButtonComponent, type Component, type ComponentRow, type PressState, type SelectComponent,
 } from "@/lib/bots/components";
 import { safeHttpsUrl, type RichBlock } from "@/lib/bots/rich";
+import { EmojiText } from "@/components/emoji";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const str = (v: unknown) => (typeof v === "string" ? v : typeof v === "number" ? String(v) : "");
@@ -263,7 +264,7 @@ function ButtonView({ b, locked, busy, loading, preview, onSend }: { b: ButtonCo
   const t = useTranslations("rooms");
   const label = (
     <>
-      {b.emoji && <span aria-hidden>{b.emoji}</span>}
+      {b.emoji && <span aria-hidden><EmojiText text={b.emoji} /></span>}
       <span className="min-w-0 truncate">{b.label}</span>
       {loading && <Loader2 className="h-3 w-3 shrink-0 animate-spin motion-reduce:animate-none" aria-hidden />}
     </>

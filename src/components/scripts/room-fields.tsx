@@ -11,6 +11,7 @@ import { useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { cx } from "@/components/roles/ui";
 import { applyTemplateVariable, filterVariables, templateTrigger, unknownVariables, varI18nKey, type PayloadVar } from "@/lib/bots/room-nodes";
+import { Emoji, EmojiPickerButton } from "@/components/emoji";
 
 export const fieldCls =
   "w-full rounded-md border border-border bg-background px-2.5 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60";
@@ -254,10 +255,13 @@ export function EmojiField({ id, value, onChange, placeholder, ariaDescribedBy }
   const t = useTranslations("integrations");
   return (
     <div>
-      <input id={id} type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} aria-describedby={ariaDescribedBy} className={fieldCls} />
+      <div className="flex items-center gap-1">
+        <input id={id} type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} aria-describedby={ariaDescribedBy} className={fieldCls} />
+        <EmojiPickerButton onSelect={(v) => onChange(v)} className="shrink-0 rounded-md border border-border p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+      </div>
       <div className="mt-1 flex flex-wrap gap-1" role="group" aria-label={t("canvas.room.emoji.quick")}>
         {QUICK_EMOJI.map((e) => (
-          <button key={e} type="button" onClick={() => onChange(e)} aria-pressed={value === e} aria-label={e} className={cx("h-7 w-7 rounded-md border text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", value === e ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "border-border bg-background hover:bg-muted")}>{e}</button>
+          <button key={e} type="button" onClick={() => onChange(e)} aria-pressed={value === e} aria-label={e} className={cx("flex h-7 w-7 items-center justify-center rounded-md border text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", value === e ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "border-border bg-background hover:bg-muted")}><Emoji value={e} size={16} label="" /></button>
         ))}
       </div>
     </div>

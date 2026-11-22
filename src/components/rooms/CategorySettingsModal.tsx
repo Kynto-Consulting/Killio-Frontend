@@ -11,6 +11,7 @@ import { buildRoomCatalog } from "@/lib/rooms/permission-catalog";
 import { useRoomPermissionCatalog } from "@/hooks/use-room-permission-catalog";
 import { PermissionOverridesEditor } from "./PermissionOverridesEditor";
 import { RoomModalShell, roomField, roomGhostButton, roomLabel, roomPrimaryButton } from "./RoomModalShell";
+import { EmojiPickerButton } from "@/components/emoji";
 
 type TFn = (key: string, params?: Record<string, string | number>) => string;
 
@@ -142,9 +143,12 @@ export function CategorySettingsModal({ open, onClose, teamId, accessToken, grou
       <form id="category-settings-form" onSubmit={submit}>
         <div hidden={tab !== "general"} className="space-y-4">
           <div className="flex gap-2">
-            <div className="w-16">
+            <div className="w-24">
               <label htmlFor="category-emoji" className={roomLabel}>{t("createGroup.emojiLabel")}</label>
-              <input id="category-emoji" type="text" value={emoji} onChange={(e) => setEmoji(e.target.value)} placeholder="📁" maxLength={4} className={`${roomField} text-center text-lg`} />
+              <div className="flex items-center gap-1">
+                <input id="category-emoji" type="text" value={emoji} onChange={(e) => setEmoji(e.target.value)} placeholder="📁" maxLength={4} className={`${roomField} text-center text-lg`} />
+                <EmojiPickerButton onSelect={(v) => setEmoji(v)} />
+              </div>
             </div>
             <div className="flex-1">
               <label htmlFor="category-name" className={roomLabel}>{t("createGroup.nameLabel")}</label>

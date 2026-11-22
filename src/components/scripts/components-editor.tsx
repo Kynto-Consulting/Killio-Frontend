@@ -19,6 +19,7 @@ import {
 import { moveItem } from "@/lib/bots/options";
 import type { PayloadVar } from "@/lib/bots/room-nodes";
 import { FieldRow, TemplateField, fieldCls, miniBtn } from "./room-fields";
+import { EmojiPickerButton } from "@/components/emoji";
 
 interface Props {
   id: string;
@@ -130,7 +131,10 @@ function ButtonFields({ id, b, variables, onPatch }: { id: string; b: ButtonComp
           </select>
         </FieldRow>
         <FieldRow label={t("canvas.room.components.fields.emoji")} htmlFor={f("emoji")}>
-          <input id={f("emoji")} type="text" value={b.emoji ?? ""} maxLength={16} onChange={(e) => onPatch({ emoji: e.target.value })} className={fieldCls} />
+          <div className="flex items-center gap-1">
+            <input id={f("emoji")} type="text" value={b.emoji ?? ""} maxLength={16} onChange={(e) => onPatch({ emoji: e.target.value })} className={fieldCls} />
+            <EmojiPickerButton onSelect={(v) => onPatch({ emoji: v })} className="shrink-0 rounded-md border border-border p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+          </div>
         </FieldRow>
       </div>
       {isLink ? (

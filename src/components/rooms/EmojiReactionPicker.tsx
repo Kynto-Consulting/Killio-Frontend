@@ -1,84 +1,24 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import EmojiPickerReact, { EmojiClickData, Theme } from "emoji-picker-react";
-import { SmilePlus } from "lucide-react";
+import { SmilePlus, Plus } from "lucide-react";
 import { Portal } from "@/components/ui/portal";
+import { Emoji, EmojiPickerPopover } from "@/components/emoji";
+import { DEFAULT_QUICK_EMOJIS, getTopEmojis, trackEmojiUse } from "@/lib/emoji/usage";
 
-// ── Usage tracking ────────────────────────────────────────────────────────────
+// Usage tracking lives in lib/emoji/usage (same storage key as before); re-exported for existing importers.
+export { trackEmojiUse };
 
-const STORAGE_KEY = "emoji_reaction_usage";
-const MAX_STORED = 100;
-
-interface UsageEntry { count: number; lastUsed: number; }
-type UsageMap = Record<string, UsageEntry>;
-
-function loadUsage(): UsageMap {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}"); }
-  catch { return {}; }
-}
-
-function saveUsage(map: UsageMap) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(map)); } catch {}
-}
-
-export function trackEmojiUse(emoji: string) {
-  const map = loadUsage();
-  map[emoji] = { count: (map[emoji]?.count ?? 0) + 1, lastUsed: Date.now() };
-  const entries = Object.entries(map);
-  if (entries.length > MAX_STORED) {
-    const sorted = entries.sort(([, a], [, b]) => score(b) - score(a));
-    saveUsage(Object.fromEntries(sorted.slice(0, MAX_STORED)));
-  } else {
-    saveUsage(map);
-  }
-}
-
-function score(e: UsageEntry): number {
-  const ageMs = Date.now() - e.lastUsed;
-  const recency = ageMs < 3_600_000 ? 3 : ageMs < 86_400_000 ? 1.5 : 1;
-  return e.count * recency;
-}
-
-const FALLBACK_EMOJIS = ["👍", "❤️", "😂", "🎉", "🙌", "🔥"];
-
-function getTopEmojis(n = 5): string[] {
-  const map = loadUsage();
-  const sorted = Object.entries(map)
-    .sort(([, a], [, b]) => score(b) - score(a))
-    .map(([emoji]) => emoji);
-  const result: string[] = [];
-  for (const e of sorted) { if (result.length >= n) break; result.push(e); }
-  for (const e of FALLBACK_EMOJIS) {
-    if (result.length >= n) break;
-    if (!result.includes(e)) result.push(e);
-  }
-  return result;
-}
-
-// ── Position calculator ────────────────────────────────────────────────────────
-
-function calcPos(
-  triggerRect: DOMRect,
-  mode: "quick" | "full"
-): { top: number; left: number } {
-  const popH = mode === "full" ? 330 : 52;
-  const popW = mode === "full" ? 290 : 304;
-
+function calcPos(triggerRect: DOMRect): { top: number; left: number } {
+  const popH = 52;
+  const popW = 304;
   const spaceBelow = window.innerHeight - triggerRect.bottom - 8;
   const spaceAbove = triggerRect.top - 8;
   const openAbove = spaceBelow < popH && spaceAbove >= popH;
-
-  const top = openAbove
-    ? triggerRect.top - popH - 4
-    : Math.min(triggerRect.bottom + 4, window.innerHeight - popH - 8);
-
+  const top = openAbove ? triggerRect.top - popH - 4 : Math.min(triggerRect.bottom + 4, window.innerHeight - popH - 8);
   const left = Math.max(8, Math.min(triggerRect.left, window.innerWidth - popW - 8));
-
   return { top, left };
 }
-
-// ── Component ─────────────────────────────────────────────────────────────────
 
 interface EmojiReactionPickerProps {
   onReact: (emoji: string) => void;
@@ -86,57 +26,37 @@ interface EmojiReactionPickerProps {
   t: (key: string) => string;
 }
 
-export function EmojiReactionPicker({ onReact, isOwn, t }: EmojiReactionPickerProps) {
+/** Quick row with the most used emojis; "+" opens the full Discord-style picker. */
+export function EmojiReactionPicker({ onReact, t }: EmojiReactionPickerProps) {
   const [open, setOpen] = useState<"quick" | "full" | null>(null);
-  const [quickEmojis, setQuickEmojis] = useState<string[]>(FALLBACK_EMOJIS);
+  const [quickEmojis, setQuickEmojis] = useState<string[]>(DEFAULT_QUICK_EMOJIS);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
-
-  // Track position + whether it's been positioned yet (to avoid flash at 0,0)
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
   useEffect(() => {
     if (open === "quick") setQuickEmojis(getTopEmojis(5));
   }, [open]);
 
-  // useLayoutEffect fires synchronously after DOM mutations, before paint —
-  // so the popover is positioned before the user ever sees it
   useLayoutEffect(() => {
-    if (!open || !triggerRef.current) {
-      setPos(null);
-      return;
-    }
-    const rect = triggerRef.current.getBoundingClientRect();
-    setPos(calcPos(rect, open));
-  }, [open]);
-
-  // Re-calc on scroll or resize while open
-  useEffect(() => {
-    if (!open) return;
-    const recalc = () => {
-      if (!triggerRef.current) return;
-      const rect = triggerRef.current.getBoundingClientRect();
-      setPos(calcPos(rect, open));
-    };
+    if (open !== "quick" || !triggerRef.current) { setPos(null); return; }
+    const recalc = () => { if (triggerRef.current) setPos(calcPos(triggerRef.current.getBoundingClientRect())); };
+    recalc();
     window.addEventListener("scroll", recalc, { passive: true, capture: true });
     window.addEventListener("resize", recalc, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", recalc, { capture: true });
-      window.removeEventListener("resize", recalc);
-    };
+    return () => { window.removeEventListener("scroll", recalc, { capture: true }); window.removeEventListener("resize", recalc); };
   }, [open]);
 
-  // Close on outside click
   useEffect(() => {
-    if (!open) return;
+    if (open !== "quick") return;
     const handler = (e: MouseEvent) => {
-      if (
-        popoverRef.current && !popoverRef.current.contains(e.target as Node) &&
-        triggerRef.current && !triggerRef.current.contains(e.target as Node)
-      ) setOpen(null);
+      if (popoverRef.current?.contains(e.target as Node) || triggerRef.current?.contains(e.target as Node)) return;
+      setOpen(null);
     };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(null); };
     document.addEventListener("mousedown", handler, true);
-    return () => document.removeEventListener("mousedown", handler, true);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", handler, true); document.removeEventListener("keydown", esc); };
   }, [open]);
 
   const handlePick = useCallback((emoji: string) => {
@@ -145,61 +65,59 @@ export function EmojiReactionPicker({ onReact, isOwn, t }: EmojiReactionPickerPr
     setOpen(null);
   }, [onReact]);
 
-  const handleEmojiPickerClick = useCallback((data: EmojiClickData) => {
-    handlePick(data.emoji);
-  }, [handlePick]);
-
   return (
     <>
       <button
         ref={triggerRef}
+        type="button"
         onClick={() => setOpen((v) => (v ? null : "quick"))}
-        className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+        aria-label={t("chat.reactions.add")}
+        title={t("chat.reactions.add")}
+        aria-haspopup="dialog"
+        aria-expanded={open !== null}
+        className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
       >
-        <SmilePlus className="w-3.5 h-3.5" />
+        <SmilePlus className="h-3.5 w-3.5" aria-hidden />
       </button>
 
-      {open && pos && (
+      {open === "quick" && pos && (
         <Portal>
           <div
             ref={popoverRef}
-            className="fixed z-[300] bg-card border border-border rounded-2xl shadow-2xl overflow-hidden"
+            role="toolbar"
+            aria-label={t("chat.reactions.add")}
+            className="fixed z-[300] flex items-center gap-0.5 rounded-2xl border border-border bg-card p-2 shadow-xl"
             style={{ top: pos.top, left: pos.left }}
           >
-            {open === "quick" && (
-              <div className="flex items-center gap-0.5 p-2">
-                {quickEmojis.map((emoji) => (
-                  <button
-                    key={emoji}
-                    onClick={() => handlePick(emoji)}
-                    className="w-8 h-8 flex items-center justify-center text-xl hover:scale-125 hover:bg-muted/50 rounded-lg transition-all"
-                  >
-                    {emoji}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setOpen("full")}
-                  className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-colors text-xs font-bold"
-                  title={t("chat.reactions.more")}
-                >
-                  ＋
-                </button>
-              </div>
-            )}
-
-            {open === "full" && (
-              <EmojiPickerReact
-                onEmojiClick={handleEmojiPickerClick}
-                theme={Theme.DARK}
-                lazyLoadEmojis
-                skinTonesDisabled
-                searchPlaceholder={t("chat.reactions.search")}
-                width={290}
-                height={330}
-              />
-            )}
+            {quickEmojis.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => handlePick(emoji)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg transition-transform hover:scale-125 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none motion-reduce:hover:scale-100"
+              >
+                <Emoji value={emoji} size={22} />
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setOpen("full")}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+              title={t("chat.reactions.more")}
+              aria-label={t("chat.reactions.more")}
+            >
+              <Plus className="h-4 w-4" aria-hidden />
+            </button>
           </div>
         </Portal>
+      )}
+
+      {open === "full" && (
+        <EmojiPickerPopover
+          anchor={triggerRef.current}
+          onClose={() => setOpen(null)}
+          onSelect={(emoji) => handlePick(emoji)}
+        />
       )}
     </>
   );

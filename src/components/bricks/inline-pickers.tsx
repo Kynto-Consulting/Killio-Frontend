@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import EmojiPicker from "emoji-picker-react";
+import { EmojiPicker } from "@/components/emoji";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import katex from "katex";
@@ -81,7 +81,7 @@ export function DatePickerPopover({ onSelect, onClose, top, left }: { onSelect: 
 export function EmojiPickerPopover({ onSelect, top, left }: { onSelect: (emoji: string) => void, top: number, left: number }) {
   return (
     <div className="fixed z-[150] shadow-2xl rounded-xl" style={{ top, left }}>
-      <EmojiPicker onEmojiClick={(e) => onSelect(e.emoji)} theme={'auto' as any} />
+      <EmojiPicker onSelect={(emoji) => onSelect(emoji)} autoFocus={false} />
     </div>
   );
 }

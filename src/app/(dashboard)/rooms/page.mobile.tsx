@@ -15,6 +15,7 @@ import { buildSidebarModel, dmDisplayName, type LayoutRoom } from "@/lib/rooms/c
 import type { Room, RoomGroup } from "@/lib/api/rooms";
 import { CreateRoomModal } from "@/components/rooms/CreateRoomModal";
 import { CategorySettingsModal } from "@/components/rooms/CategorySettingsModal";
+import { Emoji } from "@/components/emoji";
 
 type DecoratedRoom = Room & { unreadCount: number; mentionCount: number; muted: boolean };
 
@@ -220,7 +221,7 @@ function RoomSection({
                 href={`/rooms/${room.id}`}
                 className={`flex items-center gap-2.5 rounded-xl border border-border/60 bg-card/40 px-3 py-2.5 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none ${room.muted ? "opacity-60" : ""}`}
               >
-                {room.emoji && room.type === "channel" ? <span className="shrink-0 text-sm" aria-hidden>{room.emoji}</span> : iconFor(room)}
+                {room.emoji && room.type === "channel" ? <span className="shrink-0 text-sm" aria-hidden><Emoji value={room.emoji} size={16} label="" /></span> : iconFor(room)}
                 <span className={`min-w-0 flex-1 truncate text-sm ${unread > 0 || room.mentionCount > 0 ? "font-semibold" : ""}`}>{titleOf(room)}</span>
                 {room.muted && <BellOff className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-label={t("sidebar.muted")} />}
                 {room.mentionCount > 0 ? (
