@@ -199,7 +199,7 @@ export function RoomChatArea({
     loadingOlder: history?.loadingOlder ?? false, loadingNewer: history?.loadingNewer ?? false,
     olderError: history?.olderError ?? false, newerError: history?.newerError ?? false,
     onLoadOlder: history?.onLoadOlder ?? (() => {}), onLoadNewer: history?.onLoadNewer ?? (() => {}),
-    onReadUpTo: history?.onReadUpTo, reducedMotion,
+    onReadUpTo: history?.onReadUpTo, onScrollPosition: history?.onScrollPosition, reducedMotion,
   });
   // The newest message the user had on screen when last at the present: the base of "N new messages".
   const lastMessageId = messages[messages.length - 1]?.id ?? null;

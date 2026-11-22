@@ -3,18 +3,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRealtime } from "@/components/providers/realtime-provider";
 import { realtimeChannel } from "@/lib/realtime/channels";
-import { threadRootOf, type RoomMessage, type MessageStatus } from "@/lib/api/rooms";
+import type { RoomMessage } from "@/lib/api/rooms";
 import {
   PAGE_SIZE, createDebounced, emptyHistory, historyReducer, isLocalMessage, shouldMarkRead, unreadDividerId,
   type HistoryAction, type HistoryPage, type HistoryState, type ReadState,
 } from "@/lib/rooms/history";
 import { HistoryApiError, fetchMessagesPage, fetchReadState, isLegacyBackend, putReadState } from "@/lib/rooms/history-api";
+import { mergeFreshPage, restoreTarget } from "@/lib/rooms/room-cache";
+import { fetchRoomWindow, prepareMessage as prepare, roomCache } from "@/lib/rooms/room-snapshot";
 
 /** Where the list should scroll after a window change. `token` makes the same target repeatable. */
 export type ViewTarget =
   | { kind: "bottom" }
   | { kind: "divider" }
-  | { kind: "message"; id: string; highlight: boolean };
+  | { kind: "message"; id: string; highlight: boolean }
+  /** Back to a saved scroll offset (a room opened from the cache). */
+  | { kind: "scroll"; top: number };
 export interface ViewRequest {
   token: number;
   target: ViewTarget;
@@ -28,12 +32,6 @@ export interface JumpOutcome {
 }
 
 const MARK_DEBOUNCE_MS = 700;
-
-function prepare(m: RoomMessage): RoomMessage {
-  const root = threadRootOf(m as RoomMessage & { thread_root_id?: string });
-  const withRoot = root && !m.threadRootId ? { ...m, threadRootId: root } : m;
-  return withRoot.status ? withRoot : { ...withRoot, status: "sent" as MessageStatus };
-}
 
 interface Options {
   roomId: string | null | undefined;
@@ -98,61 +96,107 @@ export function useRoomHistory({ roomId, accessToken, userId, protect }: Options
   const tokenRef = useRef(accessToken);
   tokenRef.current = accessToken;
 
-  // ── first load ──
+  // ── first load (from the per-room cache when there is one, revalidated in the background) ──
+  const ownerRef = useRef<string | null>(null); // the room `hist` belongs to (never write another room's messages into the cache)
+  const fetchedAtRef = useRef(0);
+  useEffect(() => { roomCache.setScope(userId ?? ""); }, [userId]);
+
   useEffect(() => {
     if (!roomId || !accessToken) return;
     const gen = ++generation.current;
     const alive = () => generation.current === gen;
-    setStatus("loading");
+    ownerRef.current = null;
     setLoadError(null);
     setOlderError(false);
     setNewerError(false);
+    busyOlder.current = false;
+    busyNewer.current = false;
+
+    const cached = roomCache.get(roomId);
+    if (cached) {
+      // stale-while-revalidate: show what we have at once, with the saved scroll position
+      markedRef.current = cached.readState?.lastReadMessageId ?? null;
+      fetchedAtRef.current = cached.fetchedAt;
+      setHist(() => ({ messages: cached.messages, hasMoreBefore: cached.hasMoreBefore, hasMoreAfter: cached.hasMoreAfter, pendingNew: 0 }));
+      setReadState(cached.readState);
+      setUnreadAnchorId(cached.unreadAnchorId);
+      ownerRef.current = roomId;
+      setStatus("ready");
+      request(restoreTarget(cached));
+      (async () => {
+        try {
+          const fresh = await fetchRoomWindow(roomId, accessToken, userId);
+          if (!alive()) return;
+          fetchedAtRef.current = Date.now();
+          setHist((h) => ({ ...mergeFreshPage(h, fresh.page), pendingNew: 0 }));
+          setReadState(fresh.readState);
+          setUnreadAnchorId((a) => a ?? fresh.unreadAnchorId);
+        } catch (e) {
+          if (!alive()) return;
+          if ((e as { status?: number })?.status === 403) {
+            roomCache.invalidate(roomId);
+            setHist(() => emptyHistory<RoomMessage>());
+            setLoadError("forbidden");
+            setStatus("error");
+          }
+          // any other failure: the cached window stays, the next visit tries again
+        }
+      })();
+      return () => { generation.current += 1; };
+    }
+
+    setStatus("loading");
+    setHist(() => emptyHistory<RoomMessage>());
     setUnreadAnchorId(null);
     setReadState(null);
     markedRef.current = null;
-    busyOlder.current = false;
-    busyNewer.current = false;
     (async () => {
-      const [pageRes, readRes] = await Promise.allSettled([
-        fetchMessagesPage<RoomMessage>(roomId, accessToken, {}, { normalize: prepare }),
-        fetchReadState(roomId, accessToken),
-      ]);
-      if (!alive()) return;
-      if (pageRes.status === "rejected") {
-        console.error(pageRes.reason);
-        setLoadError((pageRes.reason as { status?: number })?.status === 403 ? "forbidden" : "failed");
+      let fetched;
+      try {
+        fetched = await fetchRoomWindow(roomId, accessToken, userId);
+      } catch (e) {
+        if (!alive()) return;
+        console.error(e);
+        setLoadError((e as { status?: number })?.status === 403 ? "forbidden" : "failed");
         setStatus("error");
         return;
       }
-      let page: HistoryPage<RoomMessage> = pageRes.value;
-      const rs = readRes.status === "fulfilled" ? readRes.value : null;
-      let anchor: string | null = null;
-      if (rs && rs.unreadCount > 0) {
-        if (rs.firstUnreadMessageId && page.messages.some((m) => m.id === rs.firstUnreadMessageId)) anchor = rs.firstUnreadMessageId;
-        else if (rs.firstUnreadMessageId && !page.legacy) {
-          try {
-            const around = await fetchMessagesPage<RoomMessage>(roomId, accessToken, { around: rs.firstUnreadMessageId }, { normalize: prepare });
-            if (!alive()) return;
-            page = around;
-            anchor = rs.firstUnreadMessageId;
-          } catch {
-            // the latest page is shown; the banner still offers the jump
-          }
-        } else anchor = unreadDividerId(page.messages, rs, userId);
-      }
-      markedRef.current = rs?.lastReadMessageId ?? null;
-      setHist(() => historyReducer(emptyHistory<RoomMessage>(), { type: "replace", page }, rules));
-      setReadState(rs);
-      setUnreadAnchorId(anchor);
+      if (!alive()) return;
+      markedRef.current = fetched.readState?.lastReadMessageId ?? null;
+      fetchedAtRef.current = Date.now();
+      setHist(() => historyReducer(emptyHistory<RoomMessage>(), { type: "replace", page: fetched.page }, rules));
+      setReadState(fetched.readState);
+      setUnreadAnchorId(fetched.unreadAnchorId);
+      ownerRef.current = roomId;
       setStatus("ready");
-      request(anchor ? { kind: "divider" } : { kind: "bottom" });
+      request(fetched.unreadAnchorId ? { kind: "divider" } : { kind: "bottom" });
     })();
     return () => {
       generation.current += 1;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, accessToken, loadAttempt]);
-  const reload = useCallback(() => setLoadAttempt((n) => n + 1), []);
+
+  // Keep the cache in step with the open room (only a window that touches the present is worth caching).
+  useEffect(() => {
+    if (!roomId || status !== "ready" || ownerRef.current !== roomId) return;
+    if (hist.hasMoreAfter) { roomCache.invalidate(roomId); return; }
+    roomCache.set(roomId, {
+      messages: hist.messages.filter((m) => !isLocalMessage(m)),
+      hasMoreBefore: hist.hasMoreBefore,
+      hasMoreAfter: false,
+      readState,
+      unreadAnchorId,
+      scroll: roomCache.peek(roomId)?.scroll ?? null,
+      fetchedAt: fetchedAtRef.current,
+    });
+  }, [roomId, status, hist, readState, unreadAnchorId]);
+
+  /** The list reports where it is scrolled (only once its position for this room was applied). */
+  const saveScroll = useCallback((top: number, atBottom: boolean) => {
+    if (roomId && ownerRef.current === roomId) roomCache.saveScroll(roomId, top, atBottom);
+  }, [roomId]);
+  const reload = useCallback(() => { if (roomId) roomCache.invalidate(roomId); setLoadAttempt((n) => n + 1); }, [roomId]);
 
   // ── older / newer pages ──
   const loadOlder = useCallback(async () => {
@@ -369,6 +413,7 @@ export function useRoomHistory({ roomId, accessToken, userId, protect }: Options
     jumpToUnread,
     view,
     requestView: request,
+    saveScroll,
     legacy: isLegacyBackend(),
     pageSize: PAGE_SIZE,
   };

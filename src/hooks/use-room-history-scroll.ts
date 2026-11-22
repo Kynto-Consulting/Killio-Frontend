@@ -37,6 +37,8 @@ interface Options {
   onLoadNewer: () => void;
   /** The newest message the user has on screen (for the read pointer). */
   onReadUpTo?: (messageId: string) => void;
+  /** Where the list is scrolled (reported only once the position requested for the current room was applied). */
+  onScrollPosition?: (top: number, atPresent: boolean) => void;
   reducedMotion: boolean;
 }
 
@@ -121,6 +123,8 @@ export function useRoomHistoryScroll(o: Options) {
     const present = near && !hasMoreAfterRef.current;
     atBottomRef.current = present;
     setAtBottom((prev) => (prev === present ? prev : present));
+    const cur = optsRef.current;
+    if (cur.view && cur.view.token === handled.current) cur.onScrollPosition?.(root.scrollTop, present);
     captureAnchor();
     const now = Date.now();
     if (now - lastRead.current >= READ_THROTTLE_MS) {
@@ -165,6 +169,10 @@ export function useRoomHistoryScroll(o: Options) {
       if (!root) return false;
       const box = root.getBoundingClientRect();
       const target = req.target;
+      if (target.kind === "scroll") {
+        root.scrollTop = target.top;
+        return true;
+      }
       if (target.kind === "bottom") {
         const apply = () => { root.scrollTop = root.scrollHeight; };
         apply();

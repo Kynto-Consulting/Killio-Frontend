@@ -5,6 +5,8 @@ import { useRealtime } from "@/components/providers/realtime-provider";
 import { realtimeChannel } from "@/lib/realtime/channels";
 import type { IRealtimeChannel, MessageListener } from "@/lib/realtime/types";
 import { mentionsMe } from "@/lib/rooms/mentions";
+import { prepareMessage, roomCache } from "@/lib/rooms/room-snapshot";
+import type { RoomMessage } from "@/lib/api/rooms";
 import {
   MUTED_STORAGE_KEY, clearRoom, onIncoming, parseMutedIds, roomsToWatch, seedFromRooms, toggleMuted, withBadges, type UnreadMap,
 } from "@/lib/rooms/unread";
@@ -83,6 +85,9 @@ export function useRoomUnread<R extends { id: string; type: string; unreadCount?
       const listener: MessageListener = (msg) => {
         const d = (msg.data ?? {}) as { userId?: string; content?: string; type?: string };
         const type = d.type ?? "text";
+        // a message for a room that is not open: its cached window (if any) takes it in order, so coming back shows it at once
+        const full = msg.data as Partial<RoomMessage> | undefined;
+        if (full?.id && full.createdAt) roomCache.applyLive(id, prepareMessage(full as RoomMessage));
         const current = me.current;
         setMap((m) =>
           onIncoming(m, {

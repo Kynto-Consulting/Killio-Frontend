@@ -30,6 +30,8 @@ export interface RoomHistoryView {
   onLoadNewer: () => void;
   onGoToLatest: () => void;
   onReadUpTo: (messageId: string) => void;
+  /** Saves the scroll offset of the open room (restored when it is opened again from the cache). */
+  onScrollPosition?: (top: number, atPresent: boolean) => void;
   onMarkAllRead: () => void;
   onJumpToUnread: () => void;
 }
