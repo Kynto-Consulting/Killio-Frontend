@@ -240,5 +240,50 @@
       "required_order": "Required arguments must come before optional ones.",
       "mixed_levels": "A command has either subcommands or plain arguments, not both."
     }
+  },
+  "locks": {
+    "botLocked": "Bot locked",
+    "codeLocked": "Code locked",
+    "botLockedHint": "Its identity and settings are frozen: you can only pause, activate or delete it.",
+    "codeLockedHint": "Nobody can read, edit, export or duplicate its script: you can only pause, activate or delete it.",
+    "byPublisher": "Locked by the pack's author. It cannot be unlocked, only deleted.",
+    "byWorkspace": "Only whoever locked it or the workspace owner can unlock it.",
+    "lockBot": "Lock bot",
+    "unlockBot": "Unlock bot",
+    "lockCode": "Lock code",
+    "unlockCode": "Unlock code",
+    "lockBotHelp": "Freezes its name, description, avatar, commands, triggers and settings. You can still pause and delete it.",
+    "lockCodeHelp": "Prevents reading, editing, exporting and duplicating its script. You can still pause and delete it.",
+    "confirmLockBot": "Lock this bot? You will not be able to edit it until whoever locked it or the workspace owner unlocks it.",
+    "confirmLockCode": "Lock the code? Nobody will be able to read or edit the script until whoever locked it or the workspace owner unlocks it.",
+    "toast": {
+      "botLocked": "Bot locked.",
+      "botUnlocked": "Bot unlocked.",
+      "codeLocked": "Code locked.",
+      "codeUnlocked": "Code unlocked.",
+      "duplicated": "Bot duplicated (paused)."
+    },
+    "duplicate": "Duplicate bot",
+    "errors": {
+      "SCRIPT_LOCKED": "The code of this script is locked.",
+      "BOT_LOCKED": "This bot is locked.",
+      "UNLOCK_FORBIDDEN": "You cannot unlock it: it was locked by the pack's author or by someone else."
+    },
+    "scriptPane": {
+      "title": "Code locked by the author",
+      "body": "The editor cannot be opened and the code cannot be read, exported or duplicated. You can still activate, pause or delete it.",
+      "bodyWorkspace": "The editor cannot be opened and the code cannot be read, exported or duplicated. You can activate, pause or delete it, and unlock it if you locked it or you are the owner."
+    },
+    "descriptionFixed": "The description and the creator come from the pack and cannot be edited.",
+    "author": {
+      "title": "Authorship",
+      "originalAuthor": "Original author: {{name}}",
+      "importedFrom": "Imported from \"{{pack}}\" by {{publisher}}",
+      "importedFromNoPublisher": "Imported from \"{{pack}}\"",
+      "version": "version {{version}}",
+      "forkedFrom": "Copy of \"{{name}}\"",
+      "readOnly": "Authorship is read-only and never changes."
+    },
+    "duplicateScript": "Duplicate script"
   }
 }

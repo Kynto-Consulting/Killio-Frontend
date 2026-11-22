@@ -1081,6 +1081,11 @@
     "copilot": {
       "about": "Asistente autónomo que ayuda en tiempo real: analiza documentos, resume llamadas y apoya tus tareas diarias.",
       "ask": "Preguntar al copiloto"
-    }
+    },
+    "importedFrom": "Importado de «{{pack}}» por {{publisher}}",
+    "importedFromNoPublisher": "Importado de «{{pack}}»",
+    "botLocked": "Bot bloqueado",
+    "codeLocked": "Código bloqueado",
+    "originalAuthor": "Autor original: {{name}}"
   }
 }

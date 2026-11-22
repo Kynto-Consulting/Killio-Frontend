@@ -20,6 +20,7 @@ import {
   toggleScript,
   deleteScript,
   saveScriptGraph,
+  getScript,
   getScriptGraph,
   getScriptsUsage,
   listSharedTables,
@@ -41,6 +42,7 @@ import {
   listTeamBoards,
 } from "@/lib/api/contracts";
 import { ScriptList } from "@/components/scripts/ScriptList";
+import { LockedScriptPanel, ScriptLockBar } from "@/components/scripts/script-lock";
 import { ScriptCanvas } from "@/components/scripts/ScriptCanvas";
 import { KillioTable } from "../../../components/scripts/KillioTable";
 import { RunLogsPanel } from "@/components/scripts/RunLogsPanel";
@@ -562,13 +564,19 @@ export function IntegrationsPageView({
 
   useEffect(() => {
     if (!selectedScript || !accessToken || !activeTeamId) return;
+    if (selectedScript.locked) {
+      // CODE lock: the editor does not open the script (no graph, no runs); the locked panel is shown instead
+      setGraph(null);
+      setGraphLoading(false);
+      return;
+    }
     setGraphLoading(true);
     setGraph(null);
     getScriptGraph(selectedScript.id, activeTeamId, accessToken)
       .then(setGraph)
       .catch(() => setGraph({ nodes: [], edges: [] }))
       .finally(() => setGraphLoading(false));
-  }, [selectedScript?.id, accessToken, activeTeamId]);
+  }, [selectedScript?.id, selectedScript?.locked, accessToken, activeTeamId]);
 
   // ──────────────────────────────────────────────────────────────────────────
   // Handlers
@@ -590,6 +598,22 @@ export function IntegrationsPageView({
     await deleteScript(script.id, activeTeamId, accessToken);
     setScripts((prev) => prev.filter((s) => s.id !== script.id));
     if (selectedScript?.id === script.id) setSelectedScript(null);
+  };
+
+  /** After the CODE lock changed: a locked script is only known by name and state; an unlocked one is fetched again in full. */
+  const handleLockChanged = async (locked: boolean) => {
+    if (!selectedScript || !accessToken || !activeTeamId) return;
+    const next: ScriptSummary = locked
+      ? { ...selectedScript, locked: true, lockSource: "owner", description: null, triggerConfig: {} }
+      : await getScript(selectedScript.id, activeTeamId, accessToken);
+    setScripts((prev) => prev.map((s) => (s.id === next.id ? next : s)));
+    setSelectedScript(next);
+  };
+
+  const handleDuplicated = (copy: ScriptSummary) => {
+    setScripts((prev) => [copy, ...prev]);
+    setSelectedScript(copy);
+    setScriptSubView("canvas");
   };
 
   const handleSaveGraph = async (g: ScriptGraph) => {
@@ -1049,7 +1073,12 @@ export function IntegrationsPageView({
                     )}
                   </div>
 
-                  {selectedScript ? (
+                  {selectedScript && activeTeamId && accessToken ? (
+                    <ScriptLockBar script={selectedScript} teamId={activeTeamId} accessToken={accessToken} onChanged={handleLockChanged} onDuplicated={handleDuplicated} />
+                  ) : null}
+                  {selectedScript?.locked ? (
+                    <LockedScriptPanel script={selectedScript} />
+                  ) : selectedScript ? (
                     scriptSubView === "canvas" ? (
                       graphLoading ? (
                         <div className="flex flex-1 items-center justify-center">
@@ -1171,7 +1200,12 @@ export function IntegrationsPageView({
                     </div>
                   </div>
 
-                  {selectedScript ? (
+                  {selectedScript && activeTeamId && accessToken ? (
+                    <ScriptLockBar script={selectedScript} teamId={activeTeamId} accessToken={accessToken} onChanged={handleLockChanged} onDuplicated={handleDuplicated} />
+                  ) : null}
+                  {selectedScript?.locked ? (
+                    <LockedScriptPanel script={selectedScript} />
+                  ) : selectedScript ? (
                     <>
                       {scriptSubView === "canvas" ? (
                         graphLoading ? (

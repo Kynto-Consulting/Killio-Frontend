@@ -116,6 +116,20 @@ export interface ScriptSummary {
   createdByUserId: string | null;
   createdAt: string;
   updatedAt: string;
+  /**
+   * CODE lock. A locked script is listed by name and state only (description and triggerConfig are withheld) and its graph, runs and table
+   * answer 403 SCRIPT_LOCKED. lockSource "pack" = set by the publisher of its pack (never unlocked, only deleted).
+   */
+  locked?: boolean;
+  lockSource?: "owner" | "pack" | null;
+  /** Immutable authorship (read-only). */
+  originalAuthorName?: string | null;
+  sourcePackId?: string | null;
+  sourcePackTitle?: string | null;
+  sourcePackVersion?: string | null;
+  sourcePublisherName?: string | null;
+  forkedFromId?: string | null;
+  forkedFromName?: string | null;
 }
 
 export interface ScriptRunLog {
@@ -274,6 +288,40 @@ export async function saveScriptGraph(
     throw new Error(message);
   }
   return res.json();
+}
+
+/** Locks / unlocks the CODE of a script. A lock from a pack's publisher is never removed (403 UNLOCK_FORBIDDEN). */
+export async function setScriptLock(id: string, teamId: string, locked: boolean, accessToken: string): Promise<{ ok: true; locked: boolean; lockSource: "owner" | "pack" | null }> {
+  const res = await fetch(`${BASE_URL}/scripts/${id}/lock`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ teamId, locked }),
+  });
+  if (!res.ok) throw await lockAwareError(res, 'Failed to change the script lock');
+  return res.json();
+}
+
+/** Copies a script of the workspace. A locked script answers 403 SCRIPT_LOCKED. */
+export async function duplicateScript(id: string, teamId: string, accessToken: string, name?: string): Promise<ScriptSummary> {
+  const res = await fetch(`${BASE_URL}/scripts/${id}/duplicate`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ teamId, ...(name ? { name } : {}) }),
+  });
+  if (!res.ok) throw await lockAwareError(res, 'Failed to duplicate the script');
+  return res.json();
+}
+
+/** An Error that keeps the stable code of the lock guard (SCRIPT_LOCKED, BOT_LOCKED, UNLOCK_FORBIDDEN) so the UI can tell a lock from a failure. */
+async function lockAwareError(res: Response, fallback: string): Promise<Error & { code?: string; status: number }> {
+  let message = fallback;
+  let code: string | undefined;
+  try {
+    const body = await res.json();
+    if (typeof body?.message === 'string' && body.message) message = body.message;
+    if (typeof body?.code === 'string') code = body.code;
+  } catch { /* not JSON */ }
+  return Object.assign(new Error(message), { code, status: res.status });
 }
 
 export async function getScriptGraph(id: string, teamId: string, accessToken: string): Promise<ScriptGraph> {

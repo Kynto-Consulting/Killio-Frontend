@@ -2,15 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ExternalLink, Plus, Trash2 } from "lucide-react";
+import { Copy, ExternalLink, Lock, LockOpen, Plus, Trash2 } from "lucide-react";
 
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useSettings } from "@/components/roles/settings-context";
 import { EmptyState, RoleChip, Switch, TabBar, TriStateControl, btn, btnDanger, btnPrimary, card, cx, inputCls } from "@/components/roles/ui";
 import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
-import { activateBot, pauseBot, setBotCommands, updateBot } from "@/lib/api/bots";
+import { activateBot, duplicateBot, pauseBot, setBotCommands, setBotLock, updateBot } from "@/lib/api/bots";
 import { getRoomOverrides, listTeamRooms, setRoomOverrides, type Room, type RoomOverrideDto } from "@/lib/api/rooms";
-import { createScript, listScripts, saveScriptGraph, toggleScript, type ScriptSummary } from "@/lib/api/scripts";
+import { createScript, listScripts, saveScriptGraph, setScriptLock, toggleScript, type ScriptSummary } from "@/lib/api/scripts";
+import { botLockUi, botPatch } from "@/lib/bots/locks";
 import {
   BOT_LIMITS, BOT_ROOM_KEYS, HELLO_COMMAND, applyBotRoomStates, botBody, botRoomStates, botStatus, buildHelloCommand, buildHelloScriptGraph, commandOptionIssues,
   isBotScriptTriggerType, readOverrides, sameStates, scriptEditorHref, validateBotForm, validateCommands, type Bot, type BotLimits, type BotRoomKey, type CommandDraft,
@@ -20,6 +21,7 @@ import { usageOf } from "@/lib/bots/options";
 import { sortRoles } from "@/lib/roles/model";
 import { toast } from "@/lib/toast";
 import { BotAvatar, StatusChip } from "./bot-parts";
+import { AuthorshipBlock, LockChips, LockNotice, lockAwareMessage } from "./lock-parts";
 import { OptionsEditor } from "./options-editor";
 import { EmojiText } from "@/components/emoji";
 
@@ -43,13 +45,14 @@ export function BotDetail({ bot, limits, onChanged, onReload, onDeleted }: { bot
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="truncate text-base font-extrabold text-foreground">{bot.name}</h3>
             <StatusChip status={botStatus(bot)} />
+            <LockChips botLocked={bot.locked} codeLocked={bot.codeLocked} />
           </div>
           <p className="text-[11px] text-muted-foreground">{t("detail.hint")}</p>
         </div>
       </header>
       <TabBar tabs={tabs} active={sub} onChange={(id) => setSub(id as Sub)} label={t("tabs.label")} idPrefix="bot" />
       <div role="tabpanel" id={`bot-panel-${sub}`} aria-labelledby={`bot-tab-${sub}`} className="pt-4">
-        {sub === "general" && <GeneralPane bot={bot} limits={limits} onChanged={onChanged} onDelete={() => setDeleting(true)} />}
+        {sub === "general" && <GeneralPane bot={bot} limits={limits} onChanged={onChanged} onReload={onReload} onDelete={() => setDeleting(true)} />}
         {sub === "commands" && <CommandsPane bot={bot} onChanged={onReload} />}
         {sub === "script" && <ScriptPane bot={bot} onChanged={onReload} />}
         {sub === "rooms" && <RoomsPane bot={bot} />}
@@ -61,7 +64,7 @@ export function BotDetail({ bot, limits, onChanged, onReload, onDeleted }: { bot
 
 /* ───────────── General ───────────── */
 
-function GeneralPane({ bot, limits, onChanged, onDelete }: { bot: Bot; limits: BotLimits; onChanged: (b: Bot) => void; onDelete: () => void }) {
+function GeneralPane({ bot, limits, onChanged, onReload, onDelete }: { bot: Bot; limits: BotLimits; onChanged: (b: Bot) => void; onReload: () => Promise<void>; onDelete: () => void }) {
   const t = useTranslations("bots");
   const s = useSettings();
   const [name, setName] = useState(bot.name);
@@ -70,9 +73,11 @@ function GeneralPane({ bot, limits, onChanged, onDelete }: { bot: Bot; limits: B
   const [allowBots, setAllowBots] = useState(bot.allowBotTriggers);
   const [roleIds, setRoleIds] = useState<string[]>(bot.roleIds);
   const [saving, setSaving] = useState(false);
+  const ui = botLockUi(bot);
   const issues = validateBotForm({ name, description, avatarUrl });
-  const rolesChanged = [...roleIds].sort().join() !== [...bot.roleIds].sort().join();
-  const dirty = name.trim() !== bot.name || description.trim() !== (bot.description ?? "") || avatarUrl.trim() !== (bot.avatarUrl ?? "") || allowBots !== bot.allowBotTriggers || rolesChanged;
+  // Only what changed AND may change is sent: the server refuses a PATCH that merely names a frozen field.
+  const patch = botPatch(bot, { name, description, avatarUrl, allowBotTriggers: allowBots, roleIds }, ui);
+  const dirty = Object.keys(patch).length > 0;
   const assignable = useMemo(() => sortRoles(s.roles).filter((r) => r.systemKey !== "owner"), [s.roles]);
 
   const run = async (patch: Parameters<typeof updateBot>[2], okKey: string) => {
@@ -81,16 +86,43 @@ function GeneralPane({ bot, limits, onChanged, onDelete }: { bot: Bot; limits: B
       onChanged(await updateBot(s.teamId, bot.id, patch, s.accessToken));
       toast(t(okKey), "success");
     } catch (e) {
-      toast(e instanceof Error ? e.message : t("toast.error"), "error");
+      toast(lockAwareMessage(t, e, t("toast.error")), "error");
     } finally {
       setSaving(false);
     }
   };
-  const save = () => issues.length === 0 && run({ ...botBody({ name, description, avatarUrl, allowBotTriggers: allowBots }), ...(rolesChanged ? { roleIds } : {}) }, "toast.saved");
+  const save = () => issues.length === 0 && dirty && run(patch, "toast.saved");
+  const changeLock = async (locked: boolean) => {
+    if (locked && !window.confirm(t("locks.confirmLockBot"))) return;
+    setSaving(true);
+    try {
+      onChanged(await setBotLock(s.teamId, bot.id, locked, s.accessToken));
+      toast(t(locked ? "locks.toast.botLocked" : "locks.toast.botUnlocked"), "success");
+    } catch (e) {
+      toast(lockAwareMessage(t, e, t("toast.error")), "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+  const copy = async () => {
+    setSaving(true);
+    try {
+      await duplicateBot(s.teamId, bot.id, undefined, s.accessToken);
+      toast(t("locks.toast.duplicated"), "success");
+      await onReload();
+    } catch (e) {
+      toast(lockAwareMessage(t, e, t("toast.error")), "error");
+    } finally {
+      setSaving(false);
+    }
+  };
   const toggleRole = (id: string) => setRoleIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   return (
     <div className="space-y-3">
+      <AuthorshipBlock authorship={bot.authorship} />
+      {ui.botLocked && <LockNotice title={t("locks.botLocked")} body={`${t("locks.botLockedHint")} ${bot.lockSource === "pack" ? t("locks.byPublisher") : t("locks.byWorkspace")}`} />}
+      {!ui.botLocked && ui.descriptionFixed && <p className="text-[11px] text-muted-foreground">{t("locks.descriptionFixed")}</p>}
       <div className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
         <div className="min-w-0">
           <div className="text-xs font-bold text-foreground">{t("general.active")}</div>
@@ -117,17 +149,17 @@ function GeneralPane({ bot, limits, onChanged, onDelete }: { bot: Bot; limits: B
       </div>
       <label className="block text-xs font-semibold text-foreground">
         {t("form.name")}
-        <input className={`${inputCls} mt-1`} value={name} onChange={(e) => setName(e.target.value)} />
+        <input className={`${inputCls} mt-1`} value={name} disabled={!ui.canEditSettings} onChange={(e) => setName(e.target.value)} />
         {issues.some((i) => i.startsWith("name")) && <p role="alert" className="mt-1 text-[11px] text-red-700 dark:text-red-300">{t(`form.errors.${issues.find((i) => i.startsWith("name"))}`)}</p>}
       </label>
       <label className="block text-xs font-semibold text-foreground">
         {t("form.avatarUrl")}
-        <input className={`${inputCls} mt-1`} value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="https://" inputMode="url" />
+        <input className={`${inputCls} mt-1`} value={avatarUrl} disabled={!ui.canEditSettings} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="https://" inputMode="url" />
         {issues.includes("avatar_invalid") && <p role="alert" className="mt-1 text-[11px] text-red-700 dark:text-red-300">{t("form.errors.avatar_invalid")}</p>}
       </label>
       <label className="block text-xs font-semibold text-foreground">
         {t("form.description")}
-        <textarea className={`${inputCls} mt-1 h-16 py-2`} value={description} onChange={(e) => setDescription(e.target.value)} />
+        <textarea className={`${inputCls} mt-1 h-16 py-2`} value={description} disabled={!ui.canEditSettings || ui.descriptionFixed} onChange={(e) => setDescription(e.target.value)} />
         {issues.includes("description_long") && <p role="alert" className="mt-1 text-[11px] text-red-700 dark:text-red-300">{t("form.errors.description_long")}</p>}
       </label>
       <div>
@@ -149,12 +181,35 @@ function GeneralPane({ bot, limits, onChanged, onDelete }: { bot: Bot; limits: B
           <div className="text-xs font-bold text-foreground">{t("general.allowBots")}</div>
           <p className="text-[11px] text-muted-foreground">{t("general.allowBotsHint", { depth: limits.maxChainDepth })}</p>
         </div>
-        <Switch checked={allowBots} label={t("general.allowBots")} onChange={setAllowBots} />
+        <Switch checked={allowBots} label={t("general.allowBots")} disabled={!ui.canEditSettings} onChange={setAllowBots} />
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
+        <div className="min-w-0">
+          <div className="text-xs font-bold text-foreground">{ui.botLocked ? t("locks.botLocked") : t("locks.lockBot")}</div>
+          <p className="text-[11px] text-muted-foreground">{ui.botLocked ? (bot.lockSource === "pack" ? t("locks.byPublisher") : t("locks.byWorkspace")) : t("locks.lockBotHelp")}</p>
+        </div>
+        {ui.canLockBot && (
+          <button type="button" className={btn} disabled={saving} onClick={() => void changeLock(true)}>
+            <Lock className="h-3.5 w-3.5" aria-hidden /> {t("locks.lockBot")}
+          </button>
+        )}
+        {ui.canUnlockBot && (
+          <button type="button" className={btn} disabled={saving} onClick={() => void changeLock(false)}>
+            <LockOpen className="h-3.5 w-3.5" aria-hidden /> {t("locks.unlockBot")}
+          </button>
+        )}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-        <button type="button" className={btnDanger} onClick={onDelete}>
-          <Trash2 className="h-3.5 w-3.5" aria-hidden /> {t("delete.button")}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" className={btnDanger} onClick={onDelete}>
+            <Trash2 className="h-3.5 w-3.5" aria-hidden /> {t("delete.button")}
+          </button>
+          {ui.canDuplicate && (
+            <button type="button" className={btn} disabled={saving} onClick={() => void copy()}>
+              <Copy className="h-3.5 w-3.5" aria-hidden /> {t("locks.duplicate")}
+            </button>
+          )}
+        </div>
         <button type="button" className={btnPrimary} disabled={!dirty || issues.length > 0 || saving} onClick={save}>
           {saving ? t("common.saving") : t("common.save")}
         </button>
@@ -172,6 +227,7 @@ function CommandsPane({ bot, onChanged }: { bot: Bot; onChanged: () => Promise<v
   const [rows, setRows] = useState<CommandDraft[]>(initial);
   const [saving, setSaving] = useState(false);
   useEffect(() => setRows(initial), [initial]);
+  const ui = botLockUi(bot);
   const issues = validateCommands(rows);
   const optionIssues = commandOptionIssues(rows);
   const dirty = JSON.stringify(rows) !== JSON.stringify(initial);
@@ -185,14 +241,16 @@ function CommandsPane({ bot, onChanged }: { bot: Bot; onChanged: () => Promise<v
       toast(t("commands.saved"), "success");
       await onChanged();
     } catch (e) {
-      toast(e instanceof Error ? e.message : t("toast.error"), "error");
+      toast(lockAwareMessage(t, e, t("toast.error")), "error");
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="space-y-3">
+    // a locked bot freezes its commands: the fieldset disables every control inside (the server refuses the write anyway, BOT_LOCKED)
+    <fieldset disabled={!ui.canEditCommands} className="min-w-0 space-y-3 border-0 p-0">
+      {ui.botLocked && <LockNotice title={t("locks.botLocked")} body={t("locks.botLockedHint")} />}
       <p className="text-xs text-muted-foreground">{t("commands.intro")}</p>
       {!bot.scriptId && <p className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-[11px] text-foreground">{t("commands.noScript")}</p>}
       {rows.length === 0 ? (
@@ -241,7 +299,7 @@ function CommandsPane({ bot, onChanged }: { bot: Bot; onChanged: () => Promise<v
       </div>
       {optionIssues.size > 0 && <p role="alert" className="text-[11px] font-medium text-red-700 dark:text-red-300">{t("options.blockSave")}</p>}
       <p className="text-[11px] text-muted-foreground">{t("commands.scriptNote")}</p>
-    </div>
+    </fieldset>
   );
 }
 
@@ -251,6 +309,7 @@ function ScriptPane({ bot, onChanged }: { bot: Bot; onChanged: () => Promise<voi
   const t = useTranslations("bots");
   const s = useSettings();
   const canScripts = s.perms.can("scripts.manage");
+  const ui = botLockUi(bot);
   const [scripts, setScripts] = useState<ScriptSummary[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [pick, setPick] = useState("");
@@ -278,10 +337,14 @@ function ScriptPane({ bot, onChanged }: { bot: Bot; onChanged: () => Promise<voi
       await onChanged();
       await load();
     } catch (e) {
-      toast(e instanceof Error ? e.message : t("toast.error"), "error");
+      toast(lockAwareMessage(t, e, t("toast.error")), "error");
     } finally {
       setBusy(false);
     }
+  };
+  const changeCodeLock = (locked: boolean) => {
+    if (locked && !window.confirm(t("locks.confirmLockCode"))) return;
+    return act(async () => void (await setScriptLock(bot.scriptId!, s.teamId, locked, s.accessToken)), locked ? "locks.toast.codeLocked" : "locks.toast.codeUnlocked");
   };
 
   const createFromTemplate = () =>
@@ -310,10 +373,12 @@ function ScriptPane({ bot, onChanged }: { bot: Bot; onChanged: () => Promise<voi
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="min-w-0">
               <div className="truncate text-sm font-bold text-foreground">{mine?.name ?? t("script.unknown")}</div>
-              <div className="text-[11px] text-muted-foreground">
-                {t("script.trigger")}: <code className="font-semibold">{mine?.triggerType ?? "-"}</code>
-                {mine?.lastRunAt ? ` · ${t("script.lastRun", { status: mine.lastRunStatus ?? "-" })}` : ""}
-              </div>
+              {!ui.codeLocked && (
+                <div className="text-[11px] text-muted-foreground">
+                  {t("script.trigger")}: <code className="font-semibold">{mine?.triggerType ?? "-"}</code>
+                  {mine?.lastRunAt ? ` · ${t("script.lastRun", { status: mine.lastRunStatus ?? "-" })}` : ""}
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-semibold text-muted-foreground">{t("script.active")}</span>
@@ -325,21 +390,40 @@ function ScriptPane({ bot, onChanged }: { bot: Bot; onChanged: () => Promise<voi
               />
             </div>
           </div>
+          {ui.codeLocked && (
+            <div className="mt-3">
+              <LockNotice title={t("locks.scriptPane.title")} body={bot.codeLockSource === "pack" ? `${t("locks.scriptPane.body")} ${t("locks.byPublisher")}` : t("locks.scriptPane.bodyWorkspace")} />
+            </div>
+          )}
           <div className="mt-3 flex flex-wrap gap-2">
-            <Link href={scriptEditorHref(bot.scriptId)} className={btnPrimary}>
-              <ExternalLink className="h-3.5 w-3.5" aria-hidden /> {t("script.open")}
-            </Link>
-            <button type="button" className={btn} disabled={busy} onClick={() => void act(async () => void (await updateBot(s.teamId, bot.id, { scriptId: null }, s.accessToken)), "script.unbound")}>
-              {t("script.unbind")}
-            </button>
+            {ui.canOpenScript && (
+              <Link href={scriptEditorHref(bot.scriptId)} className={btnPrimary}>
+                <ExternalLink className="h-3.5 w-3.5" aria-hidden /> {t("script.open")}
+              </Link>
+            )}
+            {ui.canBindScript && (
+              <button type="button" className={btn} disabled={busy} onClick={() => void act(async () => void (await updateBot(s.teamId, bot.id, { scriptId: null }, s.accessToken)), "script.unbound")}>
+                {t("script.unbind")}
+              </button>
+            )}
+            {ui.canLockCode && (
+              <button type="button" className={btn} disabled={busy} title={t("locks.lockCodeHelp")} onClick={() => void changeCodeLock(true)}>
+                <Lock className="h-3.5 w-3.5" aria-hidden /> {t("locks.lockCode")}
+              </button>
+            )}
+            {ui.canUnlockCode && (
+              <button type="button" className={btn} disabled={busy} onClick={() => void changeCodeLock(false)}>
+                <LockOpen className="h-3.5 w-3.5" aria-hidden /> {t("locks.unlockCode")}
+              </button>
+            )}
           </div>
-          <p className="mt-2 text-[11px] text-muted-foreground">{t("script.editorNote")}</p>
+          {!ui.codeLocked && <p className="mt-2 text-[11px] text-muted-foreground">{t("script.editorNote")}</p>}
         </div>
       ) : (
         <div className="space-y-3">
           <EmptyState title={t("script.none")} body={t("script.noneBody")} />
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" className={btnPrimary} disabled={busy} onClick={() => void createFromTemplate()}>
+            <button type="button" className={btnPrimary} disabled={busy || !ui.canBindScript} onClick={() => void createFromTemplate()}>
               {t("script.fromTemplate")}
             </button>
             {bindable.length > 0 && (
@@ -350,7 +434,7 @@ function ScriptPane({ bot, onChanged }: { bot: Bot; onChanged: () => Promise<voi
                     <option key={x.id} value={x.id}>{x.name}</option>
                   ))}
                 </select>
-                <button type="button" className={btn} disabled={busy || !pick} onClick={() => void act(async () => void (await updateBot(s.teamId, bot.id, { scriptId: pick }, s.accessToken)), "script.bound")}>
+                <button type="button" className={btn} disabled={busy || !pick || !ui.canBindScript} onClick={() => void act(async () => void (await updateBot(s.teamId, bot.id, { scriptId: pick }, s.accessToken)), "script.bound")}>
                   {t("script.bind")}
                 </button>
               </>

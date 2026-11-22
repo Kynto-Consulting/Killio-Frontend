@@ -51,6 +51,14 @@ export interface MemberProfile {
     createdByName: string | null;
     createdAt: string;
     commands: Array<{ name: string; description: string; usage: string | null }>;
+    /** BOT lock (identity and settings frozen) and CODE lock (its script is unreadable): only the facts, never the code. Absent on an older server. */
+    locked?: boolean;
+    codeLocked?: boolean;
+    lockSource?: "owner" | "pack" | null;
+    /** Immutable original author (the publisher for an imported bot) and the pack it was imported from. */
+    originalAuthorName?: string | null;
+    origin?: { packId: string; packTitle: string | null; packVersion: string | null; publisherName: string | null } | null;
+    forkedFromName?: string | null;
   };
   room: null | {
     id: string;

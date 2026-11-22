@@ -4,6 +4,7 @@
  * Contract: Killio-Backend/src/modules/bots (bots.controller.ts, bots.service.ts, bot-config.ts, bot-commands.ts).
  */
 import { normalizeOptions, optionsPayload, validateOptions, type CommandOption, type OptionIssue } from "./options.ts";
+import { normalizeAuthorship, normalizeLock, type Authorship, type LockSource } from "./locks.ts";
 
 export const BOT_LIMITS = { name: 80, description: 500, avatarUrl: 2048, commandsPerBot: 50, commandName: 32, commandDescription: 200, usage: 200 } as const;
 
@@ -39,6 +40,14 @@ export interface Bot {
   allowBotTriggers: boolean;
   roleIds: string[];
   roles: BotRoleRef[];
+  /** BOT lock: identity and settings are frozen (only pause/activate and delete remain). */
+  locked: boolean;
+  lockSource: LockSource | null;
+  /** CODE lock of the bound script: unreadable, uneditable, not exportable. Independent of the bot lock. */
+  codeLocked: boolean;
+  codeLockSource: LockSource | null;
+  /** Immutable original author, pack of origin and fork reference (read-only). */
+  authorship: Authorship;
 }
 
 export interface BotQuota {
@@ -94,6 +103,12 @@ export function normalizeBot(raw: unknown): Bot | null {
     allowBotTriggers: r.allowBotTriggers === true,
     roleIds: Array.isArray(r.roleIds) ? r.roleIds.filter((x: unknown): x is string => typeof x === "string") : roles.map((x) => x.id),
     roles,
+    ...(() => {
+      const bot = normalizeLock(r.locked, r.lockSource);
+      const code = normalizeLock(r.codeLocked, r.codeLockSource);
+      return { locked: bot.locked, lockSource: bot.lockSource, codeLocked: code.locked, codeLockSource: code.lockSource };
+    })(),
+    authorship: normalizeAuthorship(r),
   };
 }
 

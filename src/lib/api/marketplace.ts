@@ -64,6 +64,8 @@ export type MarketplaceSnapshotInput = {
     sourceEntityId: string;
     logicalKey?: string;
     displayName?: string;
+    /** Script assets: the installed copy has its code locked (cannot be read, edited, exported or duplicated; only paused or deleted). */
+    lockCode?: boolean;
   }>;
   localizations?: Array<{
     locale: string;

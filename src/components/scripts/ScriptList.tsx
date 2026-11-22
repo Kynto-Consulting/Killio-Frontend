@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { ScriptSummary } from "@/lib/api/scripts";
-import { Plus, Play, Pause, Trash2, ChevronRight, Loader2, Sparkles } from "lucide-react";
+import { Plus, Play, Pause, Trash2, ChevronRight, Loader2, Sparkles, Lock } from "lucide-react";
 
 interface ScriptListProps {
   scripts: ScriptSummary[];
@@ -130,6 +130,7 @@ export function ScriptList({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="truncate text-sm font-medium text-foreground">{script.name}</span>
+                    {script.locked && <Lock className="h-3 w-3 flex-shrink-0 text-amber-600 dark:text-amber-300" aria-label="locked" />}
                     {script.isActive ? (
                       <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700">
                         {t("scripts.active")}

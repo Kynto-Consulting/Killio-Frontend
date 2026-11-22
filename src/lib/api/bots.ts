@@ -5,6 +5,8 @@
  *   POST   /teams/:teamId/bots                  create   { name, description?, avatarUrl?, scriptId?, roleIds?, allowBotTriggers? }
  *   PATCH  /teams/:teamId/bots/:botId           update   (same fields + isActive)
  *   DELETE /teams/:teamId/bots/:botId           soft delete
+ *   PUT    /teams/:teamId/bots/:botId/lock      lock / unlock the bot { locked }
+ *   POST   /teams/:teamId/bots/:botId/duplicate copy the bot (refused while the bot or its code is locked)
  *   PUT    /teams/:teamId/bots/:botId/commands  replace   { commands: [{ name, description, usage }] }
  * Bots have no token or credentials: they are synthetic users driven by a script.
  */
@@ -56,6 +58,16 @@ export async function activateBot(teamId: string, botId: string, accessToken: st
 
 export async function pauseBot(teamId: string, botId: string, accessToken: string): Promise<Bot> {
   return mustBot(await fetchApi<unknown>(`/teams/${q(teamId)}/bots/${q(botId)}/pause`, { method: "POST", accessToken }));
+}
+
+/** Locks / unlocks the BOT (identity and settings). A lock from a pack's publisher is never removed: the server answers 403 UNLOCK_FORBIDDEN. */
+export async function setBotLock(teamId: string, botId: string, locked: boolean, accessToken: string): Promise<Bot> {
+  return mustBot(await fetchApi<unknown>(`/teams/${q(teamId)}/bots/${q(botId)}/lock`, { method: "PUT", body: JSON.stringify({ locked }), accessToken }));
+}
+
+/** Copies a bot with its script and commands (paused). A locked bot or a bot with locked code answers 403 BOT_LOCKED / SCRIPT_LOCKED. */
+export async function duplicateBot(teamId: string, botId: string, name: string | undefined, accessToken: string): Promise<Bot> {
+  return mustBot(await fetchApi<unknown>(`/teams/${q(teamId)}/bots/${q(botId)}/duplicate`, { method: "POST", body: JSON.stringify(name ? { name } : {}), accessToken }));
 }
 
 export async function deleteBot(teamId: string, botId: string, accessToken: string): Promise<void> {

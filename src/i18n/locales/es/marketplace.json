@@ -67,7 +67,11 @@
       "step2": "Elegir assets",
       "step3": "Primera versión"
     },
-    "presentation": "Presentación"
+    "presentation": "Presentación",
+    "lockCodeTitle": "Bloquear código",
+    "lockCodeHelp": "Quien instale el pack no podrá leer, editar, exportar ni duplicar el script; solo pausarlo, activarlo o borrarlo. No se puede deshacer en la copia instalada.",
+    "lockCodeScript": "Bloquear código de «{{name}}»",
+    "lockedScriptsNote": "Los scripts bloqueados en tu espacio no se pueden publicar: desbloquéalos primero."
   },
   "myPacks": {
     "title": "Packs de tu equipo",

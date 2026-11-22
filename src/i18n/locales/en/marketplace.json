@@ -67,7 +67,11 @@
       "step2": "Choose assets",
       "step3": "First version"
     },
-    "presentation": "Presentation"
+    "presentation": "Presentation",
+    "lockCodeTitle": "Lock code",
+    "lockCodeHelp": "Whoever installs the pack cannot read, edit, export or duplicate the script; only pause, activate or delete it. This cannot be undone on the installed copy.",
+    "lockCodeScript": "Lock the code of \"{{name}}\"",
+    "lockedScriptsNote": "Scripts locked in your workspace cannot be published: unlock them first."
   },
   "myPacks": {
     "title": "Your Team Packs",

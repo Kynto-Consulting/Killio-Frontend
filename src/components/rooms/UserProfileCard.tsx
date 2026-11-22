@@ -8,7 +8,8 @@
 
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { AtSign, Bot, Check, Clock, Copy, Crown, Gavel, Loader2, MessageSquare, Pencil, ShieldCheck, Users, Volume2, VolumeX, X, XCircle } from "lucide-react";
+import { AtSign, Bot, Check, Clock, Copy, Crown, Gavel, Loader2, Lock, MessageSquare, Pencil, ShieldCheck, Users, Volume2, VolumeX, X, XCircle } from "lucide-react";
+import { botProfileFacts } from "@/lib/bots/locks";
 
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import { useSession } from "@/components/providers/session-provider";
@@ -432,10 +433,26 @@ export function UserProfileCard({ teamId, userId, roomId, anchor, known, presenc
                       return (
                         <Section key={s} title={t("profile.botInfo")}>
                           <p className="text-xs leading-relaxed">{profile.bot?.description || <span className="text-muted-foreground">{t("profile.noDescription")}</span>}</p>
+                          {profile.bot && (() => {
+                            const facts = botProfileFacts(profile.bot);
+                            return (
+                              <div className="mt-1.5 space-y-1 text-[11px] text-muted-foreground">
+                                {facts.importedFrom && (
+                                  <p>{facts.importedFrom.publisher ? t("profile.importedFrom", { pack: facts.importedFrom.pack, publisher: facts.importedFrom.publisher }) : t("profile.importedFromNoPublisher", { pack: facts.importedFrom.pack })}</p>
+                                )}
+                                {(facts.botLocked || facts.codeLocked) && (
+                                  <p className="flex flex-wrap items-center gap-1">
+                                    {facts.botLocked && <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/60 bg-amber-500/15 px-1.5 py-px text-[10px] font-bold text-amber-800 dark:text-amber-300"><Lock className="h-2.5 w-2.5" aria-hidden />{t("profile.botLocked")}</span>}
+                                    {facts.codeLocked && <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/60 bg-amber-500/15 px-1.5 py-px text-[10px] font-bold text-amber-800 dark:text-amber-300"><Lock className="h-2.5 w-2.5" aria-hidden />{t("profile.codeLocked")}</span>}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })()}
                           {profile.bot && (
                             <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
                               <span className="inline-flex items-center gap-1"><span aria-hidden className={`h-2 w-2 rounded-full ${profile.bot.isActive ? "bg-emerald-500" : "bg-slate-400"}`} />{profile.bot.isActive ? t("profile.botActive") : t("profile.botPaused")}</span>
-                              {profile.bot.createdByName && <span>{t("profile.createdBy", { name: profile.bot.createdByName })}</span>}
+                              {botProfileFacts(profile.bot).creatorName && <span>{t("profile.createdBy", { name: botProfileFacts(profile.bot).creatorName! })}</span>}
                             </p>
                           )}
                         </Section>

@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
+import { publishableScripts, withCodeLocks } from "@/lib/bots/locks";
 import { useSession } from "@/components/providers/session-provider";
 import { BoardSummary, listTeamBoards, listTeamCatalog, TeamCatalog } from "@/lib/api/contracts";
 import {
@@ -58,6 +59,8 @@ type WizardState = {
   summary: string;
   publishMode: MarketplacePublishMode;
   selectedAssetKeys: string[];
+  /** Selected scripts whose installed copy gets its CODE locked ("Lock code"). */
+  lockedCodeKeys: string[];
   version: string;
   locale: string;
   snapshotStatus: MarketplaceVersionStatus;
@@ -68,6 +71,7 @@ type WizardState = {
 type SnapModal = {
   pack: MarketplacePack;
   selectedAssetKeys: string[];
+  lockedCodeKeys: string[];
   version: string;
   status: MarketplaceVersionStatus;
   locale: string;
@@ -95,7 +99,7 @@ function buildSourceAssets(catalog: TeamCatalog, boards: BoardSummary[], scripts
   };
   for (const doc of catalog.documents) push("document", doc.id, doc.title);
   for (const b of boards) push(b.boardType === "kanban" ? "board" : "mesh", b.id, b.name);
-  for (const s of scripts) push("script", s.id, s.name);
+  for (const s of publishableScripts(scripts)) push("script", s.id, s.name);
   return items;
 }
 
@@ -336,14 +340,20 @@ function AssetPicker({
   loading,
   accessToken,
   teamId,
+  lockedKeys = [],
+  onLockedChange,
 }: {
   assets: SourceAsset[];
   selectedKeys: string[];
   onSelectionChange: (next: string[]) => void;
+  /** Scripts marked "Lock code" (the installed copy cannot be read, edited, exported or duplicated). */
+  lockedKeys?: string[];
+  onLockedChange?: (next: string[]) => void;
   loading: boolean;
   accessToken?: string | null;
   teamId?: string | null;
 }) {
+  const tm = useTranslations("marketplace");
   const [openType, setOpenType] = useState<MarketplaceAssetType | null>(null);
   const [search, setSearch] = useState("");
   const [suggestedKeys, setSuggestedKeys] = useState<string[]>([]);
@@ -532,6 +542,28 @@ function AssetPicker({
               </span>
             ) : null}
           </div>
+        </div>
+      ) : null}
+
+      {onLockedChange && selectedKeys.some((k) => assetsByKey.get(k)?.assetType === "script") ? (
+        <div className="rounded-xl border border-foreground/8 dark:border-white/8 bg-black/20 p-3">
+          <p className="text-xs font-semibold text-foreground/45 dark:text-white/45">{tm("profile.lockCodeTitle")}</p>
+          <p className="mt-0.5 text-[11px] text-foreground/40 dark:text-white/40">{tm("profile.lockCodeHelp")}</p>
+          <ul className="mt-2 space-y-1.5">
+            {selectedKeys.map((k) => assetsByKey.get(k)).filter((a): a is SourceAsset => !!a && a.assetType === "script").map((a) => (
+              <li key={a.key}>
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-foreground/80 dark:text-white/80">
+                  <input
+                    type="checkbox"
+                    checked={lockedKeys.includes(a.key)}
+                    onChange={(e) => onLockedChange(e.target.checked ? [...lockedKeys, a.key] : lockedKeys.filter((x) => x !== a.key))}
+                  />
+                  {tm("profile.lockCodeScript", { name: a.label })}
+                </label>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[11px] text-foreground/35 dark:text-white/35">{tm("profile.lockedScriptsNote")}</p>
         </div>
       ) : null}
 
@@ -753,6 +785,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
       summary: "",
       publishMode: "private",
       selectedAssetKeys: [],
+      lockedCodeKeys: [],
       version: "v1.0",
       locale,
       snapshotStatus: "published",
@@ -771,7 +804,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
 
       if (wizard.selectedAssetKeys.length > 0) {
         const assetByKey = new Map(sourceAssets.map((a) => [a.key, a]));
-        const assets = wizard.selectedAssetKeys.map((k) => assetByKey.get(k)).filter(Boolean).map((a) => ({ assetType: a!.assetType, sourceEntityId: a!.sourceEntityId, logicalKey: a!.logicalKey, displayName: a!.label }));
+        const assets = withCodeLocks(wizard.selectedAssetKeys.map((k) => assetByKey.get(k)).filter((a): a is SourceAsset => !!a), wizard.lockedCodeKeys, (a) => ({ assetType: a.assetType, sourceEntityId: a.sourceEntityId, logicalKey: a.logicalKey, displayName: a.label }));
         await createMarketplaceSnapshot(
           pack.id,
           {
@@ -822,7 +855,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
     try {
       const localeCode = sanitizeLocaleCode(snapModal.locale || locale);
       const assetByKey = new Map(sourceAssets.map((a) => [a.key, a]));
-      const assets = snapModal.selectedAssetKeys.map((k) => assetByKey.get(k)).filter(Boolean).map((a) => ({ assetType: a!.assetType, sourceEntityId: a!.sourceEntityId, logicalKey: a!.logicalKey, displayName: a!.label }));
+      const assets = withCodeLocks(snapModal.selectedAssetKeys.map((k) => assetByKey.get(k)).filter((a): a is SourceAsset => !!a), snapModal.lockedCodeKeys, (a) => ({ assetType: a.assetType, sourceEntityId: a.sourceEntityId, logicalKey: a.logicalKey, displayName: a.label }));
       await createMarketplaceSnapshot(
         snapModal.pack.id,
         {
@@ -985,7 +1018,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                       </button>
                       <button
                         type="button"
-                        onClick={() => setSnapModal({ pack, selectedAssetKeys: [], version: "v1.0", status: "published", locale: sanitizeLocaleCode(pack.defaultLocale || locale), title: pack.title, submitting: false, error: null })}
+                        onClick={() => setSnapModal({ pack, selectedAssetKeys: [], lockedCodeKeys: [], version: "v1.0", status: "published", locale: sanitizeLocaleCode(pack.defaultLocale || locale), title: pack.title, submitting: false, error: null })}
                         className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-foreground/10 dark:border-white/10 bg-white/[0.04] px-4 py-2 text-[13px] font-semibold text-foreground/60 dark:text-white/60 transition-all hover:border-foreground/20 dark:hover:border-white/20 hover:text-foreground dark:hover:text-white"
                       >
                         <Upload className="h-4 w-4" />
@@ -1115,7 +1148,9 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                   <AssetPicker
                     assets={sourceAssets}
                     selectedKeys={wizard.selectedAssetKeys}
-                    onSelectionChange={(next) => setWizard((w) => (w ? { ...w, selectedAssetKeys: next } : w))}
+                    onSelectionChange={(next) => setWizard((w) => (w ? { ...w, selectedAssetKeys: next, lockedCodeKeys: w.lockedCodeKeys.filter((k) => next.includes(k)) } : w))}
+                    lockedKeys={wizard.lockedCodeKeys}
+                    onLockedChange={(next) => setWizard((w) => (w ? { ...w, lockedCodeKeys: next } : w))}
                     loading={assetsLoading}
                     accessToken={accessToken}
                     teamId={activeTeamId}
@@ -1330,7 +1365,9 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                 <AssetPicker
                   assets={sourceAssets}
                   selectedKeys={snapModal.selectedAssetKeys}
-                  onSelectionChange={(next) => setSnapModal((s) => (s ? { ...s, selectedAssetKeys: next } : s))}
+                  onSelectionChange={(next) => setSnapModal((s) => (s ? { ...s, selectedAssetKeys: next, lockedCodeKeys: s.lockedCodeKeys.filter((k) => next.includes(k)) } : s))}
+                  lockedKeys={snapModal.lockedCodeKeys}
+                  onLockedChange={(next) => setSnapModal((s) => (s ? { ...s, lockedCodeKeys: next } : s))}
                   loading={assetsLoading}
                   accessToken={accessToken}
                   teamId={activeTeamId}

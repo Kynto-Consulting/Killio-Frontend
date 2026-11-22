@@ -240,5 +240,50 @@
       "required_order": "Los argumentos obligatorios deben ir antes que los opcionales.",
       "mixed_levels": "Un comando tiene subcomandos o argumentos sueltos, no ambos."
     }
+  },
+  "locks": {
+    "botLocked": "Bot bloqueado",
+    "codeLocked": "Código bloqueado",
+    "botLockedHint": "Su identidad y configuración están congeladas: solo puedes pausarlo, activarlo o borrarlo.",
+    "codeLockedHint": "Nadie puede leer, editar, exportar ni duplicar su script: solo pausarlo, activarlo o borrarlo.",
+    "byPublisher": "Bloqueado por el autor del pack. No se puede desbloquear, solo borrar.",
+    "byWorkspace": "Solo quien lo bloqueó o el propietario del espacio puede desbloquearlo.",
+    "lockBot": "Bloquear bot",
+    "unlockBot": "Desbloquear bot",
+    "lockCode": "Bloquear código",
+    "unlockCode": "Desbloquear código",
+    "lockBotHelp": "Congela su nombre, descripción, avatar, comandos, triggers y ajustes. Seguirás pudiendo pausarlo y borrarlo.",
+    "lockCodeHelp": "Impide leer, editar, exportar y duplicar su script. Seguirás pudiendo pausarlo y borrarlo.",
+    "confirmLockBot": "¿Bloquear este bot? No podrás editarlo hasta que lo desbloquee quien lo bloqueó o el propietario del espacio.",
+    "confirmLockCode": "¿Bloquear el código? Nadie podrá leer ni editar el script hasta que lo desbloquee quien lo bloqueó o el propietario del espacio.",
+    "toast": {
+      "botLocked": "Bot bloqueado.",
+      "botUnlocked": "Bot desbloqueado.",
+      "codeLocked": "Código bloqueado.",
+      "codeUnlocked": "Código desbloqueado.",
+      "duplicated": "Bot duplicado (en pausa)."
+    },
+    "duplicate": "Duplicar bot",
+    "errors": {
+      "SCRIPT_LOCKED": "El código de este script está bloqueado.",
+      "BOT_LOCKED": "Este bot está bloqueado.",
+      "UNLOCK_FORBIDDEN": "No puedes desbloquearlo: lo bloqueó el autor del pack u otra persona."
+    },
+    "scriptPane": {
+      "title": "Código bloqueado por el autor",
+      "body": "No se puede abrir el editor, leer el código, exportarlo ni duplicarlo. Sí puedes activarlo, pausarlo o borrarlo.",
+      "bodyWorkspace": "No se puede abrir el editor, leer el código, exportarlo ni duplicarlo. Puedes activarlo, pausarlo o borrarlo, y desbloquearlo si lo bloqueaste tú o eres el propietario."
+    },
+    "descriptionFixed": "La descripción y el creador son los del pack y no se pueden editar.",
+    "author": {
+      "title": "Autoría",
+      "originalAuthor": "Autor original: {{name}}",
+      "importedFrom": "Importado de «{{pack}}» por {{publisher}}",
+      "importedFromNoPublisher": "Importado de «{{pack}}»",
+      "version": "versión {{version}}",
+      "forkedFrom": "Copia de «{{name}}»",
+      "readOnly": "La autoría es de solo lectura y no cambia nunca."
+    },
+    "duplicateScript": "Duplicar script"
   }
 }

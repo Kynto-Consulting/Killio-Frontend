@@ -1081,6 +1081,11 @@
     "copilot": {
       "about": "Autonomous assistant that helps in real time: analyses documents, summarises calls and supports your daily tasks.",
       "ask": "Ask the copilot"
-    }
+    },
+    "importedFrom": "Imported from \"{{pack}}\" by {{publisher}}",
+    "importedFromNoPublisher": "Imported from \"{{pack}}\"",
+    "botLocked": "Bot locked",
+    "codeLocked": "Code locked",
+    "originalAuthor": "Original author: {{name}}"
   }
 }

@@ -12,6 +12,7 @@ import { buildHelloCommand, buildHelloScriptGraph, canManageBots, HELLO_COMMAND,
 import { toast } from "@/lib/toast";
 import { setBotCommands } from "@/lib/api/bots";
 import { BotAvatar, StatusChip } from "./bot-parts";
+import { LockChips } from "./lock-parts";
 import { BotDetail } from "./bot-detail";
 import { BotFormDialog } from "./bot-form-dialog";
 
@@ -133,6 +134,7 @@ export function BotsTab() {
                       <span className="flex flex-wrap items-center gap-1.5">
                         <span className="truncate text-sm font-bold text-foreground">{b.name}</span>
                         <StatusChip status={botStatus(b)} />
+                        <LockChips botLocked={b.locked} codeLocked={b.codeLocked} />
                       </span>
                       {b.description && <span className="line-clamp-2 text-[11px] text-muted-foreground">{b.description}</span>}
                       <span className="mt-1.5 flex flex-wrap gap-1">
