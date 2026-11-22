@@ -504,12 +504,19 @@ export function RoomMessageItem({
             </div>
           )
         ) : (
-          <time
-            className={`${isMobile ? "w-6" : "w-7"} shrink-0 pt-1 text-right text-[9px] leading-5 text-muted-foreground/70 opacity-0 transition-opacity group-hover:opacity-100 motion-reduce:transition-none`}
-            dateTime={message.createdAt}
-          >
-            {new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-          </time>
+          <div className={`${isMobile ? "w-6" : "w-7"} flex shrink-0 flex-col items-end pt-1 text-[9px] leading-5 text-muted-foreground/70`}>
+            <time
+              className="opacity-0 transition-opacity group-hover:opacity-100 motion-reduce:transition-none"
+              dateTime={message.createdAt}
+            >
+              {new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </time>
+            {isOwn && showReadReceipts && (
+              <span className="inline-flex items-center leading-none" data-testid="read-receipt">
+                <MessageStatusIcon status={message.status} />
+              </span>
+            )}
+          </div>
         )}
 
         <div className="flex min-w-0 flex-1 flex-col items-start">
@@ -527,6 +534,11 @@ export function RoomMessageItem({
               <time className="text-[10px] text-muted-foreground" dateTime={message.createdAt}>
                 {new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
               </time>
+              {isOwn && showReadReceipts && (
+                <span className="inline-flex items-center self-center" data-testid="read-receipt">
+                  <MessageStatusIcon status={message.status} />
+                </span>
+              )}
               {message.pinnedAt && <PinBadge message={message} t={t} />}
               {bookmarked && <span title={t("msg.bookmarked")} className="inline-flex items-center self-center text-primary"><BookmarkCheck className="h-3 w-3" aria-hidden /><span className="sr-only">{t("msg.bookmarked")}</span></span>}
             </div>
@@ -1148,11 +1160,6 @@ export function RoomMessageItem({
             </div>
           )}
 
-          {isOwn && showReadReceipts && (
-            <div className="mt-0.5 flex items-center gap-1">
-              <MessageStatusIcon status={message.status} />
-            </div>
-          )}
         </div>
       </div>
 
