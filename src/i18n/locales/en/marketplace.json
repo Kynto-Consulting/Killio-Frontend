@@ -106,7 +106,10 @@
     "script": "Scripts",
     "card_template": "Card templates",
     "tag_group": "Tag groups",
-    "group": "Groups"
+    "group": "Groups",
+    "role": "Roles",
+    "room": "Rooms",
+    "bot": "Bots"
   },
   "import": {
     "destinationTeam": "Destination workspace",

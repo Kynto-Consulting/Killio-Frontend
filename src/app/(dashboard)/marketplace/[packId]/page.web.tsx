@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertCircle, ChevronRight, FileText, GitBranch, Globe, Layout, LayoutTemplate, Package, RefreshCcw, SlidersHorizontal, Tag, User, Users, Zap } from "lucide-react";
+import { AlertCircle, Bot, ChevronRight, FileText, GitBranch, Globe, Layout, LayoutTemplate, MessageSquare, Package, RefreshCcw, Shield, SlidersHorizontal, Tag, User, Users, Zap } from "lucide-react";
 
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import { useSession } from "@/components/providers/session-provider";
@@ -25,7 +25,7 @@ import {
   MarketplacePackDetail,
 } from "@/lib/api/marketplace";
 
-const ASSET_ICONS: Record<string, React.ElementType> = { document: FileText, board: Layout, mesh: GitBranch, script: Zap, card_template: LayoutTemplate, tag_group: Tag, group: Users };
+const ASSET_ICONS: Record<string, React.ElementType> = { document: FileText, board: Layout, mesh: GitBranch, script: Zap, card_template: LayoutTemplate, tag_group: Tag, group: Users, role: Shield, room: MessageSquare, bot: Bot };
 const PRIMARY_BTN = `${SOFT_PRIMARY} h-10 px-5 text-sm`;
 const SECONDARY_BTN = `${SOFT_SECONDARY} h-9 px-3 text-[13px]`;
 

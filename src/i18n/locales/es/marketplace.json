@@ -106,7 +106,10 @@
     "script": "Scripts",
     "card_template": "Plantillas de tarjeta",
     "tag_group": "Grupos de etiquetas",
-    "group": "Grupos"
+    "group": "Grupos",
+    "role": "Roles",
+    "room": "Salas",
+    "bot": "Bots"
   },
   "import": {
     "destinationTeam": "Workspace de destino",

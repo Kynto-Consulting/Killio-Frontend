@@ -256,7 +256,7 @@ export function relatedPacks<T extends PackLike>(packs: T[], current: { id: stri
 }
 
 /* ── assets ── */
-export const ASSET_ORDER = ["document", "board", "mesh", "script", "card_template", "tag_group", "group"] as const;
+export const ASSET_ORDER = ["document", "board", "mesh", "script", "card_template", "tag_group", "group", "role", "room", "bot"] as const;
 export type AssetLike = { assetType: string; logicalKey: string; displayName: string | null; orderIndex: number };
 
 export function groupAssets<T extends AssetLike>(assets: T[]): Array<{ type: string; count: number; items: Array<{ name: string; asset: T }> }> {
