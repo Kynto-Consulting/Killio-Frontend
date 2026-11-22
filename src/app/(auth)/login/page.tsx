@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { ArrowRight, ChevronDown, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { AuthPageFrame } from "@/components/marketing/auth-page-frame";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
@@ -73,9 +73,14 @@ function LoginPageContent() {
     const key = `login.socialErrors.${code}`;
     const text = t(key);
     setError(text === key ? t("login.socialFailed") : text);
+    setShowMore(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
   const hasSocial = social.google || social.microsoft || social.bloomx;
+  // The extra ways to sign in (email code, Google, Microsoft, Bloomx) stay folded; they open on demand, after a provider error,
+  // and while the code method is active (so the way back to the password form is always visible).
+  const [showMore, setShowMore] = useState(false);
+  const moreOpen = showMore || method === "code";
   const bloomxHref = safeFrom !== "/" ? `/login/bloomx?from=${encodeURIComponent(safeFrom)}` : "/login/bloomx";
 
   const signupHref = safeFrom !== "/" ? `/signup?from=${encodeURIComponent(safeFrom)}` : "/signup";
@@ -376,20 +381,33 @@ function LoginPageContent() {
             </div>
           )}
 
-          {allowPassword && allowCode && (
-            <button
-              type="button"
-              disabled={isLoading}
-              onClick={() => switchMethod(method === "password" ? "code" : "password")}
-              className="inline-flex h-11 w-full items-center justify-center rounded-full border border-border text-sm font-medium transition-colors hover:bg-accent/10 disabled:opacity-60"
-            >
-              {method === "password" ? t("login.useCodeInstead") : t("login.usePasswordInstead")}
-            </button>
-          )}
         </form>
 
-        {hasSocial && (
+        {(hasSocial || (allowPassword && allowCode)) && (
           <div className="mt-6 space-y-3">
+            <button
+              type="button"
+              onClick={() => setShowMore((v) => !v)}
+              aria-expanded={moreOpen}
+              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-border text-sm font-medium transition-colors hover:bg-accent/10"
+            >
+              {t("login.moreWays")}
+              <ChevronDown className={`h-4 w-4 transition-transform ${moreOpen ? "rotate-180" : ""}`} />
+            </button>
+            {moreOpen && (
+              <div className="space-y-3">
+            {allowPassword && allowCode && (
+              <button
+                type="button"
+                disabled={isLoading}
+                onClick={() => switchMethod(method === "password" ? "code" : "password")}
+                className="inline-flex h-11 w-full items-center justify-center rounded-full border border-border text-sm font-medium transition-colors hover:bg-accent/10 disabled:opacity-60"
+              >
+                {method === "password" ? t("login.useCodeInstead") : t("login.usePasswordInstead")}
+              </button>
+            )}
+                {hasSocial && (
+                  <>
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <span className="h-px flex-1 bg-border" />
               {t("login.socialDivider")}
@@ -427,6 +445,10 @@ function LoginPageContent() {
               </Link>
             )}
             <p className="text-center text-xs text-muted-foreground">{t("login.socialTerms")}</p>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         )}
 
