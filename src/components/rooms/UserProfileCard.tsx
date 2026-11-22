@@ -304,21 +304,19 @@ export function UserProfileCard({ teamId, userId, roomId, anchor, known, presenc
         <button type="button" onClick={onClose} aria-label={t("profile.close")} className="absolute right-2 top-2 rounded-md border border-border/50 bg-card p-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
           <X className="h-3.5 w-3.5" aria-hidden />
         </button>
+        {/* Avatar: child of the banner (not of the scroll area, whose overflow would clip its upper half) */}
+        <div className="absolute left-4 top-8 z-10 shrink-0">
+          {isCopilot ? (
+            <span className="flex h-16 w-16 items-center justify-center rounded-full border-4 border-card bg-violet-600 text-white"><Bot className="h-8 w-8" aria-hidden /></span>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={getUserAvatarUrl(avatarUrl, email, 128)} alt="" className="h-16 w-16 rounded-full border-4 border-card bg-muted object-cover" />
+          )}
+          {presenceKind && <PresenceDot presence={presenceKind} label={presenceLabel} />}
+        </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
-        {/* Avatar + names */}
-        <div className="relative z-10 -mt-8 flex items-end gap-3">
-          <div className="relative shrink-0">
-            {isCopilot ? (
-              <span className="flex h-16 w-16 items-center justify-center rounded-full border-4 border-card bg-violet-600 text-white"><Bot className="h-8 w-8" aria-hidden /></span>
-            ) : (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={getUserAvatarUrl(avatarUrl, email, 128)} alt="" className="h-16 w-16 rounded-full border-4 border-card bg-muted object-cover" />
-            )}
-            {presenceKind && <PresenceDot presence={presenceKind} label={presenceLabel} />}
-          </div>
-        </div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-10">
         <div className="mt-2 min-w-0">
           <div className="flex flex-wrap items-center gap-1.5">
             <h2 id={titleId} className="truncate text-base font-bold leading-tight" style={color ? { color } : undefined}>
