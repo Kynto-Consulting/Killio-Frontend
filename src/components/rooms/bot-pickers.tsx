@@ -134,7 +134,7 @@ export function PickerView({ c, id, locked, busy, loading, preview, fetchOptions
       </button>
 
       {open && (
-        <div className="absolute left-0 z-30 mt-1 w-full min-w-[14rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-border/60 bg-popover text-popover-foreground shadow-lg">
+        <div className="absolute bottom-full left-0 z-30 mb-1 w-full min-w-[14rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-border/60 bg-popover text-popover-foreground shadow-lg">
           <div className="border-b border-border/50 p-1.5">
             <label htmlFor={`${id}-${uid}-q`} className="sr-only">{t("bot.picker.search")}</label>
             <input

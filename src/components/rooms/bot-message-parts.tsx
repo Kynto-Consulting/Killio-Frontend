@@ -112,6 +112,21 @@ const TONE_BAR = { accent: "bg-primary", success: "bg-emerald-500", warning: "bg
 const SPACER = { sm: "h-1", md: "h-3", lg: "h-6" } as const;
 const DIVIDER = { sm: "my-0.5", md: "my-1.5", lg: "my-3" } as const;
 const THUMB = { sm: "h-12 w-12", md: "h-16 w-16", lg: "h-24 w-24" } as const;
+/** Inline markdown for bot text: **bold**, *italic*, `code`. Anything else stays literal text (no HTML, no links). */
+function Md({ text }: { text: string }) {
+  const out: React.ReactNode[] = [];
+  const re = /\*\*([^*\n]+)\*\*|\*([^*\n]+)\*|`([^`\n]+)`/g;
+  let last = 0; let m: RegExpExecArray | null; let k = 0;
+  while ((m = re.exec(text))) {
+    if (m.index > last) out.push(text.slice(last, m.index));
+    if (m[1] !== undefined) out.push(<strong key={k++}>{m[1]}</strong>);
+    else if (m[2] !== undefined) out.push(<em key={k++}>{m[2]}</em>);
+    else out.push(<code key={k++} className="rounded bg-muted px-1 font-mono text-[0.9em]">{m[3]}</code>);
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return <>{out}</>;
+}
 const sizeOf = (v: unknown): "sm" | "md" | "lg" => (v === "sm" || v === "lg" ? v : "md");
 
 /* ───────────── rich blocks ───────────── */
@@ -120,7 +135,7 @@ function Block({ block }: { block: RichBlock }) {
   const t = useTranslations("rooms");
   switch (block.type) {
     case "text":
-      return <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{str(block.text)}</p>;
+      return <p className="whitespace-pre-wrap break-words text-sm leading-relaxed"><Md text={str(block.text)} /></p>;
     case "heading": {
       const size = block.level === 1 ? "text-base" : block.level === 3 ? "text-[13px]" : "text-sm";
       return <p role="heading" aria-level={Math.min(6, Number(block.level ?? 2) + 2)} className={cx("break-words font-extrabold text-foreground", size)}>{str(block.text)}</p>;
@@ -341,7 +356,7 @@ function Block({ block }: { block: RichBlock }) {
           <div className="min-w-0">
             <span className="sr-only">{t(`bot.blocks.callout.${v}`)}: </span>
             {str(block.title) && <p className={cx("break-words text-sm font-extrabold", c.text)}>{str(block.title)}</p>}
-            <p className="whitespace-pre-wrap break-words text-xs">{str(block.text)}</p>
+            <p className="whitespace-pre-wrap break-words text-xs"><Md text={str(block.text)} /></p>
           </div>
         </div>
       );
@@ -436,7 +451,7 @@ function SectionBlock({ block }: { block: RichBlock }) {
   }
   return (
     <div className="flex min-w-0 max-w-xl items-start gap-3">
-      <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-sm leading-relaxed">{str(block.text)}</p>
+      <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-sm leading-relaxed"><Md text={str(block.text)} /></p>
       {accessory && <div className="shrink-0">{accessory}</div>}
     </div>
   );
