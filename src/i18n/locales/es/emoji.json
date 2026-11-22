@@ -40,5 +40,44 @@
   },
   "image": {
     "fallbackLabel": "Emoji"
+  },
+  "tab": {
+    "title": "Emojis personalizados",
+    "intro": "Emojis subidos por tu equipo. Todos pueden usarlos en mensajes como :nombre: y en reacciones.",
+    "upload": "Subir un emoji",
+    "file": "Imagen",
+    "name": "Nombre (opcional)",
+    "namePlaceholder": "Se toma del nombre del archivo",
+    "uploadButton": "Subir",
+    "willBe": "Se guardará como {{code}}",
+    "uploaded": "Emoji subido",
+    "deleted": "Emoji eliminado",
+    "kindStatic": "Estáticos",
+    "kindAnimated": "Animados",
+    "rules": "{{types}} de hasta {{max}}, de {{min}} a {{maxDim}} px por lado, como máximo {{ratio}}:1 entre lados.",
+    "emptyTitle": "Aún no hay emojis personalizados",
+    "emptyBody": "Sube el primero con el formulario de arriba.",
+    "rename": "Renombrar",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "deleteTitle": "Eliminar emoji",
+    "deleteBody": "{{code}} dejará de funcionar en los mensajes y reacciones que lo usan. No se puede deshacer."
+  },
+  "errors": {
+    "generic": "Algo salió mal. Inténtalo de nuevo.",
+    "notMember": "No eres miembro de este equipo.",
+    "forbidden": "Solo puedes cambiar los emojis que subiste, salvo que puedas gestionar emojis.",
+    "notFound": "Ese emoji ya no existe.",
+    "fileRequired": "Elige una imagen primero.",
+    "tooLarge": "El archivo es demasiado grande (máximo {{max}}).",
+    "unsupportedType": "Tipo de archivo no admitido. Usa PNG, GIF o WebP.",
+    "corruptImage": "La imagen está dañada o no se pudo leer.",
+    "dimensions": "La imagen debe medir entre {{min}} y {{maxDim}} px por lado.",
+    "aspect": "La imagen es demasiado alargada (como máximo {{ratio}}:1).",
+    "nameInvalid": "Usa de 2 a 32 caracteres: minúsculas, dígitos y guiones bajos.",
+    "nameTaken": "Ese nombre ya está en uso.",
+    "limitReached": "Este equipo alcanzó su límite de {{limit}} emojis ({{kind}}).",
+    "storage": "No se pudo guardar la imagen. Inténtalo de nuevo."
   }
 }

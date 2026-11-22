@@ -28,6 +28,8 @@ export interface CustomEmoji {
   /** Shortcode without colons: letters, digits and underscores, 2-32 characters. Written as `:name:` in text. */
   name: string;
   url: string;
+  /** Stable key stored for a reaction (`custom:<id>`). */
+  reaction?: string;
   keywords?: string[];
   animated?: boolean;
 }

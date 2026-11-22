@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useCustomEmojis } from "./emoji-context";
 import { useI18n } from "@/components/providers/i18n-provider";
 import { getCachedDataset } from "@/lib/emoji/dataset";
 import { normalizeGlyph, twemojiUrl } from "@/lib/emoji/twemoji-url";
@@ -21,11 +22,20 @@ export interface EmojiProps {
  */
 export function Emoji({ value, size = "1.25em", className = "", label }: EmojiProps) {
   const { locale } = useI18n();
+  const { customById } = useCustomEmojis();
   const [failed, setFailed] = useState(false);
   const dim = typeof size === "number" ? `${size}px` : size;
   const name = label ?? getCachedDataset(locale === "es" ? "es" : "en")?.byNative.get(normalizeGlyph(value))?.name ?? value;
 
   if (!value) return null;
+  if (value.startsWith("custom:")) {
+    const c = customById.get(value.slice(7));
+    if (!c) return <span aria-hidden className={`inline-block rounded-sm bg-muted ${className}`} style={{ width: dim, height: dim }} />;
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- custom emoji of the team
+      <img src={c.url} alt={`:${c.name}:`} draggable={false} loading="lazy" className={`inline-block select-none align-[-0.25em] object-contain ${className}`} style={{ width: dim, height: dim }} />
+    );
+  }
   if (failed) {
     return <span role="img" aria-label={name} className={className} style={{ fontSize: dim, lineHeight: 1 }}>{value}</span>;
   }

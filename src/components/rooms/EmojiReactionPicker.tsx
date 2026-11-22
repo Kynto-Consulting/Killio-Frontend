@@ -116,7 +116,7 @@ export function EmojiReactionPicker({ onReact, t }: EmojiReactionPickerProps) {
         <EmojiPickerPopover
           anchor={triggerRef.current}
           onClose={() => setOpen(null)}
-          onSelect={(emoji) => handlePick(emoji)}
+          onSelect={(emoji, sel) => handlePick(sel.type === "custom" ? (sel.custom.reaction ?? `custom:${sel.custom.id}`) : emoji)}
         />
       )}
     </>

@@ -2,12 +2,13 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Bot, Gavel, LayoutDashboard, Lock, Mail, ShieldCheck, UserPlus, Users, UsersRound } from "lucide-react";
+import { Bot, Gavel, Smile, LayoutDashboard, Lock, Mail, ShieldCheck, UserPlus, Users, UsersRound } from "lucide-react";
 
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { InviteMemberModal } from "@/components/ui/invite-member-modal";
 import { OfflineRouteFallback } from "@/components/ui/offline-route-fallback";
+import { EmojisTab } from "@/components/emoji/EmojisTab";
 import { BotsTab } from "@/components/bots/bots-tab";
 import { AuditTab } from "@/components/roles/audit-tab";
 import { GroupsTab } from "@/components/roles/groups-tab";
@@ -25,7 +26,7 @@ import { apiCache, cacheKey, CACHE_TTL } from "@/lib/api-cache";
 import { canManageBots } from "@/lib/bots/model";
 import { listTeamMembers, listTeams, type TeamRole, type TeamView } from "@/lib/api/contracts";
 
-type TabId = "overview" | "members" | "invites" | "roles" | "groups" | "audit" | "bots";
+type TabId = "overview" | "members" | "invites" | "roles" | "groups" | "audit" | "bots" | "emojis";
 
 export default function TeamsPage() {
   return (
@@ -46,6 +47,7 @@ function TeamsPageInner() {
   const t = useTranslations("roles");
   const tt = useTranslations("teams");
   const tb = useTranslations("bots");
+  const te = useTranslations("emoji");
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -111,6 +113,7 @@ function TeamsPageInner() {
       if (can("members.invite") || can("invites.manage") || can("members.manage")) ids.push("invites");
       if (can("roles.manage") || can("members.manage_roles") || can("members.manage")) ids.push("roles");
       ids.push("groups");
+      ids.push("emojis");
       if (can("audit.view") || can("members.ban") || can("members.kick")) ids.push("audit");
       if (canManageBots(can, perms.isOwner)) ids.push("bots");
     }
@@ -131,8 +134,8 @@ function TeamsPageInner() {
 
   const tabDefs: TabDef[] = available.map((id) => ({
     id,
-    label: id === "bots" ? tb("tabLabel") : t(`tabs.${id}`),
-    icon: { overview: <LayoutDashboard className="h-4 w-4" />, members: <Users className="h-4 w-4" />, invites: <Mail className="h-4 w-4" />, roles: <ShieldCheck className="h-4 w-4" />, groups: <UsersRound className="h-4 w-4" />, audit: <Gavel className="h-4 w-4" />, bots: <Bot className="h-4 w-4" /> }[id],
+    label: id === "bots" ? tb("tabLabel") : id === "emojis" ? te("tab.title") : t(`tabs.${id}`),
+    icon: { overview: <LayoutDashboard className="h-4 w-4" />, members: <Users className="h-4 w-4" />, invites: <Mail className="h-4 w-4" />, roles: <ShieldCheck className="h-4 w-4" />, groups: <UsersRound className="h-4 w-4" />, audit: <Gavel className="h-4 w-4" />, bots: <Bot className="h-4 w-4" />, emojis: <Smile className="h-4 w-4" /> }[id],
     badge: id === "members" && members.length ? members.length : null,
   }));
 
@@ -195,6 +198,7 @@ function TeamsPageInner() {
             {tab === "groups" && <GroupsTab />}
             {tab === "audit" && <AuditTab />}
             {tab === "bots" && <BotsTab />}
+            {tab === "emojis" && <EmojisTab />}
           </div>
         </SettingsProvider>
       </div>

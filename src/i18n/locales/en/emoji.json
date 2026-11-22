@@ -40,5 +40,44 @@
   },
   "image": {
     "fallbackLabel": "Emoji"
+  },
+  "tab": {
+    "title": "Custom emojis",
+    "intro": "Emojis uploaded by your team. Everyone can use them in messages as :name: and in reactions.",
+    "upload": "Upload an emoji",
+    "file": "Image",
+    "name": "Name (optional)",
+    "namePlaceholder": "Taken from the file name",
+    "uploadButton": "Upload",
+    "willBe": "It will be saved as {{code}}",
+    "uploaded": "Emoji uploaded",
+    "deleted": "Emoji deleted",
+    "kindStatic": "Static",
+    "kindAnimated": "Animated",
+    "rules": "{{types}} up to {{max}}, {{min}} to {{maxDim}} px per side, at most {{ratio}}:1 between sides.",
+    "emptyTitle": "No custom emojis yet",
+    "emptyBody": "Upload the first one with the form above.",
+    "rename": "Rename",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "deleteTitle": "Delete emoji",
+    "deleteBody": "{{code}} will stop working in messages and reactions that use it. This cannot be undone."
+  },
+  "errors": {
+    "generic": "Something went wrong. Try again.",
+    "notMember": "You are not a member of this team.",
+    "forbidden": "You can only change the emojis you uploaded, unless you can manage emojis.",
+    "notFound": "That emoji no longer exists.",
+    "fileRequired": "Choose an image first.",
+    "tooLarge": "The file is too large (maximum {{max}}).",
+    "unsupportedType": "Unsupported file type. Use PNG, GIF or WebP.",
+    "corruptImage": "The image is damaged or could not be read.",
+    "dimensions": "The image must be between {{min}} and {{maxDim}} px per side.",
+    "aspect": "The image is too elongated (at most {{ratio}}:1).",
+    "nameInvalid": "Use 2 to 32 characters: lowercase letters, digits and underscores.",
+    "nameTaken": "That name is already in use.",
+    "limitReached": "This team reached its limit of {{limit}} {{kind}} emojis.",
+    "storage": "The image could not be stored. Try again."
   }
 }

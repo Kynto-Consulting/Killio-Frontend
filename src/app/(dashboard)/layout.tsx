@@ -2,6 +2,7 @@ import { PlatformComponent } from "@/lib/platform";
 import { LayoutWeb } from "./layout.web";
 import { LayoutMobile } from "./layout.mobile";
 import { FeatureRouteGuard } from "@/components/tenant/feature-route-guard";
+import { TeamEmojiProvider } from "@/components/emoji/TeamEmojiProvider";
 import { ModeRouteGuard } from "@/components/onboarding/onboarding-host";
 
 interface DashboardLayoutProps {
@@ -14,11 +15,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   // pages on the client (an async server component here can break the context).
   return (
     <FeatureRouteGuard>
+      <TeamEmojiProvider>
       <PlatformComponent
         web={LayoutWeb}
         mobile={LayoutMobile}
         props={{ children: <ModeRouteGuard>{children}</ModeRouteGuard> }}
       />
+      </TeamEmojiProvider>
     </FeatureRouteGuard>
   );
 }

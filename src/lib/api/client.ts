@@ -6,11 +6,14 @@ export const getApiBaseUrl = () => API_BASE_URL;
 export class ApiError extends Error {
   status: number;
   code?: string;
-  constructor(message: string, status: number, code?: string) {
+  /** Extra fields of the error body (e.g. `kind` / `limit` of EMOJI_LIMIT_REACHED). */
+  details?: Record<string, unknown>;
+  constructor(message: string, status: number, code?: string, details?: Record<string, unknown>) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.code = code;
+    this.details = details;
   }
 }
 
@@ -51,6 +54,7 @@ export async function fetchApi<T>(
   if (!res.ok) {
     let message = `Request failed with status ${res.status}`;
     let code: string | undefined;
+    let details: Record<string, unknown> | undefined;
     try {
       const contentType = res.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
@@ -59,6 +63,7 @@ export async function fetchApi<T>(
           code = PASSWORD_CHANGE_REQUIRED_CODE;
           if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(PASSWORD_CHANGE_REQUIRED_EVENT));
         }
+        if (typeof errorData?.code === 'string') { code = code ?? errorData.code; details = errorData; }
         message = Array.isArray(errorData.message)
           ? errorData.message.join(', ')
           : errorData.message || message;
@@ -76,7 +81,7 @@ export async function fetchApi<T>(
         window.dispatchEvent(new CustomEvent('auth:unauthorized'));
       }
     }
-    throw new ApiError(message, res.status, code);
+    throw new ApiError(message, res.status, code, details);
   }
 
   if (res.status === 204) return undefined as any;
