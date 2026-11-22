@@ -22,8 +22,9 @@ const escHtml = (v: string) => escAttr(v).replace(/'/g, "&#39;");
 export function emojiTokenHtml(kind: "unicode" | "custom", token: string, opts: { src: string; label: string }): string {
   return (
     `${ZWSP}<span contenteditable="false" data-token="${escAttr(token)}" data-emoji="${kind}" role="img" aria-label="${escAttr(opts.label)}" ` +
-    `class="mx-px inline-block select-none ${EMOJI_INLINE_ALIGN}">` +
-    `<img src="${escAttr(opts.src)}" alt="${escAttr(opts.label)}" draggable="false" class="inline-block h-[1.375em] w-[1.375em] object-contain"></span>${ZWSP}`
+    // Centered on the text (align-middle) with a block image: the wrapper's own offset plus an inline image baseline made it sit low.
+    `class="mx-px inline-block select-none align-middle">` +
+    `<img src="${escAttr(opts.src)}" alt="${escAttr(opts.label)}" draggable="false" class="block h-[1.375em] w-[1.375em] object-contain"></span>${ZWSP}`
   );
 }
 
