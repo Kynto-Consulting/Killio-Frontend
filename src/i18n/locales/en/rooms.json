@@ -954,7 +954,27 @@
       "opensNewTab": "(opens in a new tab)",
       "done": "done",
       "todo": "pending",
-      "card": "Card"
+      "card": "Card",
+      "imageFailed": "Image not available",
+      "progress": "Progress",
+      "trend": {
+        "up": "up",
+        "down": "down",
+        "flat": "unchanged"
+      },
+      "callout": {
+        "info": "Information",
+        "success": "Success",
+        "warning": "Warning",
+        "error": "Error"
+      },
+      "poll": {
+        "label": "Poll",
+        "closed": "Closed",
+        "votes": "{{count}} votes",
+        "multiple": "several answers",
+        "closes": "closes"
+      }
     },
     "components": {
       "group": "Bot controls, row {{n}}",
@@ -1000,6 +1020,34 @@
     "replyTo": {
       "goTo": "Go to the message {{name}} wrote",
       "unknown": "Message"
+    },
+    "picker": {
+      "search": "Search…",
+      "loading": "Loading…",
+      "empty": "No results.",
+      "error": "The list could not be loaded.",
+      "placeholder": {
+        "user_select": "Pick people",
+        "role_select": "Pick roles",
+        "channel_select": "Pick channels",
+        "mentionable_select": "Pick people or roles"
+      },
+      "kind": {
+        "user": "person",
+        "role": "role",
+        "channel": "channel"
+      }
+    },
+    "modal": {
+      "close": "Close",
+      "cancel": "Cancel",
+      "submit": "Submit",
+      "optional": "(optional)",
+      "errors": {
+        "required": "This field is required.",
+        "min": "Write at least {{min}} characters.",
+        "max": "At most {{max}} characters."
+      }
     }
   },
   "webhooks": {

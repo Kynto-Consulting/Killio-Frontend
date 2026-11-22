@@ -47,7 +47,7 @@ test("fields never use a key the backend schema does not have (only the virtual 
     "killio.trigger.message_deleted": ["roomId"],
     "killio.trigger.member_join": ["roomId"],
     "killio.trigger.scheduled": ["roomId", "everyMinutes", "dailyAt", "weekdays", "scheduleMode"],
-    "killio.room.respond_interaction": ["mode", "text", "blocks", "blocksFrom", "components", "componentsFrom", "expiresInMinutes"],
+    "killio.room.respond_interaction": ["mode", "modal", "text", "blocks", "blocksFrom", "components", "componentsFrom", "expiresInMinutes"],
     "killio.room.send_message": ["roomId", "text", "blocks", "blocksFrom", "components", "componentsFrom", "expiresInMinutes", "ephemeral"],
     "killio.room.reply": ["messageId", "roomId", "text", "blocks", "blocksFrom", "components", "componentsFrom", "expiresInMinutes", "ephemeral", "inThread"],
     "killio.room.edit_message": ["messageId", "roomId", "text", "blocks", "blocksFrom", "components", "componentsFrom", "expiresInMinutes"],

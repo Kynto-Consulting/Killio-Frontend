@@ -23,6 +23,7 @@ import {
 import { normalizeWorkspaceMembers } from "@/lib/workspace-members";
 import { BlocksEditor } from "./blocks-editor";
 import { ComponentsEditor } from "./components-editor";
+import { ModalEditor } from "./modal-editor";
 import { EmojiField, EntityField, FieldRow, TemplateField, WeekdaysField, fieldCls, variableText, type EntityOption, type MentionSource } from "./room-fields";
 
 /* ───────────── data the pickers need ───────────── */
@@ -127,7 +128,7 @@ export function RoomNodeProperties({ kind, nodeId, scriptId, teamId, accessToken
   const errorText = (key: string): string | null => {
     const i = issueFor(key);
     if (!i) return null;
-    if (i.code === "blocks_invalid" || i.code === "components_invalid") return null; // shown by their own editors
+    if (i.code === "blocks_invalid" || i.code === "components_invalid" || i.code === "modal_invalid") return null; // shown by their own editors
     return t(`canvas.room.issues.node.${i.code}`);
   };
 
@@ -270,8 +271,16 @@ export function RoomNodeProperties({ kind, nodeId, scriptId, teamId, accessToken
             return (
               <div key={f.key} data-field={f.key}>
                 <p id={`${id}-label`} className="mb-1 text-[11px] font-medium text-muted-foreground">{lbl("blocks")}</p>
-                <BlocksEditor id={id} value={Array.isArray(value) ? value : undefined} onChange={(v) => set("blocks", v)} variables={variables} mentions={mentions} />
+                <BlocksEditor id={id} value={Array.isArray(value) ? value : undefined} onChange={(v) => set("blocks", v)} variables={variables} mentions={mentions} onApplyTemplate={spec.fields.some((x) => x.key === "components") ? (patch) => onPatch(patch) : undefined} />
                 <p className="mt-1 text-[10px] leading-snug text-muted-foreground">{hint("blocks")}</p>
+              </div>
+            );
+          case "modal":
+            return (
+              <div key={f.key} data-field={f.key}>
+                <p id={`${id}-label`} className="mb-1 text-[11px] font-medium text-muted-foreground">{lbl("modal")}</p>
+                <ModalEditor id={id} value={config.modal} onChange={(v) => set("modal", v)} variables={variables} />
+                <p className="mt-1 text-[10px] leading-snug text-muted-foreground">{hint("modal")}</p>
               </div>
             );
           case "components": {

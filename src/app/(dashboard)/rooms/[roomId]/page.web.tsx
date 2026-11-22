@@ -52,6 +52,7 @@ import { PinnedPanel, ThreadPanel } from "@/components/rooms/SidePanels";
 import { BookmarksPanel } from "@/components/rooms/BookmarksPanel";
 import { useMyBookmarks } from "@/hooks/use-my-bookmarks";
 import { useRoomEphemeral } from "@/hooks/use-room-ephemeral";
+import { PendingModalHost } from "@/components/rooms/bot-modal";
 import { PinExpiryDialog } from "@/components/rooms/PinExpiryDialog";
 import { usePinExpiry } from "@/hooks/use-pin-expiry";
 import { useNarrowViewport } from "@/hooks/use-narrow-viewport";
@@ -1387,6 +1388,7 @@ Team Context: ${activeTeamId}.`;
         t={t}
       />
 
+      <PendingModalHost roomId={roomId} accessToken={accessToken} pending={ephemeral.modal} onFinished={ephemeral.dismiss} />
       <MuteMemberModal
         open={Boolean(muteTarget)}
         onClose={() => setMuteTarget(null)}

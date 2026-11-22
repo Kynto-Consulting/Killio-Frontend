@@ -11,10 +11,13 @@
  *   POST   /rooms/:id/messages/:messageId/interact       { customId, values? } -> 202 { ok, interactionId }
  *   GET    /rooms/:id/ephemeral                          the caller's own private bot messages of the room
  *   DELETE /rooms/:id/ephemeral/:eid                     dismiss
+ *   GET    /rooms/:id/messages/:messageId/select-options?customId=&q=   candidates of a user / role / channel / mentionable select
+ *   POST   /rooms/:id/ephemeral/:eid/modal-submit        { fields } -> 202
  */
 
 import { fetchApi } from "@/lib/api/client";
 import { normalizeBookmarks, type Bookmark } from "@/lib/rooms/bookmarks";
+import { readPickerItems, type PickerItem } from "@/lib/bots/components";
 import { normalizeEphemeralList, type EphemeralMessage } from "@/lib/rooms/ephemeral";
 import { normalizeCreatedWebhook, normalizeWebhookList, webhookBody, type CreatedWebhook, type RoomWebhook } from "@/lib/bots/webhooks";
 
@@ -89,4 +92,17 @@ export async function listRoomEphemeral(roomId: string, accessToken: string): Pr
 
 export async function dismissRoomEphemeral(roomId: string, id: string, accessToken: string): Promise<void> {
   await fetchApi<unknown>(`/rooms/${q(roomId)}/ephemeral/${q(id)}`, { method: "DELETE", accessToken });
+}
+
+/* ── pickers and modals (rich messages v2) ── */
+
+/** People / roles / channels a select may offer, already filtered by the server to what the caller may see. */
+export async function listSelectOptions(roomId: string, messageId: string, customId: string, query: string, accessToken: string): Promise<PickerItem[]> {
+  const params = new URLSearchParams({ customId });
+  if (query.trim()) params.set("q", query.trim().slice(0, 100));
+  return readPickerItems(await fetchApi<unknown>(`/rooms/${q(roomId)}/messages/${q(messageId)}/select-options?${params.toString()}`, { accessToken }));
+}
+
+export async function submitModal(roomId: string, ephemeralId: string, fields: Record<string, string>, accessToken: string): Promise<void> {
+  await fetchApi<unknown>(`/rooms/${q(roomId)}/ephemeral/${q(ephemeralId)}/modal-submit`, { method: "POST", body: JSON.stringify({ fields }), accessToken });
 }

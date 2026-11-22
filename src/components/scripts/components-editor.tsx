@@ -13,8 +13,8 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import { InteractiveComponents } from "@/components/rooms/bot-message-parts";
 import { cx } from "@/components/roles/ui";
 import {
-  BUTTON_STYLES, COMPONENT_LIMITS, blankButton, blankSelect, componentIssuesAt, componentsPayload, toRows, validateComponents,
-  type ButtonComponent, type Component, type ComponentRow, type SelectComponent, type SelectOption,
+  BUTTON_STYLES, COMPONENT_LIMITS, PICKER_TYPES, blankButton, blankPicker, blankSelect, blankToggle, componentIssuesAt, componentsPayload, isPicker, isSelectLike, toRows, validateComponents,
+  type ButtonComponent, type Component, type ComponentRow, type PickerComponent, type PickerType, type SelectComponent, type SelectOption, type ToggleComponent,
 } from "@/lib/bots/components";
 import { moveItem } from "@/lib/bots/options";
 import type { PayloadVar } from "@/lib/bots/room-nodes";
@@ -43,7 +43,7 @@ export function ComponentsEditor({ id, value, expiresInMinutes, onChange, variab
   const issues = validateComponents(rows, expiresInMinutes);
   const commit = (next: ComponentRow[]) => onChange(next.length ? componentsPayload(next) : undefined);
   const setRow = (r: number, components: Component[]) => commit(rows.map((row, k) => (k === r ? { components } : row)).filter((row) => row.components.length > 0));
-  const patchComp = (r: number, i: number, p: Partial<ButtonComponent> | Partial<SelectComponent>) => setRow(r, rows[r].components.map((c, k) => (k === i ? ({ ...c, ...p } as Component) : c)));
+  const patchComp = (r: number, i: number, p: Partial<ButtonComponent> | Partial<SelectComponent> | Partial<PickerComponent> | Partial<ToggleComponent>) => setRow(r, rows[r].components.map((c, k) => (k === i ? ({ ...c, ...p } as Component) : c)));
 
   return (
     <div className="space-y-2" role="group" aria-labelledby={`${id}-label`}>
@@ -52,7 +52,7 @@ export function ComponentsEditor({ id, value, expiresInMinutes, onChange, variab
 
       <ol className="space-y-2">
         {rows.map((row, r) => {
-          const hasSelect = row.components.some((c) => c.type === "select");
+          const hasSelect = row.components.some((c) => isSelectLike(c));
           const rowIssues = componentIssuesAt(issues, [r]);
           return (
             <li key={r} className="rounded-md border border-border bg-background/60 p-2">
@@ -77,7 +77,11 @@ export function ComponentsEditor({ id, value, expiresInMinutes, onChange, variab
                     </div>
                     {c.type === "button"
                       ? <ButtonFields id={`${id}-${r}-${i}`} b={c} variables={variables} onPatch={(p) => patchComp(r, i, p)} />
-                      : <SelectFields id={`${id}-${r}-${i}`} s={c} variables={variables} onPatch={(p) => patchComp(r, i, p)} />}
+                      : c.type === "toggle"
+                        ? <ToggleFields id={`${id}-${r}-${i}`} tg={c} variables={variables} onPatch={(p) => patchComp(r, i, p)} />
+                        : isPicker(c)
+                          ? <PickerFields id={`${id}-${r}-${i}`} p={c} variables={variables} onPatch={(p) => patchComp(r, i, p)} />
+                          : <SelectFields id={`${id}-${r}-${i}`} s={c as SelectComponent} variables={variables} onPatch={(p) => patchComp(r, i, p)} />}
                     {componentIssuesAt(issues, [r, i]).map((x, k) => <p key={k} role="alert" className="mt-1 text-[11px] font-medium text-red-700 dark:text-red-300">{t(`canvas.room.issues.components.${x.code}`, { max: COMPONENT_LIMITS.maxLabelLength })}</p>)}
                     {c.type === "select" && issues.filter((x) => x.at.length === 3 && x.at[0] === r && x.at[1] === i).map((x, k) => <p key={`o${k}`} role="alert" className="mt-1 text-[11px] font-medium text-red-700 dark:text-red-300">{t(`canvas.room.issues.components.${x.code}`)} ({x.at[2] + 1})</p>)}
                   </li>
@@ -88,9 +92,24 @@ export function ComponentsEditor({ id, value, expiresInMinutes, onChange, variab
                 <button type="button" className={miniBtn} disabled={hasSelect || row.components.length >= COMPONENT_LIMITS.maxButtonsPerRow} onClick={() => setRow(r, [...row.components, { ...blankButton(0), customId: freeId(rows, "btn") }])}>
                   <Plus className="h-3 w-3" aria-hidden /> {t("canvas.room.components.addButton")}
                 </button>
-                <button type="button" className={miniBtn} disabled={row.components.length > 0} onClick={() => setRow(r, [{ ...blankSelect(0), customId: freeId(rows, "select") }])}>
-                  <Plus className="h-3 w-3" aria-hidden /> {t("canvas.room.components.addSelect")}
+                <button type="button" className={miniBtn} disabled={hasSelect || row.components.length >= COMPONENT_LIMITS.maxButtonsPerRow} onClick={() => setRow(r, [...row.components, { ...blankToggle(0), customId: freeId(rows, "toggle") }])}>
+                  <Plus className="h-3 w-3" aria-hidden /> {t("canvas.room.components.addToggle")}
                 </button>
+                <label className="sr-only" htmlFor={`${id}-${r}-addsel`}>{t("canvas.room.components.addSelect")}</label>
+                <select
+                  id={`${id}-${r}-addsel`}
+                  value=""
+                  disabled={row.components.length > 0}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === "select") setRow(r, [{ ...blankSelect(0), customId: freeId(rows, "select") }]);
+                    else if ((PICKER_TYPES as readonly string[]).includes(v)) setRow(r, [{ ...blankPicker(v as PickerType, 0), customId: freeId(rows, v.replace("_select", "")) }]);
+                  }}
+                  className={cx(fieldCls, "h-7 w-auto min-w-0 text-[11px]")}
+                >
+                  <option value="">{t("canvas.room.components.addSelect")}</option>
+                  {["select", ...PICKER_TYPES].map((k) => <option key={k} value={k}>{t(`canvas.room.components.kind.${k}`)}</option>)}
+                </select>
               </div>
             </li>
           );
@@ -199,6 +218,65 @@ function OptionLines({ id, value, onCommit, variables }: { id: string; value: st
   return (
     <div onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null) && draft !== value) onCommit(draft); }}>
       <TemplateField id={id} value={draft} onChange={setDraft} variables={variables} rows={4} />
+    </div>
+  );
+}
+
+function PickerFields({ id, p, variables, onPatch }: { id: string; p: PickerComponent; variables: readonly PayloadVar[]; onPatch: (p: Partial<PickerComponent>) => void }) {
+  const t = useTranslations("integrations");
+  const uid = useId();
+  const f = (k: string) => `${id}-${uid}-${k}`;
+  return (
+    <div className="grid gap-1.5">
+      <p className="text-[10px] leading-snug text-muted-foreground">{t(`canvas.room.components.hints.picker.${p.type}`)}</p>
+      <FieldRow label={t("canvas.room.components.fields.customId")} hint={t("canvas.room.components.hints.customId")} htmlFor={f("customId")} required>
+        <TemplateField id={f("customId")} value={p.customId ?? ""} onChange={(v) => onPatch({ customId: v })} variables={variables} single />
+      </FieldRow>
+      <FieldRow label={t("canvas.room.components.fields.placeholder")} htmlFor={f("placeholder")}>
+        <TemplateField id={f("placeholder")} value={p.placeholder ?? ""} onChange={(v) => onPatch({ placeholder: v })} variables={variables} single />
+      </FieldRow>
+      <div className="grid grid-cols-2 gap-1.5">
+        <FieldRow label={t("canvas.room.components.fields.minValues")} htmlFor={f("min")}>
+          <input id={f("min")} type="number" min={0} max={COMPONENT_LIMITS.maxSelectValues} value={Number.isFinite(p.minValues) ? p.minValues : ""} onChange={(e) => onPatch({ minValues: e.target.value === "" ? (undefined as unknown as number) : Number(e.target.value) })} className={fieldCls} />
+        </FieldRow>
+        <FieldRow label={t("canvas.room.components.fields.maxValues")} htmlFor={f("max")}>
+          <input id={f("max")} type="number" min={1} max={COMPONENT_LIMITS.maxSelectValues} value={Number.isFinite(p.maxValues) ? p.maxValues : ""} onChange={(e) => onPatch({ maxValues: e.target.value === "" ? (undefined as unknown as number) : Number(e.target.value) })} className={fieldCls} />
+        </FieldRow>
+      </div>
+      {p.type === "role_select" && (
+        <label className="flex items-center gap-2 text-[11px] text-foreground">
+          <input type="checkbox" checked={p.selfAssignableOnly === true} onChange={(e) => onPatch({ selfAssignableOnly: e.target.checked })} className="h-3.5 w-3.5 rounded border-border" />
+          {t("canvas.room.components.fields.selfAssignableOnly")}
+        </label>
+      )}
+      <label className="flex items-center gap-2 text-[11px] text-foreground">
+        <input type="checkbox" checked={p.disabled === true} onChange={(e) => onPatch({ disabled: e.target.checked })} className="h-3.5 w-3.5 rounded border-border" />
+        {t("canvas.room.components.fields.disabled")}
+      </label>
+    </div>
+  );
+}
+
+function ToggleFields({ id, tg, variables, onPatch }: { id: string; tg: ToggleComponent; variables: readonly PayloadVar[]; onPatch: (p: Partial<ToggleComponent>) => void }) {
+  const t = useTranslations("integrations");
+  const uid = useId();
+  const f = (k: string) => `${id}-${uid}-${k}`;
+  return (
+    <div className="grid gap-1.5">
+      <FieldRow label={t("canvas.room.components.fields.label")} htmlFor={f("label")} required>
+        <TemplateField id={f("label")} value={tg.label ?? ""} onChange={(v) => onPatch({ label: v })} variables={variables} single />
+      </FieldRow>
+      <FieldRow label={t("canvas.room.components.fields.customId")} hint={t("canvas.room.components.hints.toggle")} htmlFor={f("customId")} required>
+        <TemplateField id={f("customId")} value={tg.customId ?? ""} onChange={(v) => onPatch({ customId: v })} variables={variables} single />
+      </FieldRow>
+      <label className="flex items-center gap-2 text-[11px] text-foreground">
+        <input type="checkbox" checked={tg.checked === true} onChange={(e) => onPatch({ checked: e.target.checked })} className="h-3.5 w-3.5 rounded border-border" />
+        {t("canvas.room.components.fields.checked")}
+      </label>
+      <label className="flex items-center gap-2 text-[11px] text-foreground">
+        <input type="checkbox" checked={tg.disabled === true} onChange={(e) => onPatch({ disabled: e.target.checked })} className="h-3.5 w-3.5 rounded border-border" />
+        {t("canvas.room.components.fields.disabled")}
+      </label>
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRealtime } from "@/components/providers/realtime-provider";
 import { realtimeChannel } from "@/lib/realtime/channels";
 import { dismissRoomEphemeral, listRoomEphemeral } from "@/lib/api/room-tools";
-import { addEphemeral, dismissEphemeral, mergeRoomEphemeral, normalizeEphemeral, visibleEphemeral, type EphemeralMessage } from "@/lib/rooms/ephemeral";
+import { addEphemeral, dismissEphemeral, mergeRoomEphemeral, normalizeEphemeral, pendingModal, visibleEphemeral, type EphemeralMessage } from "@/lib/rooms/ephemeral";
 
 /**
  * The private bot answers of the current person in one room: loaded when the room opens (so a reload keeps them), received live on the
@@ -43,6 +43,8 @@ export function useRoomEphemeral(roomId: string | null | undefined, userId: stri
 
   const items = useMemo(() => (roomId ? visibleEphemeral(all, roomId, now) : []), [all, roomId, now]);
 
+  const modal = useMemo(() => (roomId ? pendingModal(all, roomId, now) : null), [all, roomId, now]);
+
   const dismiss = useCallback(
     (id: string) => {
       setAll((cur) => dismissEphemeral(cur, id));
@@ -51,5 +53,5 @@ export function useRoomEphemeral(roomId: string | null | undefined, userId: stri
     [roomId, accessToken],
   );
 
-  return { items, dismiss };
+  return { items, dismiss, modal };
 }

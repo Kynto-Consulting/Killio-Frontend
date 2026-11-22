@@ -1230,7 +1230,8 @@
             "message": "Publicando un mensaje nuevo",
             "word": "Palabra completa",
             "contains": "Contiene",
-            "exact": "Exacto"
+            "exact": "Exacto",
+            "modal": "Abriendo un modal"
           }
         },
         "roleId": {
@@ -1291,6 +1292,10 @@
         "moderate": {
           "label": "Moderar: borrar el mensaje que disparó aunque no sea del bot",
           "hint": "El bot necesita room.manage_messages en la sala."
+        },
+        "modal": {
+          "label": "Modal",
+          "hint": "Se abre como diálogo para quien pulsó. El envío llega al disparador de Interacción con componentType modal, el id del modal y fields."
         }
       },
       "vars": {
@@ -1366,7 +1371,23 @@
           "code": "Código",
           "quote": "Cita",
           "divider": "Separador",
-          "embed": "Tarjeta"
+          "embed": "Tarjeta",
+          "section": "Sección",
+          "thumbnail": "Miniatura",
+          "media_gallery": "Galería",
+          "container": "Contenedor",
+          "fields": "Campos",
+          "author": "Autor",
+          "footer": "Pie",
+          "timestamp": "Fecha y hora",
+          "progress": "Progreso",
+          "stats": "Cifras",
+          "key_value": "Clave y valor",
+          "badges": "Etiquetas",
+          "callout": "Aviso",
+          "columns": "Columnas",
+          "spacer": "Espacio",
+          "poll": "Encuesta"
         },
         "fields": {
           "text": "Texto",
@@ -1387,7 +1408,32 @@
           "footer": "Pie",
           "imageUrl": "Imagen (https)",
           "thumbnailUrl": "Miniatura (https)",
-          "timestamp": "Fecha (ISO)"
+          "timestamp": "Fecha (ISO)",
+          "accessory": "Accesorio",
+          "label": "Etiqueta",
+          "style": "Estilo",
+          "customId": "Id",
+          "size": "Tamaño",
+          "accentColor": "Color de acento",
+          "children": "Bloques del contenedor",
+          "columnsCount": "Columnas",
+          "name": "Nombre",
+          "iconUrl": "Icono (https)",
+          "value": "Valor",
+          "max": "Máximo",
+          "showPercent": "Mostrar porcentaje",
+          "tone": "Tono",
+          "variant": "Tipo",
+          "icon": "Icono (emoji)",
+          "question": "Pregunta",
+          "options": "Opciones",
+          "multiple": "Varias respuestas",
+          "closed": "Cerrada",
+          "closesAt": "Cierra (ISO)",
+          "authorName": "Autor",
+          "authorUrl": "Enlace del autor (https)",
+          "authorIconUrl": "Icono del autor (https)",
+          "footerIconUrl": "Icono del pie (https)"
         },
         "hints": {
           "lines": "Un elemento por línea.",
@@ -1396,12 +1442,55 @@
           "rows": "Una fila por línea, celdas separadas por |",
           "fields": "Uno por línea: nombre | valor | inline (opcional)",
           "divider": "Una línea horizontal. No tiene opciones.",
-          "embedsPerm": "Requiere bots.send_embeds en el bot y enlaces incrustados en la sala."
+          "embedsPerm": "Requiere bots.send_embeds en el bot y enlaces incrustados en la sala.",
+          "timestamp": "Fecha ISO (por ejemplo 2026-12-01T10:00:00Z). Cada lector la ve en su zona horaria.",
+          "poll": "Solo muestra los resultados. Los votos los recoge tu script con botones o un selector y actualiza el mensaje.",
+          "gallery": "Una por línea: https://… | texto alternativo | pie (de 1 a 6).",
+          "stats": "Una por línea: etiqueta | valor | variación | up, down o flat (variación y tendencia opcionales).",
+          "pairs": "Una por línea: clave | valor.",
+          "badges": "Una por línea: texto | color (gray, blue, green, yellow, red, purple, pink).",
+          "pollOptions": "Una por línea: opción | votos (votos opcional). De 2 a 10."
         },
         "json": {
           "syntax": "Eso no es JSON válido.",
           "list": "Debe ser una lista de bloques ([ ... ]).",
           "hint": "Se aplica cuando es válido. El formulario muestra los mismos datos."
+        },
+        "groups": {
+          "basic": "Básicos",
+          "rich": "Ricos"
+        },
+        "none": "Ninguno",
+        "column": "Columna {{n}}",
+        "addColumn": "Añadir columna",
+        "accessory": {
+          "none": "Sin accesorio",
+          "thumbnail": "Miniatura a la derecha",
+          "button": "Botón a la derecha"
+        },
+        "sizes": {
+          "sm": "Pequeño",
+          "md": "Mediano",
+          "lg": "Grande"
+        },
+        "tones": {
+          "accent": "Acento",
+          "success": "Éxito",
+          "warning": "Aviso",
+          "danger": "Peligro"
+        },
+        "variants": {
+          "info": "Información",
+          "success": "Éxito",
+          "warning": "Advertencia",
+          "error": "Error"
+        },
+        "timestampStyles": {
+          "relative": "Relativa (hace 3 horas)",
+          "absolute": "Fecha y hora",
+          "date": "Solo fecha",
+          "time": "Solo hora",
+          "datetime": "Fecha y hora"
         }
       },
       "components": {
@@ -1412,7 +1501,13 @@
         "addSelect": "Selector",
         "kind": {
           "button": "Botón",
-          "select": "Selector"
+          "select": "Selector",
+          "string_select": "Selector de texto",
+          "user_select": "Selector de personas",
+          "role_select": "Selector de roles",
+          "channel_select": "Selector de canales",
+          "mentionable_select": "Selector de menciones",
+          "toggle": "Interruptor"
         },
         "previewNote": "Vista previa: aquí los controles no hacen nada.",
         "fields": {
@@ -1425,7 +1520,9 @@
           "placeholder": "Texto de ayuda",
           "options": "Opciones",
           "minValues": "Mínimo de elecciones",
-          "maxValues": "Máximo de elecciones"
+          "maxValues": "Máximo de elecciones",
+          "checked": "Activado al inicio",
+          "selfAssignableOnly": "Solo roles que se pueden pedir a sí mismos"
         },
         "styles": {
           "primary": "Principal",
@@ -1437,10 +1534,18 @@
         "hints": {
           "url": "Se abre en una pestaña nueva. Un botón de enlace no envía nada al script.",
           "customId": "Letras, dígitos y _ . : - / (hasta 100). Único en el mensaje. El disparador de Interacción filtra por él.",
-          "options": "Una por línea: etiqueta | valor | descripción (valor y descripción opcionales). Hasta {{max}}."
+          "options": "Una por línea: etiqueta | valor | descripción (valor y descripción opcionales). Hasta {{max}}.",
+          "toggle": "Al pulsarlo envía values con true o false (el nuevo estado). Actualiza el mensaje para guardarlo.",
+          "picker": {
+            "user_select": "Lista las personas que pueden ver la sala. El script recibe sus ids en values y sus nombres en resolved.users.",
+            "role_select": "Lista los roles del espacio. El script recibe los ids en values y los nombres en resolved.roles.",
+            "channel_select": "Lista los canales que la persona puede ver. El script recibe los ids en values y resolved.channels.",
+            "mentionable_select": "Personas y roles. El script recibe los ids en values y resolved.users / resolved.roles."
+          }
         },
         "removeAll": "Quitar los botones y selectores del mensaje",
-        "removeAllHint": "Envía una lista vacía. Déjalo sin marcar para mantener sin cambios los componentes del mensaje."
+        "removeAllHint": "Envía una lista vacía. Déjalo sin marcar para mantener sin cambios los componentes del mensaje.",
+        "addToggle": "Interruptor"
       },
       "issues": {
         "node": {
@@ -1487,7 +1592,24 @@
           "timestamp": "No es una fecha válida.",
           "title_long": "Título demasiado largo (máximo 256).",
           "alt_long": "Texto demasiado largo.",
-          "code_long": "Código demasiado largo (máximo 4000)."
+          "code_long": "Código demasiado largo (máximo 4000).",
+          "total_blocks": "Como mucho {{total}} bloques contando los anidados.",
+          "images_many": "Como mucho {{images}} imágenes en total.",
+          "children_range": "Un contenedor o columna lleva entre 1 y 15 (6 en columnas) bloques.",
+          "nesting": "Ese bloque no se puede anidar aquí (un contenedor no lleva contenedores; las columnas solo bloques simples).",
+          "gallery_range": "Una galería lleva de 1 a 6 imágenes.",
+          "variant_invalid": "Tipo de aviso no válido.",
+          "progress_range": "El valor debe estar entre 0 y el máximo (1 a 1000000000).",
+          "size_invalid": "Tamaño no válido (sm, md o lg).",
+          "columns_count": "Las columnas son 2 o 3.",
+          "accessory_invalid": "El accesorio no es válido (botón con etiqueta e id o enlace https; miniatura con enlace https).",
+          "poll_options": "Una encuesta lleva de 2 a 10 opciones.",
+          "poll_label": "Cada opción necesita un texto (hasta 100).",
+          "poll_votes": "Los votos son un número entero de 0 en adelante.",
+          "stat_item": "Cada cifra necesita etiqueta (60) y valor (40); la tendencia es up, down o flat.",
+          "kv_item": "Cada fila necesita clave (100) y valor (300).",
+          "badge_item": "Cada etiqueta necesita texto (40) y un color conocido.",
+          "choice_invalid": "Valor no válido para esta opción."
         },
         "components": {
           "too_many_rows": "Máximo {{max}} filas.",
@@ -1513,6 +1635,21 @@
           "values_range": "El mínimo y el máximo deben caber en el número de opciones.",
           "placeholder_long": "Texto de ayuda demasiado largo (máximo 150).",
           "expires_range": "La caducidad debe estar entre {{min}} y {{maxMin}} minutos."
+        },
+        "modal": {
+          "custom_id_required": "El modal necesita un id.",
+          "custom_id_invalid": "El id del modal no es válido (letras, dígitos y _ . : - /).",
+          "title_required": "El modal necesita un título.",
+          "title_long": "El título admite hasta 45 caracteres.",
+          "submit_long": "El texto de enviar admite hasta 30 caracteres.",
+          "inputs_range": "Un modal lleva de 1 a {{max}} campos.",
+          "input_custom_id": "El id del campo no es válido.",
+          "input_duplicate": "Ese id de campo está repetido.",
+          "input_label": "El campo necesita etiqueta (hasta 45).",
+          "input_style": "El tipo del campo es short o paragraph.",
+          "input_placeholder": "El texto de ayuda admite hasta 100 caracteres.",
+          "input_length": "Mínimo y máximo de caracteres no son válidos.",
+          "input_value": "El valor inicial es más largo que el máximo."
         }
       },
       "graph": {
@@ -1527,6 +1664,71 @@
           "edge_dangling": "Una conexión apunta a un nodo que no existe.",
           "trigger_has_input": "Un disparador no tiene entrada: nada puede conectarse a él.",
           "node_invalid": "Necesita atención: {{field}}."
+        }
+      },
+      "modal": {
+        "input": "Campo {{n}}",
+        "addInput": "Añadir campo",
+        "fields": {
+          "customId": "Id",
+          "title": "Título",
+          "submitLabel": "Texto del botón de enviar",
+          "label": "Etiqueta",
+          "style": "Tipo",
+          "placeholder": "Texto de ayuda",
+          "minLength": "Mínimo de caracteres",
+          "maxLength": "Máximo de caracteres",
+          "value": "Valor inicial",
+          "required": "Obligatorio"
+        },
+        "styles": {
+          "short": "Una línea",
+          "paragraph": "Párrafo"
+        },
+        "hints": {
+          "customId": "Letras, dígitos y _ . : - / (hasta 100). El disparador de Interacción lo recibe como customId; el texto llega en fields."
+        }
+      },
+      "templates": {
+        "label": "Empezar desde una plantilla…",
+        "use": "Usar",
+        "replaces": "Sustituye los bloques actuales (y los componentes si la plantilla los trae).",
+        "rolePanel": {
+          "name": "Panel de roles",
+          "title": "Tus roles",
+          "body": "Elige el rol que quieres recibir. Este panel funciona durante 30 minutos.",
+          "calloutTitle": "Cómo funciona",
+          "calloutText": "Solo salen los roles que cualquiera puede pedirse a sí mismo.",
+          "placeholder": "Elige un rol",
+          "remove": "Quitar el rol elegido"
+        },
+        "welcomeCard": {
+          "name": "Tarjeta de bienvenida",
+          "title": "¡Bienvenid@ a la comunidad!",
+          "body": "Nos alegra verte por aquí. Pásate por las normas y preséntate.",
+          "logoAlt": "Logo de la comunidad",
+          "badgeNew": "Nuevo miembro",
+          "badgeCommunity": "Comunidad",
+          "joined": "Se unió"
+        },
+        "poll": {
+          "name": "Encuesta",
+          "question": "¿Qué día prefieres para el evento?",
+          "optionA": "Viernes",
+          "optionB": "Sábado",
+          "optionC": "Domingo",
+          "footer": "Vota con los botones. Los resultados se actualizan en este mensaje."
+        },
+        "serverStatus": {
+          "name": "Estado del servidor",
+          "title": "Estado del servidor",
+          "uptime": "Disponibilidad",
+          "latency": "Latencia",
+          "errors": "Errores",
+          "capacity": "Capacidad",
+          "region": "Región",
+          "version": "Versión",
+          "updated": "Actualizado"
         }
       }
     },

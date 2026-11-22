@@ -1230,7 +1230,8 @@
             "message": "Posting a new message",
             "word": "Whole word",
             "contains": "Contains",
-            "exact": "Exact"
+            "exact": "Exact",
+            "modal": "Opening a modal"
           }
         },
         "roleId": {
@@ -1291,6 +1292,10 @@
         "moderate": {
           "label": "Moderate: delete the triggering message even if it is not the bot's",
           "hint": "The bot needs room.manage_messages in the room."
+        },
+        "modal": {
+          "label": "Modal",
+          "hint": "Opens as a dialog for the person who pressed. The submit reaches the Interaction trigger with componentType modal, the modal id and fields."
         }
       },
       "vars": {
@@ -1366,7 +1371,23 @@
           "code": "Code",
           "quote": "Quote",
           "divider": "Divider",
-          "embed": "Card"
+          "embed": "Card",
+          "section": "Section",
+          "thumbnail": "Thumbnail",
+          "media_gallery": "Gallery",
+          "container": "Container",
+          "fields": "Fields",
+          "author": "Author",
+          "footer": "Footer",
+          "timestamp": "Date and time",
+          "progress": "Progress",
+          "stats": "Stats",
+          "key_value": "Key and value",
+          "badges": "Badges",
+          "callout": "Callout",
+          "columns": "Columns",
+          "spacer": "Spacer",
+          "poll": "Poll"
         },
         "fields": {
           "text": "Text",
@@ -1387,7 +1408,32 @@
           "footer": "Footer",
           "imageUrl": "Image (https)",
           "thumbnailUrl": "Thumbnail (https)",
-          "timestamp": "Date (ISO)"
+          "timestamp": "Date (ISO)",
+          "accessory": "Accessory",
+          "label": "Label",
+          "style": "Style",
+          "customId": "Id",
+          "size": "Size",
+          "accentColor": "Accent color",
+          "children": "Blocks of the container",
+          "columnsCount": "Columns",
+          "name": "Name",
+          "iconUrl": "Icon (https)",
+          "value": "Value",
+          "max": "Maximum",
+          "showPercent": "Show percentage",
+          "tone": "Tone",
+          "variant": "Type",
+          "icon": "Icon (emoji)",
+          "question": "Question",
+          "options": "Options",
+          "multiple": "Several answers",
+          "closed": "Closed",
+          "closesAt": "Closes (ISO)",
+          "authorName": "Author",
+          "authorUrl": "Author link (https)",
+          "authorIconUrl": "Author icon (https)",
+          "footerIconUrl": "Footer icon (https)"
         },
         "hints": {
           "lines": "One item per line.",
@@ -1396,12 +1442,55 @@
           "rows": "One row per line, cells separated by |",
           "fields": "One per line: name | value | inline (optional)",
           "divider": "A horizontal line. It has no options.",
-          "embedsPerm": "Needs bots.send_embeds on the bot and embed links in the room."
+          "embedsPerm": "Needs bots.send_embeds on the bot and embed links in the room.",
+          "timestamp": "ISO date (for example 2026-12-01T10:00:00Z). Every reader sees it in their own time zone.",
+          "poll": "Only shows results. Your script collects votes with buttons or a select and updates the message.",
+          "gallery": "One per line: https://… | alt text | caption (1 to 6).",
+          "stats": "One per line: label | value | change | up, down or flat (change and trend optional).",
+          "pairs": "One per line: key | value.",
+          "badges": "One per line: text | color (gray, blue, green, yellow, red, purple, pink).",
+          "pollOptions": "One per line: option | votes (votes optional). 2 to 10."
         },
         "json": {
           "syntax": "That is not valid JSON.",
           "list": "It must be a list of blocks ([ ... ]).",
           "hint": "Applies when it is valid. The form shows the same data."
+        },
+        "groups": {
+          "basic": "Basic",
+          "rich": "Rich"
+        },
+        "none": "None",
+        "column": "Column {{n}}",
+        "addColumn": "Add column",
+        "accessory": {
+          "none": "No accessory",
+          "thumbnail": "Thumbnail on the right",
+          "button": "Button on the right"
+        },
+        "sizes": {
+          "sm": "Small",
+          "md": "Medium",
+          "lg": "Large"
+        },
+        "tones": {
+          "accent": "Accent",
+          "success": "Success",
+          "warning": "Warning",
+          "danger": "Danger"
+        },
+        "variants": {
+          "info": "Information",
+          "success": "Success",
+          "warning": "Warning",
+          "error": "Error"
+        },
+        "timestampStyles": {
+          "relative": "Relative (3 hours ago)",
+          "absolute": "Date and time",
+          "date": "Date only",
+          "time": "Time only",
+          "datetime": "Date and time"
         }
       },
       "components": {
@@ -1412,7 +1501,13 @@
         "addSelect": "Select",
         "kind": {
           "button": "Button",
-          "select": "Select"
+          "select": "Select",
+          "string_select": "Text select",
+          "user_select": "People select",
+          "role_select": "Role select",
+          "channel_select": "Channel select",
+          "mentionable_select": "Mentionable select",
+          "toggle": "Toggle"
         },
         "previewNote": "Preview: controls do nothing here.",
         "fields": {
@@ -1425,7 +1520,9 @@
           "placeholder": "Placeholder",
           "options": "Options",
           "minValues": "Minimum choices",
-          "maxValues": "Maximum choices"
+          "maxValues": "Maximum choices",
+          "checked": "On at the start",
+          "selfAssignableOnly": "Only roles people may claim for themselves"
         },
         "styles": {
           "primary": "Primary",
@@ -1437,10 +1534,18 @@
         "hints": {
           "url": "Opens in a new tab. Link buttons send nothing to the script.",
           "customId": "Letters, digits and _ . : - / (up to 100). Unique in the message. The Interaction trigger filters by it.",
-          "options": "One per line: label | value | description (value and description optional). Up to {{max}}."
+          "options": "One per line: label | value | description (value and description optional). Up to {{max}}.",
+          "toggle": "A press sends values with true or false (the new state). Update the message to keep it.",
+          "picker": {
+            "user_select": "Lists the people who can see the room. The script gets their ids in values and their names in resolved.users.",
+            "role_select": "Lists the roles of the workspace. The script gets the ids in values and the names in resolved.roles.",
+            "channel_select": "Lists the channels the person can see. The script gets the ids in values and resolved.channels.",
+            "mentionable_select": "People and roles. The script gets the ids in values and resolved.users / resolved.roles."
+          }
         },
         "removeAll": "Remove the buttons and selects of the message",
-        "removeAllHint": "Sends an empty list. Leave it off to keep the message's components unchanged."
+        "removeAllHint": "Sends an empty list. Leave it off to keep the message's components unchanged.",
+        "addToggle": "Toggle"
       },
       "issues": {
         "node": {
@@ -1487,7 +1592,24 @@
           "timestamp": "Not a valid date.",
           "title_long": "Title too long (256 at most).",
           "alt_long": "Text too long.",
-          "code_long": "Code too long (4000 at most)."
+          "code_long": "Code too long (4000 at most).",
+          "total_blocks": "At most {{total}} blocks counting nested ones.",
+          "images_many": "At most {{images}} images in total.",
+          "children_range": "A container or column holds 1 to 15 blocks (6 in columns).",
+          "nesting": "That block cannot be nested here (a container holds no containers; columns hold simple blocks only).",
+          "gallery_range": "A gallery holds 1 to 6 images.",
+          "variant_invalid": "Invalid callout type.",
+          "progress_range": "The value must be between 0 and the maximum (1 to 1000000000).",
+          "size_invalid": "Invalid size (sm, md or lg).",
+          "columns_count": "Columns are 2 or 3.",
+          "accessory_invalid": "The accessory is not valid (button with a label and an id or https link; thumbnail with an https link).",
+          "poll_options": "A poll has 2 to 10 options.",
+          "poll_label": "Every option needs a text (up to 100).",
+          "poll_votes": "Votes are a whole number from 0 up.",
+          "stat_item": "Every stat needs a label (60) and a value (40); trend is up, down or flat.",
+          "kv_item": "Every row needs a key (100) and a value (300).",
+          "badge_item": "Every badge needs a text (40) and a known color.",
+          "choice_invalid": "Invalid value for this option."
         },
         "components": {
           "too_many_rows": "At most {{max}} rows.",
@@ -1513,6 +1635,21 @@
           "values_range": "Minimum and maximum must fit the number of options.",
           "placeholder_long": "Placeholder too long (150 at most).",
           "expires_range": "Expiry must be between {{min}} and {{maxMin}} minutes."
+        },
+        "modal": {
+          "custom_id_required": "The modal needs an id.",
+          "custom_id_invalid": "The modal id is not valid (letters, digits and _ . : - /).",
+          "title_required": "The modal needs a title.",
+          "title_long": "The title allows up to 45 characters.",
+          "submit_long": "The submit text allows up to 30 characters.",
+          "inputs_range": "A modal has 1 to {{max}} inputs.",
+          "input_custom_id": "The input id is not valid.",
+          "input_duplicate": "That input id is repeated.",
+          "input_label": "The input needs a label (up to 45).",
+          "input_style": "The input type is short or paragraph.",
+          "input_placeholder": "The help text allows up to 100 characters.",
+          "input_length": "Minimum and maximum characters are not valid.",
+          "input_value": "The initial value is longer than the maximum."
         }
       },
       "graph": {
@@ -1527,6 +1664,71 @@
           "edge_dangling": "A connection points to a node that does not exist.",
           "trigger_has_input": "A trigger has no input: nothing can connect to it.",
           "node_invalid": "Needs attention: {{field}}."
+        }
+      },
+      "modal": {
+        "input": "Input {{n}}",
+        "addInput": "Add input",
+        "fields": {
+          "customId": "Id",
+          "title": "Title",
+          "submitLabel": "Submit button text",
+          "label": "Label",
+          "style": "Type",
+          "placeholder": "Help text",
+          "minLength": "Minimum characters",
+          "maxLength": "Maximum characters",
+          "value": "Initial value",
+          "required": "Required"
+        },
+        "styles": {
+          "short": "One line",
+          "paragraph": "Paragraph"
+        },
+        "hints": {
+          "customId": "Letters, digits and _ . : - / (up to 100). The Interaction trigger receives it as customId; the text arrives in fields."
+        }
+      },
+      "templates": {
+        "label": "Start from a template…",
+        "use": "Use",
+        "replaces": "Replaces the current blocks (and the components if the template has them).",
+        "rolePanel": {
+          "name": "Role panel",
+          "title": "Your roles",
+          "body": "Pick the role you want. This panel works for 30 minutes.",
+          "calloutTitle": "How it works",
+          "calloutText": "Only roles anyone may claim for themselves are listed.",
+          "placeholder": "Pick a role",
+          "remove": "Remove the chosen role"
+        },
+        "welcomeCard": {
+          "name": "Welcome card",
+          "title": "Welcome to the community!",
+          "body": "Glad to have you here. Read the rules and introduce yourself.",
+          "logoAlt": "Community logo",
+          "badgeNew": "New member",
+          "badgeCommunity": "Community",
+          "joined": "Joined"
+        },
+        "poll": {
+          "name": "Poll",
+          "question": "Which day do you prefer for the event?",
+          "optionA": "Friday",
+          "optionB": "Saturday",
+          "optionC": "Sunday",
+          "footer": "Vote with the buttons. Results update in this message."
+        },
+        "serverStatus": {
+          "name": "Server status",
+          "title": "Server status",
+          "uptime": "Uptime",
+          "latency": "Latency",
+          "errors": "Errors",
+          "capacity": "Capacity",
+          "region": "Region",
+          "version": "Version",
+          "updated": "Updated"
         }
       }
     },

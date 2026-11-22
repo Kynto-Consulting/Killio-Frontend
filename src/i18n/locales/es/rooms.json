@@ -954,7 +954,27 @@
       "opensNewTab": "(se abre en una pestaña nueva)",
       "done": "hecho",
       "todo": "pendiente",
-      "card": "Tarjeta"
+      "card": "Tarjeta",
+      "imageFailed": "Imagen no disponible",
+      "progress": "Progreso",
+      "trend": {
+        "up": "sube",
+        "down": "baja",
+        "flat": "sin cambios"
+      },
+      "callout": {
+        "info": "Información",
+        "success": "Éxito",
+        "warning": "Advertencia",
+        "error": "Error"
+      },
+      "poll": {
+        "label": "Encuesta",
+        "closed": "Cerrada",
+        "votes": "{{count}} votos",
+        "multiple": "varias respuestas",
+        "closes": "cierra"
+      }
     },
     "components": {
       "group": "Controles del bot, fila {{n}}",
@@ -1000,6 +1020,34 @@
     "replyTo": {
       "goTo": "Ir al mensaje que escribió {{name}}",
       "unknown": "Mensaje"
+    },
+    "picker": {
+      "search": "Buscar…",
+      "loading": "Cargando…",
+      "empty": "Sin resultados.",
+      "error": "No se pudo cargar la lista.",
+      "placeholder": {
+        "user_select": "Elige personas",
+        "role_select": "Elige roles",
+        "channel_select": "Elige canales",
+        "mentionable_select": "Elige personas o roles"
+      },
+      "kind": {
+        "user": "persona",
+        "role": "rol",
+        "channel": "canal"
+      }
+    },
+    "modal": {
+      "close": "Cerrar",
+      "cancel": "Cancelar",
+      "submit": "Enviar",
+      "optional": "(opcional)",
+      "errors": {
+        "required": "Este campo es obligatorio.",
+        "min": "Escribe al menos {{min}} caracteres.",
+        "max": "Como máximo {{max}} caracteres."
+      }
     }
   },
   "webhooks": {

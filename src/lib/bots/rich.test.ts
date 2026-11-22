@@ -11,7 +11,7 @@ const codes = (blocks: unknown) => validateBlocks(blocks).map((i) => `${i.at.joi
 test("every blank block of every type needs only its required text", () => {
   for (const t of BLOCK_TYPES) {
     const issues = codes([blankBlock(t)]);
-    if (t === "divider") assert.deepEqual(issues, [], t);
+    if (["divider", "spacer", "progress"].includes(t)) assert.deepEqual(issues, [], t);
     else assert.ok(issues.length > 0, `${t} should need content`);
   }
 });
@@ -34,9 +34,9 @@ test("valid blocks of each type", () => {
   assert.deepEqual(codes(undefined), []);
 });
 
-test("list limits: 20 blocks, 16 KB total", () => {
+test("list limits: 20 blocks, 32 KB total", () => {
   assert.ok(codes(Array.from({ length: 21 }, () => ({ type: "divider" }))).includes(":too_many"));
-  const big = Array.from({ length: 10 }, () => ({ type: "text", text: "x".repeat(RICH_LIMITS.maxTextLength) }));
+  const big = Array.from({ length: 20 }, () => ({ type: "text", text: "x".repeat(RICH_LIMITS.maxTextLength) }));
   assert.ok(codes(big).includes(":too_large"));
   assert.deepEqual(codes("no"), [":not_list"]);
 });

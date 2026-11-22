@@ -6,7 +6,7 @@
  * nodes/command-trigger.node.ts, nodes/interaction-trigger.node.ts, bot-script-policy.ts, bots/bot-schedule.ts.
  * Nothing here invents a parameter: a field exists only where the backend's configSchema has it.
  */
-import { validateComponents, type ComponentIssue } from "./components.ts";
+import { validateComponents, validateModal, type ComponentIssue, type ModalIssue } from "./components.ts";
 import { validateBlocks, type BlockIssue } from "./rich.ts";
 import type { CommandOption } from "./options.ts";
 import { isValueType } from "./options.ts";
@@ -61,7 +61,8 @@ export type FieldKind =
   | "lines"       // list of texts, one per line (stored as an array)
   | "weekdays"
   | "blocks"      // rich content editor
-  | "components"; // buttons / selects editor
+  | "components"  // buttons / toggles / selects editor
+  | "modal";      // modal a script opens (respond_interaction mode "modal")
 
 export interface RoomField {
   key: string;
@@ -113,13 +114,13 @@ const V = (...names: string[]): PayloadVar[] => names.map((name) => ({ name }));
 const COMMON_TRIGGER = ["roomId", "receivedAt"];
 const PERSON = ["invokedBy", "invokedByName", "authorUserId", "authorName", "authorIsBot"];
 
-const contentFields = (clearComponents = false): RoomField[] => [
-  { key: "text", kind: "template" },
-  { key: "blocks", kind: "blocks" },
-  { key: "blocksFrom", kind: "line" },
-  { key: "components", kind: "components", ...(clearComponents ? { clearable: true } : {}) },
-  { key: "componentsFrom", kind: "line" },
-  { key: "expiresInMinutes", kind: "number" },
+const contentFields = (clearComponents = false, showWhen?: RoomField["showWhen"]): RoomField[] => [
+  { key: "text", kind: "template", ...(showWhen ? { showWhen } : {}) },
+  { key: "blocks", kind: "blocks", ...(showWhen ? { showWhen } : {}) },
+  { key: "blocksFrom", kind: "line", ...(showWhen ? { showWhen } : {}) },
+  { key: "components", kind: "components", ...(clearComponents ? { clearable: true } : {}), ...(showWhen ? { showWhen } : {}) },
+  { key: "componentsFrom", kind: "line", ...(showWhen ? { showWhen } : {}) },
+  { key: "expiresInMinutes", kind: "number", ...(showWhen ? { showWhen } : {}) },
 ];
 const CONTENT_FIELDS: RoomField[] = contentFields();
 
@@ -343,7 +344,11 @@ export const ROOM_NODE_SPECS: Readonly<Record<RoomNodeKind, RoomNodeSpec>> = {
   "killio.room.respond_interaction": action({
     kind: "killio.room.respond_interaction", labelKey: "roomRespondInteraction", icon: "MessageSquareReply",
     defaults: { mode: "update_message", text: "" },
-    fields: [{ key: "mode", kind: "select", options: ["update_message", "ephemeral", "message"] }, ...contentFields(true)],
+    fields: [
+      { key: "mode", kind: "select", options: ["update_message", "ephemeral", "message", "modal"] },
+      { key: "modal", kind: "modal", showWhen: { key: "mode", isIn: ["modal"] } },
+      ...contentFields(true, { key: "mode", isIn: ["", "update_message", "ephemeral", "message"] }),
+    ],
     emits: V("roomInteractionResult"),
     searchTerms: ["respond", "responder", "interaction", "interaccion", "button", "boton", "update", "ephemeral"],
   }),
@@ -579,13 +584,14 @@ export function filterVariables(vars: readonly PayloadVar[], query: string, limi
 
 export type NodeIssueCode =
   | "role_required" | "user_required" | "room_required" | "emoji_required" | "content_required" | "schedule_one" | "every_range" | "daily_format" | "weekdays_range" | "weekdays_need_daily"
-  | "expires_range" | "command_name" | "message_id_uuid" | "room_uuid" | "blocks_invalid" | "components_invalid" | "custom_id_pattern";
+  | "expires_range" | "command_name" | "message_id_uuid" | "room_uuid" | "blocks_invalid" | "components_invalid" | "modal_invalid" | "custom_id_pattern";
 
 export interface NodeIssue {
   field: string;
   code: NodeIssueCode;
   blocks?: BlockIssue[];
   components?: ComponentIssue[];
+  modal?: ModalIssue[];
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -624,7 +630,11 @@ export function validateRoomNode(kind: RoomNodeKind, config: Record<string, unkn
     if (present(c.roomId) && !hasTpl(c.roomId) && !UUID.test(String(c.roomId).trim())) out.push({ field: "roomId", code: "room_uuid" });
     if (present(c.messageId) && !hasTpl(c.messageId) && !UUID.test(String(c.messageId).trim())) out.push({ field: "messageId", code: "message_id_uuid" });
     if ((kind === "killio.room.react" || kind === "killio.room.unreact") && !present(c.emoji)) out.push({ field: "emoji", code: "emoji_required" });
-    if (NEEDS_CONTENT.has(kind)) {
+    if (kind === "killio.room.respond_interaction" && c.mode === "modal") {
+      const mi = validateModal(c.modal ?? undefined);
+      if (!c.modal) out.push({ field: "modal", code: "modal_invalid", modal: [{ at: [], code: "custom_id_required" }] });
+      else if (mi.length) out.push({ field: "modal", code: "modal_invalid", modal: mi });
+    } else if (NEEDS_CONTENT.has(kind)) {
       const hasBlocks = (Array.isArray(c.blocks) && c.blocks.length > 0) || present(c.blocksFrom);
       if (!present(c.text) && !hasBlocks) out.push({ field: "text", code: "content_required" });
       if (Array.isArray(c.blocks) && c.blocks.length > 0) {
@@ -632,7 +642,7 @@ export function validateRoomNode(kind: RoomNodeKind, config: Record<string, unkn
         if (bi.length) out.push({ field: "blocks", code: "blocks_invalid", blocks: bi });
       }
       if (Array.isArray(c.components) && c.components.length > 0) {
-        const ci = validateComponents(c.components, c.expiresInMinutes);
+        const ci = validateComponents(c.components, c.expiresInMinutes, Array.isArray(c.blocks) ? c.blocks : undefined);
         if (ci.length) out.push({ field: "components", code: "components_invalid", components: ci });
       }
     }

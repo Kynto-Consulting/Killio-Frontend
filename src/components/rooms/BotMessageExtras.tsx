@@ -10,7 +10,7 @@ import { Bot, EyeOff, X } from "lucide-react";
 
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useSession } from "@/components/providers/session-provider";
-import { interactWithComponent } from "@/lib/api/room-tools";
+import { interactWithComponent, listSelectOptions } from "@/lib/api/room-tools";
 import type { RoomMessage } from "@/lib/api/rooms";
 import { isFallbackContent, readMessageExtras } from "@/lib/bots/rich";
 import { readCommandGhost } from "@/lib/rooms/command-ghost";
@@ -36,13 +36,20 @@ export function BotMessageExtras({ message }: { message: RoomMessage }) {
     },
     [accessToken, message.roomId, message.id],
   );
+  const fetchOptions = useCallback(
+    async (customId: string, query: string) => {
+      if (!accessToken) return [];
+      return listSelectOptions(message.roomId, message.id, customId, query, accessToken);
+    },
+    [accessToken, message.roomId, message.id],
+  );
   const pending = message.id.startsWith("temp-") || message.status === "sending";
   if (extras.blocks.length === 0 && extras.componentRows.length === 0) return null;
   return (
     <div className="mt-1 flex min-w-0 flex-col gap-1.5" data-bot-extras>
-      <RichBlocks blocks={extras.blocks} />
+      <RichBlocks blocks={extras.blocks} interact={pending ? undefined : interact} expiresAt={extras.componentsExpiresAt} idPrefix={`b-${message.id}`} />
       {extras.componentRows.length > 0 && (
-        <InteractiveComponents rows={extras.componentRows} expiresAt={extras.componentsExpiresAt} idPrefix={`c-${message.id}`} interact={pending ? undefined : interact} />
+        <InteractiveComponents rows={extras.componentRows} expiresAt={extras.componentsExpiresAt} idPrefix={`c-${message.id}`} interact={pending ? undefined : interact} fetchOptions={pending ? undefined : fetchOptions} />
       )}
     </div>
   );

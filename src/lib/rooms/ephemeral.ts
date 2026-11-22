@@ -8,6 +8,7 @@
  * They expire after one hour.
  */
 import { readMessageExtras, type MessageExtras } from "../bots/rich.ts";
+import { readModal } from "../bots/components.ts";
 
 export interface EphemeralMessage {
   id: string;
@@ -47,9 +48,33 @@ export const isLive = (e: Pick<EphemeralMessage, "expiresAt">, now: number = Dat
   return Number.isFinite(t) && t > now;
 };
 
-/** What the room shows: this room only, unexpired, oldest first. */
+/**
+ * A modal a script opened (`metadata.modal`, see components.ts): it travels as an ephemeral row but is NOT a message. The client opens a
+ * dialog for it; submit goes to POST /rooms/:id/ephemeral/:eid/modal-submit.
+ */
+export const isModalEphemeral = (e: Pick<EphemeralMessage, "metadata">): boolean => !!readModal((e.metadata as Record<string, unknown> | null)?.modal);
+
+/** The modal of an ephemeral message that has not expired (its own `expiresAt`, else the row's). */
+export function liveModal(e: EphemeralMessage, now: number = Date.now()) {
+  const modal = readModal((e.metadata as Record<string, unknown> | null)?.modal);
+  if (!modal) return null;
+  const t = Date.parse(modal.expiresAt ?? e.expiresAt);
+  return Number.isFinite(t) && t > now ? modal : null;
+}
+
+/** What the room shows: this room only, unexpired, oldest first. Modals are not shown as messages. */
 export function visibleEphemeral(list: readonly EphemeralMessage[], roomId: string, now: number = Date.now()): EphemeralMessage[] {
-  return list.filter((e) => e.roomId === roomId && isLive(e, now)).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  return list.filter((e) => e.roomId === roomId && isLive(e, now) && !isModalEphemeral(e)).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+
+/** The modal waiting for the person in this room (the newest one), if any. */
+export function pendingModal(list: readonly EphemeralMessage[], roomId: string, now: number = Date.now()): { ephemeral: EphemeralMessage; modal: NonNullable<ReturnType<typeof liveModal>> } | null {
+  const mine = list.filter((e) => e.roomId === roomId && isLive(e, now)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  for (const e of mine) {
+    const modal = liveModal(e, now);
+    if (modal) return { ephemeral: e, modal };
+  }
+  return null;
 }
 
 /** Adds (or replaces, by id) a delivered message and drops what has expired. */
