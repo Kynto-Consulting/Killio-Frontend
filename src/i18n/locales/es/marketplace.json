@@ -102,7 +102,11 @@
     "version": "Version",
     "assetPicker": "Elegir assets origen",
     "selectedCount": "{{count}} seleccionados",
-    "detectedPlaceholders": "Campos detectados"
+    "detectedPlaceholders": "Campos detectados",
+    "changelog": "Novedades de esta versión",
+    "changelogPlaceholder": "Qué cambió: nuevos canales, ajustes de roles, mejoras del bot...",
+    "changelogHint": "Quien instaló el pack lo lee antes de actualizar. Mantén el logicalKey de cada elemento: así se actualiza en su sitio en lugar de añadirse otro.",
+    "changelogRequired": "Escribe las novedades: es obligatorio para publicar una versión nueva de un pack."
   },
   "assetTypes": {
     "document": "Documentos",

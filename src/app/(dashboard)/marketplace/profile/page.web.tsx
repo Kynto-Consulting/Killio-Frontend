@@ -78,6 +78,8 @@ type SnapModal = {
   status: MarketplaceVersionStatus;
   locale: string;
   title: string;
+  /** What changed in this version: required to publish a new version of a pack that already has one (installs read it before updating). */
+  changelog: string;
   submitting: boolean;
   error: string | null;
 };
@@ -855,12 +857,17 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
   /* ── snapshot submit ── */
   const handleSnapSubmit = useCallback(async () => {
     if (!snapModal || !accessToken) return;
+    // a pack that already has a published version needs a changelog for the next one: the workspaces that installed it read it before updating
+    if (snapModal.status === "published" && snapModal.pack.latestPublishedVersionId && !snapModal.changelog.trim()) {
+      setSnapModal((s) => s ? { ...s, error: t("snapshot.changelogRequired") } : s);
+      return;
+    }
     setSnapModal((s) => s ? { ...s, submitting: true, error: null } : s);
     try {
       const localeCode = sanitizeLocaleCode(snapModal.locale || locale);
       const assetByKey = new Map(sourceAssets.map((a) => [a.key, a]));
       const assets = withCodeLocks(snapModal.selectedAssetKeys.map((k) => assetByKey.get(k)).filter((a): a is SourceAsset => !!a), snapModal.lockedCodeKeys, (a) => ({ assetType: a.assetType, sourceEntityId: a.sourceEntityId, logicalKey: a.logicalKey, displayName: a.label }));
-      await createMarketplaceSnapshot(
+      const snap = await createMarketplaceSnapshot(
         snapModal.pack.id,
         {
           version: snapModal.version,
@@ -869,6 +876,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
           localizations: [{
             locale: localeCode,
             title: snapModal.title,
+            changelog: snapModal.changelog.trim() || undefined,
             metadata: {
               releaseKey: buildLocalizedReleaseKey(snapModal.version, localeCode),
             },
@@ -877,7 +885,9 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
         },
         accessToken,
       );
-      setMsgByPack((p) => ({ ...p, [snapModal.pack.id]: t("feedback.snapshotOk") }));
+      // assets that left, arrived or look renamed since the previous version (updates follow assets by logicalKey)
+      const stability = snap.stability?.warnings ?? [];
+      setMsgByPack((p) => ({ ...p, [snapModal.pack.id]: stability.length > 0 ? `${t("feedback.snapshotOk")} · ${stability.join(" ")}` : t("feedback.snapshotOk") }));
       setSnapModal(null);
       await loadPacks();
     } catch (e) {
@@ -1029,7 +1039,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                         {t("profile.pricing")}
                       </button>
                       <button
-                        onClick={() => setSnapModal({ pack, selectedAssetKeys: [], lockedCodeKeys: [], version: "v1.0", status: "published", locale: sanitizeLocaleCode(pack.defaultLocale || locale), title: pack.title, submitting: false, error: null })}
+                        onClick={() => setSnapModal({ pack, selectedAssetKeys: [], lockedCodeKeys: [], version: "v1.0", status: "published", locale: sanitizeLocaleCode(pack.defaultLocale || locale), title: pack.title, changelog: "", submitting: false, error: null })}
                         className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-foreground/10 dark:border-white/10 bg-white/[0.04] px-4 py-2 text-[13px] font-semibold text-foreground/60 dark:text-white/60 transition-all hover:border-foreground/20 dark:hover:border-white/20 hover:text-foreground dark:hover:text-white"
                       >
                         <Upload className="h-4 w-4" />
@@ -1363,6 +1373,20 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                     className="mt-1.5 w-full rounded-xl border border-foreground/8 dark:border-white/8 bg-black/20 px-3 py-2 font-mono text-xs text-foreground/55 dark:text-white/55 outline-none"
                   />
                 </div>
+              </div>
+
+              {/* changelog */}
+              <div>
+                <label htmlFor="snap-changelog" className="block text-[10px] font-bold uppercase tracking-wider text-foreground/35 dark:text-white/35">{t("snapshot.changelog")}{snapModal.pack.latestPublishedVersionId ? " *" : ""}</label>
+                <textarea
+                  id="snap-changelog"
+                  value={snapModal.changelog}
+                  onChange={(e) => setSnapModal((s) => s ? { ...s, changelog: e.target.value } : s)}
+                  rows={3}
+                  placeholder={t("snapshot.changelogPlaceholder")}
+                  className="mt-1.5 w-full rounded-xl border border-foreground/10 dark:border-white/10 bg-black/30 px-3 py-2 text-sm text-foreground dark:text-white outline-none focus:border-[hsl(var(--accent-ink))]/40"
+                />
+                <p className="mt-1 text-[11px] text-foreground/40 dark:text-white/40">{t("snapshot.changelogHint")}</p>
               </div>
 
               {/* title */}

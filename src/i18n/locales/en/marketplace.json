@@ -102,7 +102,11 @@
     "version": "Version",
     "assetPicker": "Choose source assets",
     "selectedCount": "{{count}} selected",
-    "detectedPlaceholders": "Detected fields"
+    "detectedPlaceholders": "Detected fields",
+    "changelog": "What's new in this version",
+    "changelogPlaceholder": "What changed: new channels, role settings, bot improvements...",
+    "changelogHint": "Whoever installed the pack reads it before updating. Keep the logicalKey of every item: that way it is updated in place instead of another one being added.",
+    "changelogRequired": "Write what's new: it is required to publish a new version of a pack."
   },
   "assetTypes": {
     "document": "Documents",

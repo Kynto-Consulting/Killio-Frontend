@@ -124,6 +124,14 @@ export type MarketplaceSnapshotResult = {
     orderIndex?: number;
     validation?: Record<string, unknown>;
   }>;
+  /** Assets that left, arrived or look renamed compared with the previous version (null for the first version). */
+  stability?: {
+    removed: Array<{ logicalKey: string; assetType: string }>;
+    added: Array<{ logicalKey: string; assetType: string }>;
+    possibleRenames: Array<{ from: string; to: string; assetType: string }>;
+    typeChanged: Array<{ logicalKey: string; from: string; to: string }>;
+    warnings: string[];
+  } | null;
   intelligence?: {
     autoDetectedPlaceholders: string[];
     referenceEdges: Array<{
