@@ -10,6 +10,7 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import { useTenant } from "@/components/providers/tenant-provider";
 import { requestOtp, verifyOtp } from "@/lib/api/contracts";
 import { postLoginDestination } from "@/lib/auth/password-change";
+import { fetchSocialProviders, SocialAvailability, startSocialLogin } from "@/lib/auth/social-login";
 
 const API = (
   process.env.NEXT_PUBLIC_API_BASE_URL ??
@@ -58,6 +59,24 @@ function LoginPageContent() {
     }
     return from;
   }, [from, fromPath]);
+
+  // Google / Microsoft / Bloomx buttons: only the ones the workspace and the server offer.
+  const [social, setSocial] = useState<SocialAvailability>({ google: false, microsoft: false, bloomx: false });
+  useEffect(() => {
+    let alive = true;
+    void fetchSocialProviders().then((p) => alive && setSocial(p));
+    return () => { alive = false; };
+  }, []);
+  useEffect(() => {
+    const code = searchParams.get("social_error");
+    if (!code) return;
+    const key = `login.socialErrors.${code}`;
+    const text = t(key);
+    setError(text === key ? t("login.socialFailed") : text);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+  const hasSocial = social.google || social.microsoft || social.bloomx;
+  const bloomxHref = safeFrom !== "/" ? `/login/bloomx?from=${encodeURIComponent(safeFrom)}` : "/login/bloomx";
 
   const signupHref = safeFrom !== "/" ? `/signup?from=${encodeURIComponent(safeFrom)}` : "/signup";
 
@@ -366,6 +385,48 @@ function LoginPageContent() {
             </button>
           )}
         </form>
+
+        {hasSocial && (
+          <div className="mt-6 space-y-3">
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="h-px flex-1 bg-border" />
+              {t("login.socialDivider")}
+              <span className="h-px flex-1 bg-border" />
+            </div>
+            {social.google && (
+              <button
+                type="button"
+                disabled={isLoading}
+                onClick={() => void startSocialLogin("google", { returnTo: safeFrom })}
+                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-border text-sm font-medium transition-colors hover:bg-accent/10 disabled:opacity-60"
+              >
+                <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4"><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.4a5.5 5.5 0 0 1-2.4 3.6v3h3.9c2.3-2.1 3.6-5.2 3.6-8.8z"/><path fill="#34A853" d="M12 24c3.2 0 6-1.1 7.9-2.9l-3.9-3c-1.1.7-2.4 1.2-4 1.2-3.1 0-5.7-2.1-6.6-4.9H1.4v3.1A12 12 0 0 0 12 24z"/><path fill="#FBBC05" d="M5.4 14.4a7.2 7.2 0 0 1 0-4.8V6.5H1.4a12 12 0 0 0 0 11z"/><path fill="#EA4335" d="M12 4.8c1.8 0 3.3.6 4.6 1.8l3.4-3.4A12 12 0 0 0 1.4 6.5l4 3.1C6.3 6.9 8.9 4.8 12 4.8z"/></svg>
+                {t("login.socialGoogle")}
+              </button>
+            )}
+            {social.microsoft && (
+              <button
+                type="button"
+                disabled={isLoading}
+                onClick={() => void startSocialLogin("microsoft", { returnTo: safeFrom })}
+                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-border text-sm font-medium transition-colors hover:bg-accent/10 disabled:opacity-60"
+              >
+                <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4"><path fill="#F25022" d="M2 2h9.5v9.5H2z"/><path fill="#7FBA00" d="M12.5 2H22v9.5h-9.5z"/><path fill="#00A4EF" d="M2 12.5h9.5V22H2z"/><path fill="#FFB900" d="M12.5 12.5H22V22h-9.5z"/></svg>
+                {t("login.socialMicrosoft")}
+              </button>
+            )}
+            {social.bloomx && (
+              <Link
+                href={bloomxHref}
+                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-border text-sm font-medium transition-colors hover:bg-accent/10"
+              >
+                <span aria-hidden className="inline-flex h-4 w-4 items-center justify-center rounded bg-primary text-[10px] font-bold text-primary-foreground">B</span>
+                {t("login.socialBloomx")}
+              </Link>
+            )}
+            <p className="text-center text-xs text-muted-foreground">{t("login.socialTerms")}</p>
+          </div>
+        )}
 
         {signupEnabled && (
         <div className="mt-6 text-center text-sm text-muted-foreground">
