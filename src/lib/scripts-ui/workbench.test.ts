@@ -2,13 +2,84 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
-  PANELS_STORAGE_KEY, configAfterSelection, defaultPanels, menuItems, primaryActions, readPanels, shortcutAction, workbenchTabs, writePanels,
+  PANELS_STORAGE_KEY, TOPBAR_MEDIUM_MIN, TOPBAR_WIDE_MIN, configAfterSelection, defaultPanels, menuItems, primaryActions, readPanels, shortcutAction, topbarLayout, topbarLevel, workbenchTabs, writePanels,
 } from "./workbench.ts";
 
 const mem = () => {
   const m = new Map<string, string>();
   return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), raw: m };
 };
+
+const FULL = { list: true, run: true, preview: true, fullscreen: true, panelToggles: true, tabs: true, save: true, rename: true };
+
+test("width -> level, using the width of the bar (thresholds are inclusive at the lower edge)", () => {
+  assert.equal(topbarLevel(1920), "wide");
+  assert.equal(topbarLevel(TOPBAR_WIDE_MIN), "wide");
+  assert.equal(topbarLevel(TOPBAR_WIDE_MIN - 1), "medium");
+  assert.equal(topbarLevel(894), "medium", "the 894px panel of a 1536px window with the sidebar open");
+  assert.equal(topbarLevel(TOPBAR_MEDIUM_MIN), "medium");
+  assert.equal(topbarLevel(TOPBAR_MEDIUM_MIN - 1), "narrow");
+  assert.equal(topbarLevel(320), "narrow");
+  assert.equal(topbarLevel(0), "wide", "unknown / not measured yet");
+  assert.equal(topbarLevel(null), "wide");
+  assert.equal(topbarLevel(Number.NaN), "wide");
+});
+
+test("review window sizes (1280/1440/1536/1920) with the sidebar and the script list open or folded", () => {
+  // MODEL, not a measurement: panel = window - sidebar (256 open / 64 folded) - script list (340 when open) - 48 of paddings.
+  const panel = (win: number, sidebarOpen: boolean, listOpen: boolean) => win - (sidebarOpen ? 256 : 64) - (listOpen ? 340 : 0) - 48;
+  assert.equal(panel(1536, true, true), 892, "close to the 894px reported on killio.dev");
+  const expected: Array<[number, boolean, boolean, string]> = [
+    [1280, true, true, "narrow"], [1280, false, true, "medium"], [1280, false, false, "wide"], [1280, true, false, "medium"],
+    [1440, true, true, "medium"], [1440, false, true, "medium"], [1440, false, false, "wide"], [1440, true, false, "wide"],
+    [1536, true, true, "medium"], [1536, false, true, "medium"], [1536, false, false, "wide"], [1536, true, false, "wide"],
+    [1920, true, true, "wide"], [1920, false, true, "wide"], [1920, false, false, "wide"], [1920, true, false, "wide"],
+  ];
+  for (const [win, sidebar, list, level] of expected) assert.equal(topbarLevel(panel(win, sidebar, list)), level, `${win}px sidebar=${sidebar} list=${list}`);
+});
+
+test("wide: everything inline with labels", () => {
+  const l = topbarLayout("wide", FULL);
+  assert.deepEqual(l.inline, ["list", "rename", "active", "tabs", "panelToggles", "run", "preview", "fullscreen", "save", "menu"]);
+  assert.deepEqual(l.menu, []);
+  assert.deepEqual(l.labels, { active: true, run: true, preview: true, save: true });
+  assert.equal(l.compactTabs, false);
+});
+
+test("medium: icons without labels for Preview / Fullscreen / Run, Save keeps its label", () => {
+  const l = topbarLayout("medium", FULL);
+  assert.ok(l.inline.includes("preview") && l.inline.includes("fullscreen") && l.inline.includes("run"));
+  assert.deepEqual(l.labels, { active: false, run: false, preview: false, save: true });
+  assert.deepEqual(l.menu, []);
+  assert.equal(l.compactTabs, true);
+});
+
+test("narrow: Preview, Fullscreen, Run, panel toggles and rename go to the menu; Save, Active and the menu stay", () => {
+  const l = topbarLayout("narrow", FULL);
+  assert.deepEqual(l.inline, ["list", "active", "tabs", "save", "menu"]);
+  assert.deepEqual(l.menu.sort(), ["config", "fullscreen", "palette", "preview", "rename", "run"].sort());
+  assert.equal(l.labels.save, false, "icon-only Save, still visible");
+});
+
+test("Save, the Active switch and the menu are inline at EVERY level (they are never clipped or moved)", () => {
+  for (const level of ["wide", "medium", "narrow"] as const) {
+    for (const tabOffers of [FULL, { ...FULL, run: false, preview: false, fullscreen: false, panelToggles: false }]) {
+      const l = topbarLayout(level, tabOffers);
+      for (const must of ["save", "active", "menu"] as const) assert.ok(l.inline.includes(must), `${must} at ${level}`);
+    }
+  }
+});
+
+test("controls a tab does not offer never appear", () => {
+  const runs = topbarLayout("wide", { ...FULL, run: false, preview: false, fullscreen: false, panelToggles: false, save: false });
+  assert.ok(!runs.inline.includes("save") && !runs.inline.includes("preview") && !runs.inline.includes("panelToggles"));
+  assert.ok(runs.inline.includes("active") && runs.inline.includes("menu"));
+});
+
+test("a locked script keeps the bar (state + menu) without any editing control", () => {
+  const l = topbarLayout("narrow", { list: true, run: false, preview: false, fullscreen: false, panelToggles: false, tabs: false, save: false, rename: false });
+  assert.deepEqual(l.inline, ["list", "active", "menu"]);
+});
 
 test("a locked script shows no tabs and no primary actions", () => {
   assert.deepEqual(workbenchTabs({ locked: true }), []);
