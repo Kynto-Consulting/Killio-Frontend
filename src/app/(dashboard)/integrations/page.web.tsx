@@ -43,7 +43,7 @@ import {
 } from "@/lib/api/contracts";
 import { ScriptList } from "@/components/scripts/ScriptList";
 import { LockedScriptPanel, ScriptLockBar } from "@/components/scripts/script-lock";
-import { ScriptCanvas } from "@/components/scripts/ScriptCanvas";
+import { ScriptEditorSwitch } from "@/components/scripts/ScriptEditorSwitch";
 import { KillioTable } from "../../../components/scripts/KillioTable";
 import { RunLogsPanel } from "@/components/scripts/RunLogsPanel";
 import { IntegrationCatalogGrid } from "@/components/integrations/integration-catalog-grid";
@@ -1086,7 +1086,7 @@ export function IntegrationsPageView({
                         </div>
                       ) : (
                         <div className="flex min-h-0 flex-1 overflow-hidden">
-                          <ScriptCanvas
+                          <ScriptEditorSwitch
                             scriptId={selectedScript.id}
                             graph={graph}
                             isActive={selectedScript.isActive}
@@ -1214,7 +1214,7 @@ export function IntegrationsPageView({
                           </div>
                         ) : (
                           <div className="flex min-h-0 flex-1 overflow-hidden">
-                            <ScriptCanvas
+                            <ScriptEditorSwitch
                               scriptId={selectedScript.id}
                               graph={graph}
                               isActive={selectedScript.isActive}

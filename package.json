@@ -11,6 +11,7 @@
     "test:latex": "node --experimental-strip-types --test \"src/lib/latex/*.test.ts\"",
     "test:emoji": "node --experimental-strip-types --test \"src/lib/emoji/*.test.ts\"",
     "test:palette-ask": "node --experimental-strip-types --test \"src/lib/palette-ask/*.test.ts\"",
+    "test:scripts-dsl": "node --experimental-strip-types --test \"src/lib/scripts-dsl/*.test.ts\"",
     "test:bots": "node --experimental-strip-types --test \"src/lib/bots/*.test.ts\"",
     "test:roles": "node --experimental-strip-types --test \"src/lib/roles/*.test.ts\"",
     "test:ui-mode": "node --experimental-strip-types --test \"src/lib/ui-mode/*.test.ts\"",
