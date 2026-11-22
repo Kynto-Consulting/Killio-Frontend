@@ -85,6 +85,8 @@ export interface ScriptNodeData {
   scriptId: string;
   nodeKind: NodeKind;
   label: string | null;
+  /** Optional note of the node (the comments of the text editor). */
+  comment?: string | null;
   config: Record<string, any>;
   positionX: number;
   positionY: number;
