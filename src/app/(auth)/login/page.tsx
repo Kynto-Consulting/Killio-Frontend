@@ -80,11 +80,13 @@ function LoginPageContent() {
 
   const signupHref = safeFrom !== "/" ? `/signup?from=${encodeURIComponent(safeFrom)}` : "/signup";
 
+  // "Add another account" arrives with an active session: stay on the form instead of bouncing back.
+  const addingAccount = searchParams.get("addAccount") === "1";
   useEffect(() => {
-    if (!isSessionLoading && user && accessToken) {
+    if (!isSessionLoading && user && accessToken && !addingAccount) {
       router.replace(postLoginDestination(user, safeFrom));
     }
-  }, [isSessionLoading, user, accessToken, router, safeFrom]);
+  }, [isSessionLoading, user, accessToken, router, safeFrom, addingAccount]);
 
   function persistLogin(data: any) {
     // Refresh token is set as HttpOnly cookie by the backend — only store user info

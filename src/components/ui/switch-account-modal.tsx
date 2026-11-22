@@ -97,7 +97,7 @@ export function SwitchAccountModal({ isOpen, onClose }: SwitchAccountModalProps)
           <button 
             onClick={() => {
               onClose();
-              window.location.href = '/login';
+              window.location.href = '/login?addAccount=1';
             }}
             className="w-full flex items-center gap-3 p-3 rounded-xl border border-dashed border-border/60 hover:border-accent hover:bg-accent/5 transition-all text-muted-foreground hover:text-foreground"
           >
