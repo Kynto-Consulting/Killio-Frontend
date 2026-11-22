@@ -228,7 +228,7 @@ export function ScriptTopbar(props: ScriptTopbarProps) {
       {primary.includes("preview") && canvas && (
         <button type="button" className={`${textBtn} hidden sm:inline-flex`} onClick={() => void canvas.preview()} disabled={canvas.previewLoading} title={t("canvas.previewOutput")}>
           {canvas.previewLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <Eye className="h-3.5 w-3.5" aria-hidden />}
-          <span className="hidden lg:inline">{t("canvas.previewOutput")}</span>
+          <span className="hidden 2xl:inline">{t("canvas.previewOutput")}</span>
         </button>
       )}
       {primary.includes("fullscreen") && canvas && (
