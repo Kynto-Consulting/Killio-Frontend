@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, ChevronDown, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { ArrowRight, ChevronDown, KeyRound, Loader2, Mail, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { AuthPageFrame } from "@/components/marketing/auth-page-frame";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
@@ -401,18 +401,14 @@ function LoginPageContent() {
                 type="button"
                 disabled={isLoading}
                 onClick={() => switchMethod(method === "password" ? "code" : "password")}
-                className="inline-flex h-11 w-full items-center justify-center rounded-full border border-border text-sm font-medium transition-colors hover:bg-accent/10 disabled:opacity-60"
+                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-border text-sm font-medium transition-colors hover:bg-accent/10 disabled:opacity-60"
               >
+                {method === "password" ? <Mail className="h-4 w-4" /> : <KeyRound className="h-4 w-4" />}
                 {method === "password" ? t("login.useCodeInstead") : t("login.usePasswordInstead")}
               </button>
             )}
                 {hasSocial && (
                   <>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <span className="h-px flex-1 bg-border" />
-              {t("login.socialDivider")}
-              <span className="h-px flex-1 bg-border" />
-            </div>
             {social.google && (
               <button
                 type="button"
