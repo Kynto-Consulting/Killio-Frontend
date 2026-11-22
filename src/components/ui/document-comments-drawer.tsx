@@ -337,7 +337,7 @@ export function DocumentCommentsDrawer({
   return place(
     <div
       className="absolute top-0 right-0 bottom-0 min-w-[20rem] max-w-[90vw] bg-card border-l border-border/60 rounded-l-2xl shadow-xl flex flex-col overflow-hidden z-40 animate-in slide-in-from-right duration-300"
-      style={{ width: drawerWidth }}
+      style={{ width: drawerWidth, maxWidth: "100%" }}
     >
       <div
         className="absolute left-0 top-0 hidden h-full w-2 -translate-x-1/2 cursor-col-resize md:block"
