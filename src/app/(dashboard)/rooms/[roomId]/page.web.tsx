@@ -8,6 +8,7 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import { usePlatform } from "@/components/providers/platform-provider";
 import { useTeamPermissions } from "@/hooks/use-team-permissions";
 import { useRoomChat } from "@/hooks/use-room-chat";
+import { useRoomActivityHeartbeat } from "@/hooks/use-room-activity-heartbeat";
 import { useThreadHistory } from "@/hooks/use-room-thread-history";
 import { windowReplies } from "@/lib/rooms/history";
 import type { SearchResult } from "@/lib/rooms/history-api";
@@ -200,6 +201,7 @@ export default function RoomDetailWeb() {
   const protectThread = useCallback((m: RoomMessage) => Boolean(threadRootId) && (m.threadRootId === threadRootId || m.id === threadRootId), [threadRootId]);
   const chatHook = useRoomChat(roomId, accessToken, user, undefined, handlePinPatch, protectThread);
   const presenceMembers = useRoomPresence(roomId, userInfo, accessToken);
+  useRoomActivityHeartbeat(roomId, accessToken);
   const { call, activeRoomId, joinRoomCall, leaveRoomCall } = useCall();
   const callHistoryHook = useRoomCallHistory(roomId, accessToken);
   const { stopRing } = useRoomNotifications({
