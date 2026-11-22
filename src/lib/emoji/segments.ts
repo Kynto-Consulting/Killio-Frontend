@@ -10,8 +10,22 @@ export type EmojiSegment =
  * Regions that must never be touched: inline code, markdown links and mention tokens (`@[Ana](user:1)`, `[x](y)`),
  * bare URLs and HTML-ish tags. Emojis inside them stay as written.
  */
-const PROTECTED_RE = /(`[^`\n]*`|@?\[[^\]\n]*\]\([^)\n]*\)|https?:\/\/[^\s<>)]+|<[^>\n]+>)/g;
+const PROTECTED_RE = /(`[^`\n]*`|[@$#]\[[^\]\n]*\]|@?\[[^\]\n]*\]\([^)\n]*\)|https?:\/\/[^\s<>)]+|<[^>\n]+>)/g;
 const CUSTOM_TOKEN_RE = /:([A-Za-z0-9_]{2,32}):/g;
+
+/**
+ * Number of emojis when the text is made ONLY of emojis (Unicode or `:custom:`) and spaces and there are 1..max of them
+ * (the "jumbo" case of a message); otherwise 0.
+ */
+export function emojiOnlyCount(text: string, custom?: Map<string, CustomEmoji>, max = 27): number {
+  if (!text || !text.trim()) return 0;
+  let count = 0;
+  for (const s of splitEmojiSegments(text, custom)) {
+    if (s.type === "text") { if (s.value.trim() !== "") return 0; }
+    else count++;
+  }
+  return count >= 1 && count <= max ? count : 0;
+}
 
 /** True when the text has at least one emoji (cheap pre-check before allocating segments). */
 export function hasEmoji(text: string): boolean {

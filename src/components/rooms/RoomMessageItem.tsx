@@ -614,6 +614,7 @@ export function RoomMessageItem({
                     <div key={key} className="text-sm leading-relaxed max-w-full overflow-hidden">
                       {clean && (
                         <RichText
+                          jumbo
                           content={clean}
                           context={resolverContext ?? { documents: [], boards: [], folders: [], users: [] }}
                           availableTags={availableTags}
@@ -1161,7 +1162,7 @@ export function RoomMessageItem({
                       mine ? "border-primary bg-primary/5 ring-1 ring-primary/30 font-semibold" : "border-border/60 bg-muted/40 hover:bg-muted"
                     }`}
                   >
-                    <span aria-hidden><Emoji value={emoji} size={16} label="" /></span>
+                    <span aria-hidden><Emoji value={emoji} size={20} label="" /></span>
                     <span className="text-[10px] text-muted-foreground" aria-hidden>{new Set(list).size}</span>
                   </button>
                 );

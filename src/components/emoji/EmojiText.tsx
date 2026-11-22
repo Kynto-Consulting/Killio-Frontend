@@ -4,12 +4,13 @@ import { Fragment, useMemo } from "react";
 import { Emoji } from "./Emoji";
 import { useCustomEmojis } from "./emoji-context";
 import { hasEmoji, splitEmojiSegments } from "@/lib/emoji/segments";
+import { EMOJI_INLINE_ALIGN, EMOJI_INLINE_SIZE, EMOJI_JUMBO_SIZE } from "@/lib/emoji/token-html";
 
 /**
  * Renders a string turning every emoji inside it into an <Emoji/> (Twemoji). Code spans, markdown links, mention
  * tokens and URLs are left untouched, and the stored text is never modified: this is display only.
  */
-export function EmojiText({ text, size, className }: { text: string; size?: number | string; className?: string }) {
+export function EmojiText({ text, size, className, jumbo = false }: { text: string; size?: number | string; className?: string; jumbo?: boolean }) {
   const { customMap } = useCustomEmojis();
   const segments = useMemo(() => {
     if (!text) return null;
@@ -23,7 +24,7 @@ export function EmojiText({ text, size, className }: { text: string; size?: numb
     <>
       {segments.map((s, i) => {
         if (s.type === "text") return <Fragment key={i}>{s.value}</Fragment>;
-        if (s.type === "emoji") return <Emoji key={i} value={s.value} size={size} className={className} />;
+        if (s.type === "emoji") return <Emoji key={i} value={s.value} size={size} jumbo={jumbo} className={className} />;
         return (
           // eslint-disable-next-line @next/next/no-img-element -- custom emoji of the space
           <img
@@ -32,8 +33,8 @@ export function EmojiText({ text, size, className }: { text: string; size?: numb
             alt={`:${s.emoji.name}:`}
             draggable={false}
             loading="lazy"
-            className={`inline-block align-[-0.25em] ${className ?? ""}`}
-            style={{ width: size ?? "1.25em", height: size ?? "1.25em", objectFit: "contain" }}
+            className={`inline-block ${jumbo ? "align-bottom" : EMOJI_INLINE_ALIGN} ${className ?? ""}`}
+            style={{ width: size ?? (jumbo ? EMOJI_JUMBO_SIZE : EMOJI_INLINE_SIZE), height: size ?? (jumbo ? EMOJI_JUMBO_SIZE : EMOJI_INLINE_SIZE), objectFit: "contain" }}
           />
         );
       })}

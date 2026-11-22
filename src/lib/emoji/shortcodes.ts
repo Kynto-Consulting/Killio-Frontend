@@ -36,6 +36,24 @@ export function activeShortcodeQuery(text: string, caret: number): ShortcodeQuer
   return { query: m[2].slice(1), start, end: caret };
 }
 
+export interface CompletedShortcode { start: number; end: number; replacement: string; kind: "custom" | "unicode" }
+
+/**
+ * A `:name:` that was just completed right before the caret (the closing colon is the last character before it) and
+ * names a custom emoji of the team (kept as `:name:` text, the editor draws it as an image) or a known Unicode
+ * shortcode (replaced by its glyph). Null for anything else, including names glued to a word.
+ */
+export function completedShortcodeBefore(text: string, caret: number, ds: EmojiDataset | null, custom?: Map<string, CustomEmoji>): CompletedShortcode | null {
+  const before = text.slice(0, caret);
+  const m = /(^|[^A-Za-z0-9:])(:([A-Za-z0-9_+-]{2,32}):)$/.exec(before);
+  if (!m) return null;
+  const start = caret - m[2].length;
+  const name = m[3].toLowerCase();
+  if (custom?.has(name)) return { start, end: caret, replacement: m[2], kind: "custom" };
+  const glyph = ds ? shortcodeToGlyph(ds, name) : null;
+  return glyph ? { start, end: caret, replacement: glyph, kind: "unicode" } : null;
+}
+
 export const CUSTOM_NAME_RE = /^[A-Za-z0-9_]{2,32}$/;
 
 export function customByName(list: CustomEmoji[] | undefined): Map<string, CustomEmoji> {

@@ -18,9 +18,12 @@ import { AiSuggestion } from "./ai-suggestion";
 // Registers KaTeX extensions (mhchem \ce{}) on the shared KaTeX instance.
 import "@/lib/latex/katex-config";
 import { BlockMath, InlineMath } from "react-katex";
-import { EmojiText } from "@/components/emoji";
+import { EmojiText, useCustomEmojis } from "@/components/emoji";
+import { emojiOnlyCount } from "@/lib/emoji/segments";
 
 interface RichTextProps {
+  /** Messages made only of emojis (up to 27) are drawn large, like Discord. Off by default (documents, cards). */
+  jumbo?: boolean;
   content: string;
   context: ResolverContext;
   availableTags?: any[];
@@ -156,7 +159,9 @@ export function RichText({
   onReferenceClick,
   onSuggestionApply,
   disabledStyles = [],
+  jumbo = false,
 }: RichTextProps) {
+  const { customMap } = useCustomEmojis();
   const noHeading = disabledStyles.includes("heading");
   const noSize = disabledStyles.includes("size");
   const fallbackDocId = React.useMemo(() => {
@@ -167,6 +172,9 @@ export function RichText({
 
   if (!content) return null;
   content = normalizeSingleLineFences(content);
+  if (jumbo && emojiOnlyCount(content, customMap)) {
+    return <div className={className}><EmojiText text={content.trim()} jumbo /></div>;
+  }
 
   const stripWrappedBold = (value: string): string => {
     const trimmed = value.trim();

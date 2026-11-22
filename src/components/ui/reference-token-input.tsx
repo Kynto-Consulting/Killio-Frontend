@@ -10,6 +10,10 @@ import { DocumentBrick, getDocument } from "@/lib/api/documents";
 import { getMesh, MeshBrick } from "@/lib/api/contracts";
 import { ReferenceResolver } from "@/lib/reference-resolver";
 import { cn } from "@/lib/utils";
+import { useCustomEmojis, useEmojiDataset } from "@/components/emoji";
+import { clipboardHtml, serializeClipboardText, textToEditorHtml, type ClipNode } from "@/lib/emoji/token-html";
+import { completedShortcodeBefore, replaceCompletedShortcodes } from "@/lib/emoji/shortcodes";
+import { normalizeGlyph } from "@/lib/emoji/twemoji-url";
 import { WorkspaceMemberLike } from "@/lib/workspace-members";
 
 type PickerCard = { id: string; title: string };
@@ -129,6 +133,17 @@ export function ReferenceTokenInput({
   const { accessToken, activeTeamId } = useSession();
   const { groups: teamGroups } = useTeamGroups(activeTeamId);
   const tGroups = useTranslations("groups");
+  // Emojis in the editor are atomic image tokens: `:name:` of the team's custom emojis and Unicode emojis (value = glyph).
+  const { customMap } = useCustomEmojis();
+  const { dataset: emojiDs } = useEmojiDataset();
+  const composingRef = useRef(false);
+  const shortcodeOf = useCallback(
+    (glyph: string) => {
+      const entry = emojiDs?.byNative.get(normalizeGlyph(glyph));
+      return entry ? `:${entry.id}:` : undefined;
+    },
+    [emojiDs],
+  );
   const editorRef = useRef<HTMLDivElement | null>(null);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [pickerRange, setPickerRange] = useState<{ trigger: number; cursor: number } | null>(null);
@@ -151,7 +166,7 @@ export function ReferenceTokenInput({
       return parts
         .map((part) => {
           if (typeof part === "string") {
-            return escapeHtml(part).replace(/\n/g, "<br>");
+            return textToEditorHtml(part, customMap, shortcodeOf);
           }
 
           if (part.type === "kql") {
@@ -180,7 +195,7 @@ export function ReferenceTokenInput({
         })
         .join("");
     },
-    [getRichParts]
+    [getRichParts, customMap, shortcodeOf]
   );
 
   const getMarkdownLengthOfNode = useCallback((node: Node): number => {
@@ -314,7 +329,7 @@ export function ReferenceTokenInput({
 
       if (node === anchorNode) {
         if (node.nodeType === Node.TEXT_NODE) {
-          total += anchorOffset;
+          total += (node.textContent || "").slice(0, anchorOffset).replace(/\u200b/g, "").length;
         } else {
           const children = Array.from(node.childNodes);
           for (let i = 0; i < Math.min(anchorOffset, children.length); i += 1) {
@@ -326,7 +341,7 @@ export function ReferenceTokenInput({
       }
 
       if (node.nodeType === Node.TEXT_NODE) {
-        total += node.textContent?.length || 0;
+        total += (node.textContent || "").replace(/\u200b/g, "").length;
         return;
       }
 
@@ -374,6 +389,19 @@ export function ReferenceTokenInput({
       }
     },
     [renderHtmlFromValue, setVisibleOffset]
+  );
+
+  /** Puts the caret at a markdown offset: its visible offset is the rendered length of the text before it (chips render shorter). */
+  const placeCaretAtMarkdown = useCallback(
+    (md: string, offset: number) => {
+      const root = editorRef.current;
+      if (!root) return;
+      const probe = document.createElement("div");
+      probe.innerHTML = renderHtmlFromValue(md.slice(0, offset));
+      root.focus();
+      setVisibleOffset(probe.textContent?.length ?? 0);
+    },
+    [renderHtmlFromValue, setVisibleOffset],
   );
 
   useEffect(() => {
@@ -515,9 +543,64 @@ export function ReferenceTokenInput({
     const markdown = readMarkdown();
     const markdownCursor = getMarkdownCursorOffset();
 
+    if (!composingRef.current && markdownCursor !== null) {
+      const conv = completedShortcodeBefore(markdown, markdownCursor, emojiDs, customMap);
+      if (conv) {
+        const next = `${markdown.slice(0, conv.start)}${conv.replacement}${markdown.slice(conv.end)}`;
+        const caret = conv.start + conv.replacement.length;
+        // DOM first, then onChange: listeners that read the caret from the editor see the converted content.
+        applyRenderedValue(next);
+        placeCaretAtMarkdown(next, caret);
+        onChange(next);
+        updatePickerState(next, caret);
+        return;
+      }
+    }
+
     onChange(markdown);
     updatePickerState(markdown, markdownCursor);
-  }, [readMarkdown, getMarkdownCursorOffset, onChange, updatePickerState]);
+  }, [readMarkdown, getMarkdownCursorOffset, onChange, updatePickerState, emojiDs, customMap, applyRenderedValue, placeCaretAtMarkdown]);
+
+  /** Selected text for the clipboard (emoji tokens as `:name:` / glyph), or null when nothing is selected inside the editor. */
+  const selectedClipboardText = useCallback((): { text: string; range: Range } | null => {
+    const root = editorRef.current;
+    const sel = typeof window !== "undefined" ? window.getSelection() : null;
+    if (!root || !sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
+    const range = sel.getRangeAt(0);
+    if (!root.contains(range.commonAncestorContainer)) return null;
+    const frag = range.cloneContents();
+    const text = Array.from(frag.childNodes).map((n) => serializeClipboardText(n as unknown as ClipNode)).join("").replace(/\u00a0/g, " ");
+    return { text, range };
+  }, []);
+
+  const handleCopy = useCallback(
+    (e: React.ClipboardEvent<HTMLDivElement>) => {
+      const picked = selectedClipboardText();
+      if (!picked) return;
+      e.preventDefault();
+      e.clipboardData.setData("text/plain", picked.text);
+      e.clipboardData.setData("text/html", clipboardHtml(picked.text));
+    },
+    [selectedClipboardText],
+  );
+
+  const handleCut = useCallback(
+    (e: React.ClipboardEvent<HTMLDivElement>) => {
+      if (disabled) return;
+      const picked = selectedClipboardText();
+      if (!picked) return;
+      e.preventDefault();
+      e.clipboardData.setData("text/plain", picked.text);
+      e.clipboardData.setData("text/html", clipboardHtml(picked.text));
+      picked.range.deleteContents();
+      const md = readMarkdown();
+      const caret = getMarkdownCursorOffset();
+      applyRenderedValue(md);
+      if (caret !== null) placeCaretAtMarkdown(md, caret);
+      onChange(md);
+    },
+    [disabled, selectedClipboardText, readMarkdown, getMarkdownCursorOffset, applyRenderedValue, placeCaretAtMarkdown, onChange],
+  );
 
   const insertPlainTextAtSelection = useCallback((text: string) => {
     if (typeof window === "undefined") return;
@@ -580,14 +663,17 @@ export function ReferenceTokenInput({
       }
 
       if (plainText.length > 0) {
-        insertPlainTextAtSelection(plainText);
+        // Unicode shortcodes (:fire:) become their glyph; custom ones stay `:name:` and the render below draws them as images.
+        insertPlainTextAtSelection(emojiDs ? replaceCompletedShortcodes(plainText, emojiDs) : plainText);
         const markdown = readMarkdown();
         const cursor = getMarkdownCursorOffset();
+        applyRenderedValue(markdown);
+        if (cursor !== null) placeCaretAtMarkdown(markdown, cursor);
         onChange(markdown);
         updatePickerState(markdown, cursor);
       }
     },
-    [disabled, onPasteImage, insertPlainTextAtSelection, readMarkdown, getMarkdownCursorOffset, onChange, updatePickerState],
+    [disabled, onPasteImage, insertPlainTextAtSelection, readMarkdown, getMarkdownCursorOffset, onChange, updatePickerState, emojiDs, applyRenderedValue, placeCaretAtMarkdown],
   );
 
   const findAdjacentToken = useCallback((direction: "backward" | "forward") => {
@@ -653,9 +739,21 @@ export function ReferenceTokenInput({
   }, []);
 
   const removeTokenNode = useCallback(
-    (node: HTMLElement) => {
+    (node: HTMLElement, direction: "backward" | "forward" = "backward") => {
       const root = editorRef.current;
       if (!root) return;
+
+      if (node.dataset.emoji) {
+        const caret = getMarkdownCursorOffset();
+        const len = (node.dataset.token || "").length;
+        node.remove();
+        const md = readMarkdown();
+        const next = caret === null ? md.length : Math.max(0, direction === "backward" ? caret - len : caret);
+        applyRenderedValue(md);
+        placeCaretAtMarkdown(md, next);
+        onChange(md);
+        return;
+      }
 
       const visible = getVisibleOffset();
       node.remove();
@@ -663,7 +761,7 @@ export function ReferenceTokenInput({
       onChange(markdown);
       applyRenderedValue(markdown, visible === null ? null : Math.max(0, visible - 1));
     },
-    [getVisibleOffset, readMarkdown, onChange, applyRenderedValue]
+    [getVisibleOffset, getMarkdownCursorOffset, readMarkdown, onChange, applyRenderedValue, placeCaretAtMarkdown]
   );
 
   const handleKeyDown = useCallback(
@@ -683,7 +781,7 @@ export function ReferenceTokenInput({
         const token = findAdjacentToken("backward");
         if (token) {
           e.preventDefault();
-          removeTokenNode(token);
+          removeTokenNode(token, "backward");
           return;
         }
       }
@@ -692,7 +790,7 @@ export function ReferenceTokenInput({
         const token = findAdjacentToken("forward");
         if (token) {
           e.preventDefault();
-          removeTokenNode(token);
+          removeTokenNode(token, "forward");
           return;
         }
       }
@@ -757,14 +855,10 @@ export function ReferenceTokenInput({
       const current = readMarkdown();
       const next = `${current.slice(0, start)}${text}${current.slice(end)}`;
       const caretMarkdown = start + text.length;
-      onChange(next);
       applyRenderedValue(next);
       lastCaretRef.current = caretMarkdown;
-      // Visible offset of the caret = length of the rendered text before it (chips render shorter than their markdown).
-      const probe = document.createElement("div");
-      probe.innerHTML = renderHtmlFromValue(next.slice(0, caretMarkdown));
-      root.focus();
-      setVisibleOffset(probe.textContent?.length ?? null);
+      placeCaretAtMarkdown(next, caretMarkdown);
+      onChange(next);
     };
     handleRef.current = {
       getCaret: () => getMarkdownCursorOffset(),
@@ -777,7 +871,7 @@ export function ReferenceTokenInput({
       focus: () => editorRef.current?.focus(),
     };
     return () => { handleRef.current = null; };
-  }, [handleRef, readMarkdown, onChange, applyRenderedValue, renderHtmlFromValue, setVisibleOffset, getMarkdownCursorOffset]);
+  }, [handleRef, readMarkdown, onChange, applyRenderedValue, placeCaretAtMarkdown, getMarkdownCursorOffset]);
 
   const displayPlaceholder = !value;
 
@@ -795,6 +889,10 @@ export function ReferenceTokenInput({
         style={inputStyle}
         onInput={handleInput}
         onPaste={handlePaste}
+        onCopy={handleCopy}
+        onCut={handleCut}
+        onCompositionStart={() => { composingRef.current = true; }}
+        onCompositionEnd={() => { composingRef.current = false; handleInput(); }}
         onKeyDown={handleKeyDown}
         onBlur={() => {
           const markdown = readMarkdown();
