@@ -184,8 +184,8 @@ export function RoomHeader({
           </div>
           {room.description && !isMobile && (
             <>
-              <span className="hidden h-4 w-px shrink-0 bg-border lg:block" aria-hidden />
-              <p className="hidden min-w-0 truncate text-xs text-muted-foreground lg:block" title={room.description}>{room.description}</p>
+              <span className="hidden h-4 w-px shrink-0 bg-border xl:block" aria-hidden />
+              <p className="hidden min-w-0 truncate text-xs text-muted-foreground xl:block" title={room.description}>{room.description}</p>
             </>
           )}
           {entityHref && !isMobile && (
@@ -199,7 +199,7 @@ export function RoomHeader({
         {/* Right: actions */}
         <div className="flex shrink-0 items-center gap-0.5">
           {!isMobile && onlineCount > 0 && (
-            <div className="mr-1.5 hidden items-center -space-x-1.5 lg:flex" aria-label={t("header.online", { count: onlineCount })}>
+            <div className="mr-1.5 hidden items-center -space-x-1.5 xl:flex" aria-label={t("header.online", { count: onlineCount })}>
               {visibleAvatars.map((m) => (
                 <img key={m.clientId} src={getUserAvatarUrl(m.data.avatarUrl ?? undefined, m.data.email, 24)} alt="" title={m.data.displayName} className="h-6 w-6 rounded-full border-2 border-background object-cover" />
               ))}
