@@ -5,7 +5,7 @@ import { Check, Loader2, Pencil, Trash2, Upload, X } from "lucide-react";
 
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useSettings } from "@/components/roles/settings-context";
-import { EmptyState, btn, btnPrimary, card, cx, inputCls } from "@/components/roles/ui";
+import { EmptyState, btn, btnIcon, btnPrimary, card, cx, inputCls } from "@/components/roles/ui";
 import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import { useTeamRealtime } from "@/hooks/useTeamRealtime";
 import { ApiError, API_BASE_URL } from "@/lib/api/client";
@@ -223,13 +223,13 @@ export function EmojisTab() {
                   <div className="flex shrink-0 gap-1">
                     {isRenaming ? (
                       <>
-                        <button type="button" onClick={() => void saveRename(e)} aria-label={t("tab.save")} title={t("tab.save")} className={cx(btn, "h-8 w-8 px-0")}><Check className="h-4 w-4" aria-hidden /></button>
-                        <button type="button" onClick={() => { setRenaming(null); setRowError(null); }} aria-label={t("tab.cancel")} title={t("tab.cancel")} className={cx(btn, "h-8 w-8 px-0")}><X className="h-4 w-4" aria-hidden /></button>
+                        <button type="button" onClick={() => void saveRename(e)} aria-label={t("tab.save")} title={t("tab.save")} className={btnIcon}><Check className="h-4 w-4" aria-hidden /></button>
+                        <button type="button" onClick={() => { setRenaming(null); setRowError(null); }} aria-label={t("tab.cancel")} title={t("tab.cancel")} className={btnIcon}><X className="h-4 w-4" aria-hidden /></button>
                       </>
                     ) : (
                       <>
-                        <button type="button" onClick={() => { setRenaming(e.id); setDraft(e.name); setRowError(null); }} aria-label={t("tab.rename")} title={t("tab.rename")} className={cx(btn, "h-8 w-8 px-0")}><Pencil className="h-3.5 w-3.5" aria-hidden /></button>
-                        <button type="button" onClick={() => setDeleting(e)} aria-label={t("tab.delete")} title={t("tab.delete")} className={cx(btn, "h-8 w-8 px-0 text-red-600 dark:text-red-400")}><Trash2 className="h-3.5 w-3.5" aria-hidden /></button>
+                        <button type="button" onClick={() => { setRenaming(e.id); setDraft(e.name); setRowError(null); }} aria-label={t("tab.rename")} title={t("tab.rename")} className={btnIcon}><Pencil className="h-3.5 w-3.5" aria-hidden /></button>
+                        <button type="button" onClick={() => setDeleting(e)} aria-label={t("tab.delete")} title={t("tab.delete")} className={cx(btnIcon, "text-red-600 dark:text-red-400")}><Trash2 className="h-3.5 w-3.5" aria-hidden /></button>
                       </>
                     )}
                   </div>

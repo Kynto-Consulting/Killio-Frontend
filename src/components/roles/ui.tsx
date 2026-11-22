@@ -15,6 +15,9 @@ export const inputCls =
   "h-9 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground/60 focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50";
 export const btn =
   "inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-input bg-background px-4 text-xs font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50";
+/** Square icon-only button. Not `cx(btn, "px-0")`: `btn` carries px-4 and Tailwind order would keep it, squeezing the icon to zero width. */
+export const btnIcon =
+  "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-input bg-background text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50";
 export const btnPrimary =
   "inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50";
 export const btnDanger =

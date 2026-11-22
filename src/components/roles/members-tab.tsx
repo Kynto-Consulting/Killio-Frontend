@@ -11,7 +11,7 @@ import { toast } from "@/lib/toast";
 import { assignableRoles, effectiveRoles, filterMembers, groupRoleIds, memberActionBlockReason, memberRoleIds, paginate, sortRoles } from "@/lib/roles/model";
 import { RolePicker } from "./role-picker";
 import { useMemberTarget, useSettings, type SettingsMember } from "./settings-context";
-import { Avatar, Dialog, EmptyState, RoleChip, btn, btnDanger, btnPrimary, card, cx, formatDate, inputCls } from "./ui";
+import { Avatar, Dialog, EmptyState, RoleChip, btn, btnDanger, btnIcon, btnPrimary, card, cx, formatDate, inputCls } from "./ui";
 
 const PAGE_SIZE = 25;
 const MUTE_OPTIONS: Array<{ id: string; minutes: number | null }> = [
@@ -178,7 +178,7 @@ function MemberMenu({ member, onAction }: { member: SettingsMember; onAction: (a
 
   return (
     <div className="relative">
-      <button ref={btnRef} type="button" aria-haspopup="menu" aria-expanded={open} aria-label={t("actions.open", { name: member.alias || member.name })} onClick={() => setOpen((o) => !o)} className={cx(btn, "h-8 w-8 px-0")}>
+      <button ref={btnRef} type="button" aria-haspopup="menu" aria-expanded={open} aria-label={t("actions.open", { name: member.alias || member.name })} onClick={() => setOpen((o) => !o)} className={btnIcon}>
         <MoreHorizontal className="h-4 w-4" />
       </button>
       {open && (
