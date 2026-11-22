@@ -11,6 +11,7 @@ import { findOrCreateDm } from "@/lib/api/rooms";
 import { useSession } from "@/components/providers/session-provider";
 import { useTeamGroups } from "@/hooks/use-team-groups";
 import { Portal } from "./portal";
+import { anchorOf, useProfileProviderOpen } from "@/components/rooms/user-profile-context";
 import { KqlPill } from "./kql-pill";
 import { parseKqlPillToken } from "@/lib/kql-pill/token";
 import {
@@ -105,6 +106,7 @@ function RefPillBase({
   const t = useTranslations("common");
   const router = useRouter();
   const { accessToken, activeTeamId } = useSession();
+  const openProfile = useProfileProviderOpen();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -153,6 +155,11 @@ function RefPillBase({
     }
 
     if (type === "user") {
+      // Inside the rooms page an @mention opens the full profile card; elsewhere (docs, boards) the small menu below stays.
+      if (openProfile) {
+        openProfile({ userId: id, anchor: anchorOf(e.currentTarget), known: { displayName: label || name } });
+        return;
+      }
       openUserMenu(e.currentTarget as HTMLButtonElement);
       return;
     }

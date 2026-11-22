@@ -181,6 +181,12 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
     setIsOfflineSwitchOpen(true);
   }, [online, localMode]);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  // "Edit profile" on the user profile card (rooms) asks for the account settings.
+  useEffect(() => {
+    const open = () => setIsProfileModalOpen(true);
+    window.addEventListener("killio:open-profile-settings", open);
+    return () => window.removeEventListener("killio:open-profile-settings", open);
+  }, []);
   const [isPreferencesModalOpen, setIsPreferencesModalOpen] = useState(false);
   const [isSwitchAccountModalOpen, setIsSwitchAccountModalOpen] = useState(false);
   const [isBoardsOpen, setIsBoardsOpen] = useState(() => isPathActive("/b"));

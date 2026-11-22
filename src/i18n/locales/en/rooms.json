@@ -363,6 +363,7 @@
     "inherited": "Inherited from a group",
     "message": "Direct message",
     "actions": "Actions for {{name}}",
+    "profile": "Open the profile of {{name}}",
     "section": {
       "online": "Online",
       "bots": "Bots",
@@ -1006,6 +1007,80 @@
       "limit": "A channel can have at most {{max}} webhooks.",
       "generic": "That did not work. Try again.",
       "load": "Could not load the webhooks."
+    }
+  },
+  "profile": {
+    "title": "Profile of {{name}}",
+    "close": "Close profile",
+    "loading": "Loading profile",
+    "loadError": "The full profile could not be loaded.",
+    "retry": "Retry",
+    "bot": "Bot",
+    "owner": "Owner",
+    "you": "(you)",
+    "id": "ID",
+    "presence": {
+      "online": "Online",
+      "inCall": "In a call",
+      "offline": "Offline"
+    },
+    "tabs": {
+      "label": "Profile sections",
+      "profile": "Profile",
+      "permissions": "Permissions"
+    },
+    "about": "About",
+    "localTime": "Local time {{time}}",
+    "email": "Email",
+    "botInfo": "About this bot",
+    "botActive": "Active",
+    "botPaused": "Paused",
+    "createdBy": "Created by {{name}}",
+    "noDescription": "No description.",
+    "commands": "Commands",
+    "commandUsage": "Usage",
+    "roles": "Roles",
+    "rolesInherited": "Through groups",
+    "groups": "Groups",
+    "memberSince": "Member since",
+    "inRoomSince": "In this channel since",
+    "muted": "Muted",
+    "mutedForever": "Muted until someone lifts it",
+    "mutedUntil": "Muted until {{date}}",
+    "mutedReason": "Reason: {{reason}}",
+    "perm": {
+      "intro": "What {{name}} can do in this channel (permission engine).",
+      "summary": "{{allowed}} allowed, {{denied}} denied",
+      "cannotSee": "This person cannot see the channel, so every permission is off.",
+      "allowed": "Allowed",
+      "denied": "Denied",
+      "group": "{{group}}"
+    },
+    "actions": {
+      "message": "Message",
+      "mention": "Mention",
+      "copyId": "Copy ID",
+      "copied": "ID copied",
+      "editProfile": "Edit profile",
+      "mute": "Mute",
+      "unmute": "Unmute",
+      "roles": "Roles",
+      "groups": "Groups",
+      "kick": "Kick",
+      "more": "More actions"
+    },
+    "groupsDialog": {
+      "title": "Groups of {{name}}",
+      "help": "Pick the groups this person belongs to.",
+      "empty": "There are no groups yet.",
+      "saved": "Groups updated."
+    },
+    "kickDialog": {
+      "help": "They leave the workspace but can come back with an invitation."
+    },
+    "copilot": {
+      "about": "Autonomous assistant that helps in real time: analyses documents, summarises calls and supports your daily tasks.",
+      "ask": "Ask the copilot"
     }
   }
 }

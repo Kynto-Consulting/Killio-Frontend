@@ -5,6 +5,7 @@ import { Bot, Clock, MessageSquare, MoreHorizontal, Volume2, VolumeX, X } from "
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import type { RoomPresenceMember } from "@/hooks/use-room-presence";
 import type { RoomMember } from "@/lib/api/rooms";
+import { useProfileProviderOpen, anchorOf } from "./user-profile-context";
 import { buildMemberSections, memberColor, type PanelMember } from "@/lib/rooms/members-layout";
 
 type TFn = (key: string, params?: Record<string, string | number>) => string;
@@ -19,10 +20,28 @@ interface MemberRowProps {
   onMute: (m: RoomMember) => void;
   onUnmute: (m: RoomMember) => void;
   onOpenDm?: (m: RoomMember) => void;
+  /** Opens the profile card anchored to the row. */
+  onOpenProfile?: (m: RoomMember, anchor: HTMLElement) => void;
   t: TFn;
 }
 
-function MemberRow({ member, isOnline, isInCall, isYou, canModerate, isMuted, onMute, onUnmute, onOpenDm, t }: MemberRowProps) {
+/** The avatar and name of a row: a button that opens the profile card when the page offers one, plain otherwise. */
+function Identity({ member, onOpenProfile, label, children }: { member: RoomMember; onOpenProfile?: (m: RoomMember, anchor: HTMLElement) => void; label: string; children: React.ReactNode }) {
+  if (!onOpenProfile) return <div className="flex min-w-0 flex-1 items-center gap-2">{children}</div>;
+  return (
+    <button
+      type="button"
+      onClick={(e) => onOpenProfile(member, e.currentTarget)}
+      aria-haspopup="dialog"
+      aria-label={label}
+      className="flex min-w-0 flex-1 items-center gap-2 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+    >
+      {children}
+    </button>
+  );
+}
+
+function MemberRow({ member, isOnline, isInCall, isYou, canModerate, isMuted, onMute, onUnmute, onOpenDm, onOpenProfile, t }: MemberRowProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const menuId = useId();
@@ -44,15 +63,16 @@ function MemberRow({ member, isOnline, isInCall, isYou, canModerate, isMuted, on
 
   return (
     <li className={`group/member flex items-center gap-2 rounded-lg px-2 py-2 transition-colors hover:bg-muted/60 lg:py-1 motion-reduce:transition-none`}>
-      <div className="relative shrink-0">
+      <Identity onOpenProfile={onOpenProfile} member={member} label={t("members.profile", { name: member.displayName })}>
+      <span className="relative block shrink-0">
         <img src={getUserAvatarUrl(member.avatarUrl, member.email, 28)} alt="" className={`h-7 w-7 rounded-full border border-border object-cover transition-opacity ${dim ? "opacity-55" : ""}`} />
         <span
           className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-[2.5px] border-card ${isInCall ? "bg-sky-500" : isOnline ? "bg-emerald-500" : "bg-slate-400 dark:bg-slate-500"}`}
           aria-hidden
         />
-      </div>
-      <div className={`min-w-0 flex-1 transition-opacity ${dim ? "opacity-60" : ""}`}>
-        <div className="flex items-center gap-1">
+      </span>
+      <span className={`block min-w-0 flex-1 text-left transition-opacity ${dim ? "opacity-60" : ""}`}>
+        <span className="flex items-center gap-1">
           <span className="truncate text-xs font-medium" style={color ? { color } : undefined}>{member.displayName}</span>
           {member.isBot && (
             <span className="inline-flex shrink-0 items-center gap-0.5 rounded bg-violet-500/15 px-1 text-[9px] font-bold uppercase tracking-tight text-violet-700 dark:text-violet-300">
@@ -61,7 +81,7 @@ function MemberRow({ member, isOnline, isInCall, isYou, canModerate, isMuted, on
           )}
           {isYou && <span className="text-[10px] text-muted-foreground">{t("members.you")}</span>}
           {isMuted && <Clock className="h-3 w-3 shrink-0 text-amber-600" aria-label={t("members.muted")} />}
-        </div>
+        </span>
         <span className="block text-[10px] text-muted-foreground">
           {(member.inheritedRoles ?? []).length > 0 && (
             <span className="mr-1 inline-flex flex-wrap gap-0.5 align-middle" title={t("members.inherited")}>
@@ -72,7 +92,8 @@ function MemberRow({ member, isOnline, isInCall, isYou, canModerate, isMuted, on
           )}
           {isInCall ? t("members.inCall") : isOnline ? t("members.online") : member.isBot ? t("members.botLabel") : t("members.offline")}
         </span>
-      </div>
+      </span>
+      </Identity>
       {hasMenu && (
         <div ref={ref} className="relative shrink-0">
           <button
@@ -112,13 +133,23 @@ interface RoomMembersPanelProps {
   onMute?: (m: RoomMember) => void;
   onUnmute?: (m: RoomMember) => void;
   onOpenDm?: (m: RoomMember) => void;
+  /** Opens the profile card of a person (anchored to their row). */
+  onOpenProfile?: (m: RoomMember, anchor: HTMLElement) => void;
   onClose?: () => void;
   t: TFn;
 }
 
 export function RoomMembersPanel({
-  presenceMembers, roomMembers, currentUserId, isLoading, hasError, onRetry, canModerate = false, onMute, onUnmute, onOpenDm, onClose, t,
+  presenceMembers, roomMembers, currentUserId, isLoading, hasError, onRetry, canModerate = false, onMute, onUnmute, onOpenDm, onOpenProfile, onClose, t,
 }: RoomMembersPanelProps) {
+  // With the page-level profile provider every row opens the card; a caller may still pass its own handler.
+  const providerOpen = useProfileProviderOpen();
+  const openProfile = useMemo<RoomMembersPanelProps["onOpenProfile"]>(
+    () => onOpenProfile ?? (providerOpen
+      ? (m, el) => providerOpen({ userId: m.userId, anchor: anchorOf(el), known: { displayName: m.displayName || m.email, avatarUrl: m.avatarUrl ?? null, email: m.email || null, isBot: m.isBot, color: memberColor(m) } })
+      : undefined),
+    [onOpenProfile, providerOpen],
+  );
   const onlineIds = useMemo(() => new Set(presenceMembers.map((m) => m.clientId)), [presenceMembers]);
   const inCallIds = useMemo(() => new Set(presenceMembers.filter((m) => m.data.status === "in-call").map((m) => m.clientId)), [presenceMembers]);
   const byId = useMemo(() => new Map(roomMembers.map((m) => [m.userId, m])), [roomMembers]);
@@ -181,6 +212,7 @@ export function RoomMembersPanel({
                       onMute={(x) => onMute?.(x)}
                       onUnmute={(x) => onUnmute?.(x)}
                       onOpenDm={onOpenDm}
+                      onOpenProfile={openProfile}
                       t={t}
                     />
                   );

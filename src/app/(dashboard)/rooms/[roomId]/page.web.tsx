@@ -31,7 +31,8 @@ import { applyLayoutToRooms, nextRoomAfterDelete, removeRoomById, type LayoutIte
 import { useRoomDeleted } from "@/hooks/use-room-deleted";
 import { setRoomMutedLocally } from "@/hooks/use-room-unread";
 import { mergePinned, filterMessagesByText, messageActions, splitThreads } from "@/lib/rooms/message-structure";
-import { neutralizeEveryone, toWireMentions } from "@/lib/rooms/mentions";
+import { memberColor } from "@/lib/rooms/members-layout";
+import { neutralizeEveryone, toWireMentions, userMentionToken } from "@/lib/rooms/mentions";
 import { isMuteActive, muteMinutesLeft } from "@/lib/rooms/room-controls";
 import { useRealtime } from "@/components/providers/realtime-provider";
 import { realtimeChannel } from "@/lib/realtime/channels";
@@ -56,6 +57,7 @@ import { usePinExpiry } from "@/hooks/use-pin-expiry";
 import { useNarrowViewport } from "@/hooks/use-narrow-viewport";
 import { applyPinPatch, resolvePinCaps, syncServerClock, type PinBody, type PinPatch, type PinSummary } from "@/lib/rooms/pins";
 import { MuteMemberModal } from "@/components/rooms/MuteMemberModal";
+import { UserProfileProvider, type UserProfileProviderProps } from "@/components/rooms/user-profile-context";
 import { ChannelSettingsModal } from "@/components/rooms/ChannelSettingsModal";
 import { CategorySettingsModal } from "@/components/rooms/CategorySettingsModal";
 import { Loader2, Menu, Phone, ShieldOff, X } from "lucide-react";
@@ -904,6 +906,26 @@ Team Context: ${activeTeamId}.`;
     });
   }, [roomMembers, teamRoles, references.memberRoleIds, references.botIds, activeMutes]);
 
+  // Profile card (members panel, message authors, @mentions, "X used /cmd"): what the page already knows paints at once.
+  const profileKnownOf = useCallback<NonNullable<UserProfileProviderProps["knownOf"]>>((id) => {
+    const m = panelMembers.find((x) => x.userId === id);
+    if (!m) return undefined;
+    return { displayName: m.displayName || m.email, avatarUrl: m.avatarUrl ?? null, email: m.email || null, isBot: m.isBot, color: memberColor(m) };
+  }, [panelMembers]);
+  const profilePresenceOf = useCallback<NonNullable<UserProfileProviderProps["presenceOf"]>>((id) => {
+    const here = presenceMembers.find((p) => p.clientId === id);
+    return here ? (here.data.status === "in-call" ? "in-call" : "online") : "offline";
+  }, [presenceMembers]);
+  const canModerateProfiles = capabilities.canMuteMembers && room?.type !== "dm";
+  const profileActions = useMemo<NonNullable<UserProfileProviderProps["actions"]>>(() => ({
+    onMessage: (id) => { void handleOpenDirectMessage(id); if (overlayPanels) closePanels(); },
+    onMention: ({ userId: id, displayName }) => setChatInput((prev) => `${prev && !/s$/.test(prev) ? `${prev} ` : prev}${userMentionToken({ id, name: displayName })} `),
+    onMute: canModerateProfiles ? (target) => setMuteTarget(target) : undefined,
+    onUnmute: canModerateProfiles ? (id) => handleUnmute(roomMembers.find((m) => m.userId === id) ?? ({ userId: id } as RoomMember)) : undefined,
+    onOpenCopilot: () => openPanel("ai"),
+    onChanged: () => setMembersVersion((v) => v + 1),
+  }), [handleOpenDirectMessage, overlayPanels, closePanels, canModerateProfiles, handleUnmute, roomMembers, openPanel]);
+
   const handleThreadSend = useCallback(async (content: string) => {
     if (!threadRootId) return;
     await chatHook.sendMessage(toWireMentions(neutralizeEveryone(content, controls.canMentionEveryone)), undefined, threadRootId);
@@ -1147,6 +1169,7 @@ Team Context: ${activeTeamId}.`;
   );
 
   return (
+    <UserProfileProvider teamId={activeTeamId} roomId={roomId} presenceOf={profilePresenceOf} knownOf={profileKnownOf} actions={profileActions}>
     <div className="flex h-full flex-col overflow-hidden">
       <RoomsLayout drawerLabel={t("sidebar.channels")} sidebar={sidebarNode}>
         {({ openSidebar }) => (
@@ -1426,5 +1449,6 @@ Team Context: ${activeTeamId}.`;
         )
         : null}
     </div>
+    </UserProfileProvider>
   );
 }

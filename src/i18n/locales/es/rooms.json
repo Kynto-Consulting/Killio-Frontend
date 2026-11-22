@@ -363,6 +363,7 @@
     "inherited": "Heredado de un grupo",
     "message": "Mensaje directo",
     "actions": "Acciones para {{name}}",
+    "profile": "Abrir el perfil de {{name}}",
     "section": {
       "online": "En línea",
       "bots": "Bots",
@@ -1006,6 +1007,80 @@
       "limit": "Un canal puede tener como máximo {{max}} webhooks.",
       "generic": "No funcionó. Inténtalo de nuevo.",
       "load": "No se pudieron cargar los webhooks."
+    }
+  },
+  "profile": {
+    "title": "Perfil de {{name}}",
+    "close": "Cerrar perfil",
+    "loading": "Cargando perfil",
+    "loadError": "No se pudo cargar el perfil completo.",
+    "retry": "Reintentar",
+    "bot": "Bot",
+    "owner": "Propietario",
+    "you": "(tú)",
+    "id": "ID",
+    "presence": {
+      "online": "En línea",
+      "inCall": "En una llamada",
+      "offline": "Desconectado"
+    },
+    "tabs": {
+      "label": "Secciones del perfil",
+      "profile": "Perfil",
+      "permissions": "Permisos"
+    },
+    "about": "Acerca de",
+    "localTime": "Hora local {{time}}",
+    "email": "Correo",
+    "botInfo": "Sobre este bot",
+    "botActive": "Activo",
+    "botPaused": "En pausa",
+    "createdBy": "Creado por {{name}}",
+    "noDescription": "Sin descripción.",
+    "commands": "Comandos",
+    "commandUsage": "Uso",
+    "roles": "Roles",
+    "rolesInherited": "Por sus grupos",
+    "groups": "Grupos",
+    "memberSince": "Miembro desde",
+    "inRoomSince": "En este canal desde",
+    "muted": "Silenciado",
+    "mutedForever": "Silenciado hasta que alguien lo quite",
+    "mutedUntil": "Silenciado hasta {{date}}",
+    "mutedReason": "Motivo: {{reason}}",
+    "perm": {
+      "intro": "Lo que {{name}} puede hacer en este canal (motor de permisos).",
+      "summary": "{{allowed}} permitidos, {{denied}} denegados",
+      "cannotSee": "Esta persona no ve el canal, así que todos los permisos están desactivados.",
+      "allowed": "Permitido",
+      "denied": "Denegado",
+      "group": "{{group}}"
+    },
+    "actions": {
+      "message": "Mensaje",
+      "mention": "Mencionar",
+      "copyId": "Copiar ID",
+      "copied": "ID copiado",
+      "editProfile": "Editar perfil",
+      "mute": "Silenciar",
+      "unmute": "Quitar silencio",
+      "roles": "Roles",
+      "groups": "Grupos",
+      "kick": "Expulsar",
+      "more": "Más acciones"
+    },
+    "groupsDialog": {
+      "title": "Grupos de {{name}}",
+      "help": "Elige los grupos a los que pertenece esta persona.",
+      "empty": "Aún no hay grupos.",
+      "saved": "Grupos actualizados."
+    },
+    "kickDialog": {
+      "help": "Sale del espacio de trabajo pero puede volver con una invitación."
+    },
+    "copilot": {
+      "about": "Asistente autónomo que ayuda en tiempo real: analiza documentos, resume llamadas y apoya tus tareas diarias.",
+      "ask": "Preguntar al copiloto"
     }
   }
 }

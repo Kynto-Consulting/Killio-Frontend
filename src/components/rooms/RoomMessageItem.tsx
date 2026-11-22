@@ -23,7 +23,7 @@ import type { ResolverContext } from "@/lib/reference-resolver";
 import { getAiMarkupLabel, parseAiMarkup, parseContactBlock, parsePreThinkSections, splitAtPartialToolTag } from "@/lib/ai-markup";
 import { RoomCallHistoryCard } from "./RoomCallHistoryCard";
 import { EmojiReactionPicker, trackEmojiUse } from "./EmojiReactionPicker";
-import { UserProfileCard } from "./UserProfileCard";
+import { anchorOf, useProfileOpener } from "./user-profile-context";
 import type { RoomCall } from "@/lib/api/rooms";
 import { UnifiedBrickRenderer } from "../bricks/brick-renderer";
 import { updateMessageMetadata } from "@/lib/api/rooms";
@@ -403,7 +403,7 @@ export function RoomMessageItem({
       window.open(url, '_blank');
     }
   }
-  const [userCard, setUserCard] = useState<{ anchor: { x: number; y: number } } | null>(null);
+  const { open: openProfile, card: profileCard } = useProfileOpener(teamId, { onOpenCopilot });
   const [isInfoOpen, setIsInfoOpen] = useState(false);
 
   const [expandedMarkup, setExpandedMarkup] = useState<Set<string>>(new Set());
@@ -460,17 +460,16 @@ export function RoomMessageItem({
   const avatarUrl = message.user?.avatarUrl;
   const email = message.user?.email;
   const displayName = isAi ? (t("ai.copilotName") || "AI Copilot") : (message.user?.displayName ?? t("ai.unknown"));
-  const userId = message.userId ?? (isAi ? "000" : "");
-  const canOpenDm = teamId && userId && userId !== currentUserId;
+  const userId = isAi ? "000" : (message.userId ?? "");
+  const canOpenDm = Boolean(teamId && userId);
 
+  /** Opens the profile card anchored to the avatar or the name that was pressed. */
   const handleAvatarClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     if (!canOpenDm) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    setUserCard({
-      anchor: {
-        x: Math.min(rect.right + 8, window.innerWidth - 270),
-        y: Math.min(rect.top, window.innerHeight - 280),
-      },
+    openProfile({
+      userId,
+      anchor: anchorOf(e.currentTarget),
+      known: { displayName, avatarUrl, email, isBot: isBot || isAi, color: isBot || isAi ? null : message.user?.roleColor ?? null },
     });
   };
 
@@ -530,9 +529,20 @@ export function RoomMessageItem({
         <div className="flex min-w-0 flex-1 flex-col items-start">
           {showAvatar && (
             <div className="mb-0.5 flex flex-wrap items-baseline gap-x-1.5">
-              <span className="text-[13px] font-bold" style={isBot || isAi ? undefined : message.user?.roleColor && /^#[0-9a-fA-F]{6}$/.test(message.user.roleColor) ? { color: message.user.roleColor } : undefined}>
-                {displayName}
-              </span>
+              {canOpenDm ? (
+                <button
+                  type="button"
+                  onClick={handleAvatarClick}
+                  className="rounded text-[13px] font-bold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                  style={isBot || isAi ? undefined : message.user?.roleColor && /^#[0-9a-fA-F]{6}$/.test(message.user.roleColor) ? { color: message.user.roleColor } : undefined}
+                >
+                  {displayName}
+                </button>
+              ) : (
+                <span className="text-[13px] font-bold" style={isBot || isAi ? undefined : message.user?.roleColor && /^#[0-9a-fA-F]{6}$/.test(message.user.roleColor) ? { color: message.user.roleColor } : undefined}>
+                  {displayName}
+                </span>
+              )}
               {(isAi || isBot) && (
                 <span className="inline-flex items-center gap-0.5 self-center rounded bg-violet-500/15 px-1 text-[9px] font-bold uppercase tracking-tight text-violet-700 dark:text-violet-300">
                   <Bot className="h-2.5 w-2.5" aria-hidden />
@@ -1173,18 +1183,7 @@ export function RoomMessageItem({
         </div>
       </div>
 
-      {userCard && teamId && (
-        <UserProfileCard
-          userId={userId}
-          displayName={displayName}
-          email={email}
-          avatarUrl={avatarUrl}
-          teamId={teamId}
-          anchor={userCard.anchor}
-          onClose={() => setUserCard(null)}
-          onOpenCopilot={onOpenCopilot}
-        />
-      )}
+      {profileCard}
 
       {isInfoOpen && (
         <Portal>

@@ -11,7 +11,9 @@ import { createPortal } from "react-dom";
 import { CornerDownRight, X } from "lucide-react";
 
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
+import { useSession } from "@/components/providers/session-provider";
 import { formatInvokedAt, popoverPosition, type CommandGhost } from "@/lib/rooms/command-ghost";
+import { anchorOf, useProfileOpener } from "./user-profile-context";
 
 const PANEL_WIDTH = 288;
 
@@ -37,6 +39,8 @@ export function CommandGhostHeader({ ghost, className = "" }: { ghost: CommandGh
   const panelRef = useRef<HTMLDivElement>(null);
   const narrow = useNarrow();
   const titleId = useId();
+  const { activeTeamId } = useSession();
+  const { open: openProfile, card: profileCard } = useProfileOpener(activeTeamId);
 
   const close = useCallback(() => {
     setOpen(false);
@@ -134,20 +138,33 @@ export function CommandGhostHeader({ ghost, className = "" }: { ghost: CommandGh
 
   return (
     <>
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        data-testid="command-ghost"
-        className={`mb-0.5 inline-flex max-w-full items-center gap-1 rounded-md px-1 py-0.5 text-left text-[11px] text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none ${className}`}
-      >
+      <span className={`mb-0.5 inline-flex max-w-full items-center gap-1 px-1 py-0.5 text-[11px] text-muted-foreground ${className}`}>
         <CornerDownRight className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
-        <span className="min-w-0 truncate">
-          <span className="font-medium text-foreground/80">{who}</span> {t("bot.command.used")} <span className="font-mono font-medium text-primary/90">/{ghost.commandName}</span>
-        </span>
-      </button>
+        {/* The name opens the person's profile card; the rest of the line keeps opening the command popover. */}
+        {ghost.invokerUserId && activeTeamId ? (
+          <button
+            type="button"
+            onClick={(e) => openProfile({ userId: ghost.invokerUserId, anchor: anchorOf(e.currentTarget), known: { displayName: ghost.invokerName } })}
+            className="min-w-0 truncate rounded font-medium text-foreground/80 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          >
+            {who}
+          </button>
+        ) : (
+          <span className="min-w-0 truncate font-medium text-foreground/80">{who}</span>
+        )}
+        <button
+          ref={buttonRef}
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          data-testid="command-ghost"
+          className="min-w-0 truncate rounded-md px-0.5 text-left transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none"
+        >
+          {t("bot.command.used")} <span className="font-mono font-medium text-primary/90">/{ghost.commandName}</span>
+        </button>
+      </span>
+      {profileCard}
       {open &&
         typeof document !== "undefined" &&
         createPortal(
