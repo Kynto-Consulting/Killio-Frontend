@@ -103,6 +103,18 @@ test("fallback content: hidden only when it is exactly what the blocks render to
   assert.equal(isFallbackContent("{​{ x }}", [{ type: "text" as const, text: "{​{ x }}" }]), true);
 });
 
+test("fallback content: a text that only repeats the first heading is hidden (the community pack welcome and rules)", () => {
+  const rules = [{ type: "heading" as const, level: 2, text: "Reglas de Cemelitos" }, { type: "text" as const, text: "Respeta a las demas personas." }];
+  assert.equal(isFallbackContent("Reglas de Cemelitos", rules), true);
+  assert.equal(isFallbackContent("  Reglas   de Cemelitos ", rules), true);
+  const welcome = [{ type: "heading" as const, level: 2, text: "Bienvenid@ Ana" }, { type: "text" as const, text: "Esto es Cemelitos." }];
+  assert.equal(isFallbackContent("Bienvenid@ Ana a Cemelitos", welcome), true);
+  // real content is never swallowed
+  assert.equal(isFallbackContent("Reglas de Cemelitos: leelas antes de escribir y respeta siempre a las demas personas del club", rules), false);
+  assert.equal(isFallbackContent("Otro texto", rules), false);
+  assert.equal(isFallbackContent("Reglas de Cemelitos", [{ type: "text" as const, text: "Reglas de Cemelitos" }, { type: "text" as const, text: "y mas" }]), false);
+});
+
 test("line helpers of the structured editor round-trip", () => {
   assert.deepEqual(linesToList(" a \n\n b\r\nc"), ["a", "b", "c"]);
   assert.deepEqual(linesToChecklist("[x] hecho\n[ ] pendiente\nsuelto"), [{ text: "hecho", checked: true }, { text: "pendiente", checked: false }, { text: "suelto", checked: false }]);

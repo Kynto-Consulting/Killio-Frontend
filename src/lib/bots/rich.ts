@@ -200,8 +200,19 @@ export function isFallbackContent(content: string, blocks: readonly RichBlock[])
   const c = norm(content);
   if (!c) return true;
   const f = norm(blocksToPlainText(blocks, 1000));
-  return c === f;
+  if (c === f) return true;
+  // A script that sets `text` to the title of its own first heading ("Reglas de X" + heading "Reglas de X", or "Bienvenid@ Ana a X" + heading
+  // "Bienvenid@ Ana") would show that title twice: it is a restatement, not extra content.
+  const first = blocks[0];
+  if (first && first.type === "heading") {
+    const h = norm(str(first.text));
+    if (h && (c === h || (c.startsWith(h) && c.length - h.length <= TITLE_RESTATEMENT_EXTRA))) return true;
+  }
+  return false;
 }
+
+/** How many extra characters after the heading text still count as a restatement of it (" a Cemelitos"). */
+const TITLE_RESTATEMENT_EXTRA = 40;
 
 /* ── helpers of the structured editor ── */
 
