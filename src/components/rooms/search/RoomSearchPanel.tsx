@@ -5,7 +5,7 @@ import { AlertTriangle, Search as SearchIcon, X } from "lucide-react";
 import { useRoomSearch } from "@/hooks/use-room-search";
 import type { SearchResult, SearchScope, SearchSort } from "@/lib/rooms/history-api";
 import {
-  RECENT_KEY, MAX_QUERY_LENGTH, absorb, applySuggestion, canSearch, committedModel, parseQuery, parseRecent, pushRecent, queryLength, reconcileChips, removeChip,
+  RECENT_KEY, MAX_QUERY_LENGTH, absorb, applySuggestion, canSearch, committedModel, makeChip, parseQuery, parseRecent, pushRecent, queryLength, reconcileChips, removeChip,
   removeRecent, serializeChip, serializeQuery, suggest, toggleNegation, NEGATABLE, type SearchChip, type Suggestion, type SuggestionSources,
 } from "@/lib/rooms/search-query";
 import { SearchResults } from "./SearchResults";
@@ -22,6 +22,8 @@ export interface RoomSearchPanelProps {
   rooms: ReadonlyArray<{ id: string; name: string; kind?: string }>;
   onOpenResult: (r: SearchResult) => void;
   onClose: () => void;
+  /** Opens with these operators already applied (e.g. the moderator view's "Messages" row: `from:` the person, whole team). */
+  initial?: { chips: ReadonlyArray<{ key: string; value: string }>; scope?: SearchScope };
   t: TFn;
 }
 
@@ -50,12 +52,12 @@ const seg = "px-3 py-2 text-xs font-bold lg:px-2.5 lg:py-1 lg:text-[11px] font-b
  * Advanced search of the rooms: operators as chips with suggestions, room / whole team scope, order, paged results and
  * recent searches. Operators travel inside `q`; the server's warnings are shown on the chips and above the results.
  */
-export function RoomSearchPanel({ roomId, roomName, teamId, accessToken, members, roles, rooms, onOpenResult, onClose, t }: RoomSearchPanelProps) {
+export function RoomSearchPanel({ roomId, roomName, teamId, accessToken, members, roles, rooms, onOpenResult, onClose, initial, t }: RoomSearchPanelProps) {
   const uid = useId();
   const listId = `${uid}-suggestions`;
-  const [scope, setScope] = useState<SearchScope>("room");
+  const [scope, setScope] = useState<SearchScope>(initial?.scope ?? "room");
   const [sort, setSort] = useState<SearchSort>("relevance");
-  const [chips, setChips] = useState<SearchChip[]>([]);
+  const [chips, setChips] = useState<SearchChip[]>(() => (initial?.chips ?? []).map((c) => makeChip(c.key, c.value)).filter((c): c is SearchChip => c !== null));
   const [input, setInput] = useState("");
   const [caret, setCaret] = useState(0);
   const [focused, setFocused] = useState(true);

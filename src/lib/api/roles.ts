@@ -130,10 +130,11 @@ export interface AuditPage {
   /** Pass as `before` to load older entries; null on the last page. */
   nextBefore: string | null;
 }
-export async function listAuditLog(teamId: string, accessToken: string, opts: { action?: string; limit?: number; before?: string | null } = {}): Promise<AuditPage> {
+export async function listAuditLog(teamId: string, accessToken: string, opts: { action?: string; limit?: number; before?: string | null; /** Entries where this person is actor or target. */ userId?: string } = {}): Promise<AuditPage> {
   const qs = new URLSearchParams();
   if (opts.action) qs.set("action", opts.action);
   if (opts.before) qs.set("before", opts.before);
+  if (opts.userId) qs.set("userId", opts.userId);
   qs.set("limit", String(opts.limit ?? 50));
   const raw = await fetchApi<any>(`/teams/${q(teamId)}/audit?${qs.toString()}`, { accessToken });
   const list = Array.isArray(raw) ? raw : Array.isArray(raw?.entries) ? raw.entries : [];

@@ -11,7 +11,7 @@ const role = (id: string, position: number, over: Partial<ProfileRole> = {}): Pr
 const profile = (over: Partial<MemberProfile> = {}): MemberProfile => ({
   userId: "u1", displayName: "Ana", name: "Ana", email: null, avatarUrl: null, bio: null, timezone: null, locale: null, isBot: false,
   joinedTeamAt: null, roles: [], groups: [], isOwner: false, mute: null, bot: null, room: null,
-  viewer: { isSelf: false, canManage: false, canAssignRoles: false, canManageGroups: false, canMute: false, canKick: false },
+  viewer: { isSelf: false, canManage: false, canAssignRoles: false, canManageGroups: false, canMute: false, canKick: false, canModerate: false },
   ...over,
 });
 

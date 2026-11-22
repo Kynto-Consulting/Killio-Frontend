@@ -1067,7 +1067,8 @@
       "roles": "Roles",
       "groups": "Groups",
       "kick": "Kick",
-      "more": "More actions"
+      "more": "More actions",
+      "copyLink": "Copy profile link"
     },
     "groupsDialog": {
       "title": "Groups of {{name}}",
@@ -1086,6 +1087,66 @@
     "importedFromNoPublisher": "Imported from \"{{pack}}\"",
     "botLocked": "Bot locked",
     "codeLocked": "Code locked",
-    "originalAuthor": "Original author: {{name}}"
+    "originalAuthor": "Original author: {{name}}",
+    "moderate": "Open in moderator view",
+    "more": "More",
+    "linkCopied": "Profile link copied",
+    "bio": {
+      "showAll": "See full biography",
+      "showLess": "Show less"
+    },
+    "rolesToggle": {
+      "more": "Show {{n}} more roles",
+      "less": "Show fewer roles"
+    },
+    "dm": {
+      "label": "Message to {{name}}",
+      "placeholder": "Send a message to @{{name}}",
+      "sent": "Message sent",
+      "open": "Open conversation",
+      "sending": "Sending…",
+      "failed": "The message could not be sent.",
+      "forbidden": "You cannot message this person.",
+      "hint": "Enter sends, Shift+Enter adds a line"
+    },
+    "mod": {
+      "title": "Moderator view",
+      "close": "Close moderator view",
+      "back": "Back to profile",
+      "actions": "Moderation actions",
+      "loadError": "The moderator data could not be loaded.",
+      "forbidden": "You cannot open the moderator view of this person.",
+      "activity": "Team activity",
+      "messages": "Messages",
+      "links": "Links",
+      "media": "Media files",
+      "audit": "Audit log",
+      "searchHint": "Search these messages",
+      "auditEmpty": "No audit entries.",
+      "auditLoadError": "The audit log could not be loaded.",
+      "auditBy": "by {{name}}",
+      "permissions": "Moderator permissions",
+      "permNone": "No moderator permissions",
+      "permAll": "All ({{n}})",
+      "permMore": "+{{n}} more",
+      "channelPerms": "Permissions in this channel",
+      "roles": "Roles",
+      "rolesEmpty": "No roles",
+      "editRoles": "Edit roles",
+      "groups": "Groups",
+      "editGroups": "Edit groups",
+      "account": "Account",
+      "created": "Account created",
+      "joinedTeam": "Joined the workspace",
+      "joinedRoom": "Joined this channel",
+      "email": "Email",
+      "muted": "Muted",
+      "mutedBy": "by {{name}}",
+      "mutedUntil": "until {{date}}",
+      "mutedForever": "until someone lifts it",
+      "mutedReason": "Reason: {{reason}}",
+      "confirmKick": "Kick",
+      "shortcut": "Press M to open the moderator view"
+    }
   }
 }

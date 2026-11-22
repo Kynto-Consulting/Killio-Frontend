@@ -27,6 +27,8 @@ export interface ProfileViewerCaps {
   canManageGroups: boolean;
   canMute: boolean;
   canKick: boolean;
+  /** May open the moderator view (server rule). */
+  canModerate: boolean;
 }
 
 export interface MemberProfile {

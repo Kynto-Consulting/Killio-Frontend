@@ -1067,7 +1067,8 @@
       "roles": "Roles",
       "groups": "Grupos",
       "kick": "Expulsar",
-      "more": "Más acciones"
+      "more": "Más acciones",
+      "copyLink": "Copiar enlace al perfil"
     },
     "groupsDialog": {
       "title": "Grupos de {{name}}",
@@ -1086,6 +1087,66 @@
     "importedFromNoPublisher": "Importado de «{{pack}}»",
     "botLocked": "Bot bloqueado",
     "codeLocked": "Código bloqueado",
-    "originalAuthor": "Autor original: {{name}}"
+    "originalAuthor": "Autor original: {{name}}",
+    "moderate": "Abrir en la vista de moderador",
+    "more": "Más",
+    "linkCopied": "Enlace al perfil copiado",
+    "bio": {
+      "showAll": "Ver biografía completa",
+      "showLess": "Ver menos"
+    },
+    "rolesToggle": {
+      "more": "Mostrar {{n}} roles más",
+      "less": "Mostrar menos roles"
+    },
+    "dm": {
+      "label": "Mensaje para {{name}}",
+      "placeholder": "Enviar un mensaje a @{{name}}",
+      "sent": "Mensaje enviado",
+      "open": "Abrir conversación",
+      "sending": "Enviando…",
+      "failed": "No se pudo enviar el mensaje.",
+      "forbidden": "No puedes enviar mensajes a esta persona.",
+      "hint": "Enter envía, Mayús+Enter agrega una línea"
+    },
+    "mod": {
+      "title": "Vista de moderador",
+      "close": "Cerrar vista de moderador",
+      "back": "Volver al perfil",
+      "actions": "Acciones de moderación",
+      "loadError": "No se pudieron cargar los datos de moderación.",
+      "forbidden": "No puedes abrir la vista de moderador de esta persona.",
+      "activity": "Actividad del equipo",
+      "messages": "Mensajes",
+      "links": "Enlaces",
+      "media": "Archivos multimedia",
+      "audit": "Registro de auditoría",
+      "searchHint": "Buscar estos mensajes",
+      "auditEmpty": "Sin entradas de auditoría.",
+      "auditLoadError": "No se pudo cargar el registro de auditoría.",
+      "auditBy": "por {{name}}",
+      "permissions": "Permisos de moderador",
+      "permNone": "Sin permisos de moderador",
+      "permAll": "Todos ({{n}})",
+      "permMore": "+{{n}} más",
+      "channelPerms": "Permisos en este canal",
+      "roles": "Roles",
+      "rolesEmpty": "Sin roles",
+      "editRoles": "Editar roles",
+      "groups": "Grupos",
+      "editGroups": "Editar grupos",
+      "account": "Cuenta",
+      "created": "Cuenta creada",
+      "joinedTeam": "Se unió al espacio de trabajo",
+      "joinedRoom": "Se unió a este canal",
+      "email": "Correo",
+      "muted": "Silenciado",
+      "mutedBy": "por {{name}}",
+      "mutedUntil": "hasta {{date}}",
+      "mutedForever": "hasta que alguien lo quite",
+      "mutedReason": "Motivo: {{reason}}",
+      "confirmKick": "Expulsar",
+      "shortcut": "Pulsa M para abrir la vista de moderador"
+    }
   }
 }

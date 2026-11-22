@@ -7,7 +7,7 @@
  * the direct-message action only.
  */
 
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import { useSession } from "@/components/providers/session-provider";
@@ -58,11 +58,20 @@ export interface UserProfileProviderProps {
   /** Anything the page already knows about the person (members panel, directory) to paint before the request answers. */
   knownOf?: (userId: string) => KnownProfile | undefined;
   actions?: ProfileCardActions;
+  /** A profile link (`?profile=<userId>`) asks for this person's card to open once, centred. */
+  autoOpenUserId?: string | null;
   children: ReactNode;
 }
 
-export function UserProfileProvider({ teamId, roomId, presenceOf, knownOf, actions, children }: UserProfileProviderProps) {
+export function UserProfileProvider({ teamId, roomId, presenceOf, knownOf, actions, autoOpenUserId, children }: UserProfileProviderProps) {
   const { opened, open, close } = useOpened();
+  const autoOpened = useRef<string | null>(null);
+  useEffect(() => {
+    if (!autoOpenUserId || !teamId || autoOpened.current === autoOpenUserId) return;
+    autoOpened.current = autoOpenUserId;
+    const x = Math.max(8, window.innerWidth / 2 - 178);
+    open({ userId: autoOpenUserId, anchor: { left: x, right: x, top: 96, bottom: 96 } });
+  }, [autoOpenUserId, teamId, open]);
   const value = useMemo<Ctx>(() => ({ open }), [open]);
   return (
     <ProfileCtx.Provider value={value}>

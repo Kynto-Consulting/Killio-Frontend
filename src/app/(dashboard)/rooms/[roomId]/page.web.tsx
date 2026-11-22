@@ -160,6 +160,8 @@ export default function RoomDetailWeb() {
   const [threadRootId, setThreadRootId] = useState<string | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  // The moderator view opens the advanced search with the author already filtered (n remounts the panel for a new seed).
+  const [searchSeed, setSearchSeed] = useState<{ n: number; chips: Array<{ key: string; value: string }> } | null>(null);
   const [jumpToMessageId, setJumpToMessageId] = useState<string | null>(null);
   const [threadFocusId, setThreadFocusId] = useState<string | null>(null);
   const [jumpNotice, setJumpNotice] = useState<"failed" | "unsupported" | null>(null);
@@ -278,6 +280,7 @@ export default function RoomDetailWeb() {
   useEffect(() => {
     setThreadRootId(null);
     setSearchQuery("");
+    setSearchSeed(null);
     setIsSearchOpen(false);
     setJumpToMessageId(null);
     setThreadFocusId(null);
@@ -926,6 +929,7 @@ Team Context: ${activeTeamId}.`;
     onUnmute: canModerateProfiles ? (id) => handleUnmute(roomMembers.find((m) => m.userId === id) ?? ({ userId: id } as RoomMember)) : undefined,
     onOpenCopilot: () => openPanel("ai"),
     onChanged: () => setMembersVersion((v) => v + 1),
+    onSearch: (chips) => { setSearchSeed((prev) => ({ n: (prev?.n ?? 0) + 1, chips })); setIsSearchOpen(true); if (overlayPanels) closePanels(); },
   }), [handleOpenDirectMessage, overlayPanels, closePanels, canModerateProfiles, handleUnmute, roomMembers, openPanel]);
 
   const handleThreadSend = useCallback(async (content: string) => {
@@ -1171,7 +1175,7 @@ Team Context: ${activeTeamId}.`;
   );
 
   return (
-    <UserProfileProvider teamId={activeTeamId} roomId={roomId} presenceOf={profilePresenceOf} knownOf={profileKnownOf} actions={profileActions}>
+    <UserProfileProvider teamId={activeTeamId} roomId={roomId} presenceOf={profilePresenceOf} knownOf={profileKnownOf} actions={profileActions} autoOpenUserId={searchParams.get("profile")}>
     <div className="flex h-full flex-col overflow-hidden">
       <RoomsLayout drawerLabel={t("sidebar.channels")} sidebar={sidebarNode}>
         {({ openSidebar }) => (
@@ -1228,6 +1232,8 @@ Team Context: ${activeTeamId}.`;
                   {isSearchOpen && (
                     <div className="relative h-0 shrink-0 lg:z-30">
                       <RoomSearchPanel
+                        key={searchSeed?.n ?? 0}
+                        initial={searchSeed ? { chips: searchSeed.chips, scope: "team" } : undefined}
                         roomId={roomId}
                         roomName={roomTitle}
                         teamId={activeTeamId}
