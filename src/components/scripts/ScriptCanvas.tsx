@@ -43,6 +43,7 @@ import { HashComposeNode } from "./nodes/hash-compose-node";
 import { CoalesceNode } from "./nodes/CoalesceNode";
 import { ArrayCompactNode } from "./nodes/ArrayCompactNode";
 import { IfElseNode } from "./nodes/IfElseNode";
+import { TeamHasPackNode } from "./nodes/TeamHasPackNode";
 import { DelayNode } from "./nodes/DelayNode";
 import { CreateCardNode } from "./nodes/CreateCardNode";
 import { UpdateCardNode } from "./nodes/UpdateCardNode";
@@ -61,7 +62,7 @@ import { JsCodeNode } from "./nodes/JsCodeNode";
 import { NodePalette } from "@/components/scripts/NodePalette";
 import { cn } from "@/lib/utils";
 
-import { ScriptGraph, ScriptNodeData, ScriptEdgeData, NodeKind, ScriptRunLog, getLatestRunOutputs, listSharedTables } from "@/lib/api/scripts";
+import { ScriptGraph, ScriptNodeData, ScriptEdgeData, NodeKind, ScriptRunLog, getLatestRunOutputs, listSharedTables, listInstalledPacks, type InstalledPack } from "@/lib/api/scripts";
 import { getBoard, listTeamBoards, type BoardSummary, type ListView } from "@/lib/api/contracts";
 import { listFolders, type Folder } from "@/lib/api/folders";
 import {
@@ -102,6 +103,7 @@ const nodeTypes: NodeTypes = {
   "core.transform.coalesce": CoalesceNode,
   "core.transform.array_compact": ArrayCompactNode,
   "core.logic.if_else": IfElseNode,
+  "killio.logic.team_has_pack": TeamHasPackNode,
   "core.action.delay": DelayNode,
   "killio.action.create_card": CreateCardNode,
   "killio.action.update_card": UpdateCardNode,
@@ -140,6 +142,7 @@ interface SelectOptionContext {
   githubBranchesByRepo: Record<string, GithubInstallationBranch[]>;
   whatsappCredentials: WhatsappManualCredential[];
   slackWebhookCredentials: SlackWebhookManualCredential[];
+  installedPacks: InstalledPack[];
 }
 
 interface ConfigField {
@@ -547,6 +550,22 @@ const NODE_CONFIG_FIELDS: Partial<Record<NodeKind, ConfigField[]>> = {
       ],
     },
     { key: "value", type: "text", labelKey: "nodes.common.value", placeholderKey: "canvas.placeholders.value" },
+  ],
+  "killio.logic.team_has_pack": [
+    {
+      key: "pack",
+      type: "select",
+      labelKey: "canvas.fields.pack",
+      placeholderKey: "canvas.placeholders.pack",
+      optionsResolver: ({ config, installedPacks }) => {
+        const options = installedPacks
+          .filter((pack) => pack.slug || pack.packId)
+          .map((pack) => ({ value: pack.slug ?? pack.packId, label: pack.title ? `${pack.title} (${pack.slug ?? pack.packId})` : (pack.slug ?? pack.packId) }));
+        const current = typeof config.pack === "string" ? config.pack : "";
+        // a value typed elsewhere (or a pack that is no longer installed) stays selectable instead of silently disappearing
+        return current && !options.some((option) => option.value === current) ? [{ value: current, label: current }, ...options] : options;
+      },
+    },
   ],
   "core.action.delay": [
     { key: "delayMs", type: "number", labelKey: "canvas.placeholders.delayMs" },
@@ -1150,6 +1169,7 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
   const [repoInstallationByFullName, setRepoInstallationByFullName] = useState<Record<string, number>>({});
   const [whatsappCredentials, setWhatsappCredentials] = useState<WhatsappManualCredential[]>([]);
   const [slackWebhookCredentials, setSlackWebhookCredentials] = useState<SlackWebhookManualCredential[]>([]);
+  const [installedPacks, setInstalledPacks] = useState<InstalledPack[]>([]);
   const [hasActiveGithubIntegration, setHasActiveGithubIntegration] = useState(false);
   const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
 
@@ -1197,7 +1217,8 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
     githubBranchesByRepo,
     whatsappCredentials,
     slackWebhookCredentials,
-  }), [selectedNodeConfig, boards, boardListsByBoardId, folders, tables, githubRepositories, githubBranchesByRepo, whatsappCredentials, slackWebhookCredentials]);
+    installedPacks,
+  }), [selectedNodeConfig, boards, boardListsByBoardId, folders, tables, githubRepositories, githubBranchesByRepo, whatsappCredentials, slackWebhookCredentials, installedPacks]);
 
   const resolveSelectOptions = useCallback((field: ConfigField): ConfigFieldOption[] => {
     if (field.optionsResolver) {
@@ -1237,6 +1258,7 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
       setRepoInstallationByFullName({});
       setWhatsappCredentials([]);
       setSlackWebhookCredentials([]);
+      setInstalledPacks([]);
       setHasActiveGithubIntegration(false);
       return;
     }
@@ -1244,13 +1266,14 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
     let cancelled = false;
 
     const loadWorkspaceEntities = async () => {
-      const [teamBoards, sharedTables, allFolders, installations, whatsappCredentialsData, slackWebhookCredentialsData] = await Promise.all([
+      const [teamBoards, sharedTables, allFolders, installations, whatsappCredentialsData, slackWebhookCredentialsData, installedPacksData] = await Promise.all([
         listTeamBoards(teamId, accessToken).catch(() => [] as BoardSummary[]),
         listSharedTables(teamId, accessToken).catch(() => []),
         loadAllFolders(teamId, accessToken).catch(() => [] as Folder[]),
         listGithubInstallations(teamId, accessToken).catch(() => [] as GithubAppInstallation[]),
         listWhatsappCredentials(teamId, accessToken).catch(() => [] as WhatsappManualCredential[]),
         listSlackWebhookCredentials(teamId, accessToken).catch(() => [] as SlackWebhookManualCredential[]),
+        listInstalledPacks(teamId, accessToken).catch(() => [] as InstalledPack[]),
       ]);
 
       const boardViews = await Promise.all(
@@ -1301,6 +1324,7 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
       setRepoInstallationByFullName(nextRepoInstallationByFullName);
       setWhatsappCredentials(whatsappCredentialsData.filter((credential) => credential.isActive));
       setSlackWebhookCredentials(slackWebhookCredentialsData.filter((credential) => credential.isActive));
+      setInstalledPacks(installedPacksData);
       setHasActiveGithubIntegration(installations.some((installation) => installation.isActive));
     };
 

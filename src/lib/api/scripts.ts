@@ -77,7 +77,8 @@ export type NodeKind =
   | 'killio.room.count_recent_messages'
   | 'killio.team.member_info'
   | 'core.condition.text_match_list'
-  | 'core.transform.count_matches';
+  | 'core.transform.count_matches'
+  | 'killio.logic.team_has_pack';
 
 export interface ScriptNodeData {
   id: string;
@@ -222,6 +223,25 @@ export async function listScripts(teamId: string, accessToken: string): Promise<
   });
   if (!res.ok) throw new Error('Failed to fetch scripts');
   return res.json();
+}
+
+/** A pack installed in the team (picker of the Team Has Pack node). Backend: GET /scripts/installed-packs/:teamId. */
+export interface InstalledPack {
+  packId: string;
+  slug: string | null;
+  title: string | null;
+  pricingType: 'free' | 'paid' | 'subscription';
+  /** Whether the team holds the pack right now (a subscription pack can be installed and lapsed). */
+  entitled: boolean;
+}
+
+export async function listInstalledPacks(teamId: string, accessToken: string): Promise<InstalledPack[]> {
+  const res = await fetch(`${BASE_URL}/scripts/installed-packs/${encodeURIComponent(teamId)}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) throw new Error('Failed to fetch installed packs');
+  const body = (await res.json()) as { packs?: InstalledPack[] };
+  return Array.isArray(body.packs) ? body.packs : [];
 }
 
 export async function createScript(

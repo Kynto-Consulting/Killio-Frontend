@@ -6,7 +6,7 @@ import { NodeKind } from "@/lib/api/scripts";
 import {
   GitBranch, Filter, PlusSquare, Pencil, ArrowRight, UserPlus, Play,
   Scale, ArrowRightLeft, FileText, Split, Clock3, Webhook, Database,
-  HardDriveUpload, Hash, SlidersHorizontal, Layers, GitFork, Globe, Code2, Repeat, Scissors, Braces, FilePlus2, MessageCircle, Send, Sparkles,
+  PackageCheck, HardDriveUpload, Hash, SlidersHorizontal, Layers, GitFork, Globe, Code2, Repeat, Scissors, Braces, FilePlus2, MessageCircle, Send, Sparkles,
 } from "lucide-react";
 import { ROOM_NODE_ICONS } from "@/components/scripts/nodes/RoomNodes";
 import { roomPaletteSections, type RoomNodeSpec } from "@/lib/bots/room-nodes";
@@ -306,6 +306,15 @@ const PALETTE_ITEMS: PaletteItem[] = [
     kind: "core.logic.if_else",
     labelKey: "ifElse",
     icon: Split,
+    color: "bg-fuchsia-500 text-white",
+    category: "logic",
+    integration: "core",
+  },
+  {
+    id: "killio.logic.team_has_pack",
+    kind: "killio.logic.team_has_pack",
+    labelKey: "teamHasPack",
+    icon: PackageCheck,
     color: "bg-fuchsia-500 text-white",
     category: "logic",
     integration: "core",
