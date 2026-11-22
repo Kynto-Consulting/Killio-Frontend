@@ -10,6 +10,7 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import { useTenant } from "@/components/providers/tenant-provider";
 import { requestOtp, verifyOtp } from "@/lib/api/contracts";
 import { postLoginDestination } from "@/lib/auth/password-change";
+import { BloomxLogo } from "@/components/brand/bloomx-logo";
 import { fetchSocialProviders, SocialAvailability, startSocialLogin } from "@/lib/auth/social-login";
 
 const API = (
@@ -39,7 +40,8 @@ function LoginPageContent() {
   const tenant = useTenant();
   const { loginMode, signupEnabled } = tenant.auth;
   const allowPassword = loginMode !== "otp";
-  const allowCode = loginMode === "otp" || loginMode === "password_or_otp";
+  // The public Killio always offers the emailed code; a tenant offers it only when its login mode says so.
+  const allowCode = tenant.mode !== "tenant" || loginMode === "otp" || loginMode === "password_or_otp";
   const [preferredMethod, setPreferredMethod] = useState<"password" | "code">(loginMode === "otp" ? "code" : "password");
   const [codeSent, setCodeSent] = useState(false);
   // true when the person already has a code (an invitation, or one sent earlier): no new code is requested
@@ -436,7 +438,7 @@ function LoginPageContent() {
                 href={bloomxHref}
                 className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-border text-sm font-medium transition-colors hover:bg-accent/10"
               >
-                <span aria-hidden className="inline-flex h-4 w-4 items-center justify-center rounded bg-primary text-[10px] font-bold text-primary-foreground">B</span>
+                <BloomxLogo className="h-5 w-5" />
                 {t("login.socialBloomx")}
               </Link>
             )}

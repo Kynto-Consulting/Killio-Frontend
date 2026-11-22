@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { AlertCircle, ArrowRight, Loader2 } from "lucide-react";
 import { AuthPageFrame } from "@/components/marketing/auth-page-frame";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { BloomxLogo } from "@/components/brand/bloomx-logo";
 import { resolveBloomxInstance, safeReturnPath, SocialLoginClientError, startSocialLogin } from "@/lib/auth/social-login";
 
 const inputClass =
@@ -62,6 +63,7 @@ function BloomxLoginContent() {
     <AuthPageFrame mode="login">
       <div className="w-full rounded-[28px] border border-border bg-card/65 p-8 shadow-[0_30px_90px_rgba(0,0,0,0.28)] backdrop-blur-sm">
         <div className="mb-6 flex flex-col space-y-2 text-center">
+          <BloomxLogo className="mx-auto h-12 w-12" />
           <h1 className="text-2xl font-semibold tracking-tight">{t("login.bloomxTitle")}</h1>
           <p className="text-sm text-muted-foreground">{t("login.bloomxSubtitle")}</p>
         </div>
