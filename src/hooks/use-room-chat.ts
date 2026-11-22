@@ -23,6 +23,7 @@ import { looksLikeCommand } from "@/lib/rooms/command-ghost";
 import { applyPinPatch, normalizePinEvent, patchesFromPinResponse, type PinBody, type PinPatch } from "@/lib/rooms/pins";
 import { usePinExpiry } from "@/hooks/use-pin-expiry";
 import { useRoomHistory } from "@/hooks/use-room-history";
+import { insertOrdered, normalizeOrder, reconcileOptimistic } from "@/lib/rooms/message-order";
 
 /** Event names the backend may use for the same fact; the first is the preferred one. */
 const EDIT_EVENTS = ["room.message.edited", "room.message.updated"] as const;
@@ -98,15 +99,13 @@ export function useRoomChat(
           const nonceIdx = prev.findIndex((m) => m.id === nonceId);
           if (nonceIdx !== -1) {
             const existing = prev[nonceIdx];
-            const updated = [...prev];
-            updated[nonceIdx] = {
+            return reconcileOptimistic(prev, existing.id, {
               ...payload,
               status: "sent",
               user: payload.user
                 ? { ...payload.user, avatarUrl: payload.user.avatarUrl ?? existing.user?.avatarUrl }
                 : existing.user,
-            };
-            return updated;
+            });
           }
         }
 
@@ -118,32 +117,28 @@ export function useRoomChat(
         );
         if (tempIdx !== -1) {
           const existing = prev[tempIdx];
-          const updated = [...prev];
-          updated[tempIdx] = {
+          return reconcileOptimistic(prev, existing.id, {
             ...payload,
             status: "sent",
             user: payload.user
               ? { ...payload.user, avatarUrl: payload.user.avatarUrl ?? existing.user?.avatarUrl }
               : existing.user,
-          };
-          return updated;
+          });
         }
 
         const existingIdx = prev.findIndex((m) => m.id === payload.id);
         if (existingIdx !== -1) {
           const existing = prev[existingIdx];
-          const updated = [...prev];
-          updated[existingIdx] = {
+          return reconcileOptimistic(prev, existing.id, {
             ...payload,
             status: "sent",
             user: payload.user
               ? { ...payload.user, avatarUrl: payload.user.avatarUrl ?? existing.user?.avatarUrl }
               : existing.user,
-          };
-          return updated;
+          });
         }
 
-        return [...prev, { ...payload, status: "sent" }];
+        return insertOrdered(prev, { ...payload, status: "sent" } as RoomMessage);
       }, payload.id);
 
       if (payload.userId !== currentUser?.id && currentUser?.id) {
@@ -316,28 +311,27 @@ export function useRoomChat(
       // A slash command is sent as an interaction: when a bot owns it NO message of the person ever exists, so nothing is drawn up front
       // (no flicker). If the server posts it as an ordinary message after all (no bot claims it), that message is appended below.
       const asCommand = looksLikeCommand(content, { threadRootId, metadata });
-      if (!asCommand) setMessages((prev) => [...prev, optimistic]);
+      if (!asCommand) setMessages((prev) => insertOrdered(prev, optimistic));
       try {
         const real = await sendRoomMessage(targetRoomId, content, accessToken, metadata, threadRootId, { asCommand });
         if (!real) return; // a bot took the command: its answer arrives through the room channel
         setMessages((prev) => {
           // A first message may create the room: the reload that follows can drop the optimistic row.
           if (!prev.some((m) => m.id === tempId)) {
-            return prev.some((m) => m.id === real.id) ? prev : [...prev, { ...real, status: "sent" }];
+            return prev.some((m) => m.id === real.id) ? prev : insertOrdered(prev, { ...real, status: "sent" } as RoomMessage);
           }
-          return prev.map((m) => {
-            if (m.id !== tempId) return m;
-            return {
-              ...real,
-              status: "sent",
-              user: real.user
-                ? { ...real.user, avatarUrl: real.user.avatarUrl ?? m.user?.avatarUrl }
-                : m.user,
-            };
-          });
+          // The placeholder sat at its local time; the definitive message goes where the SERVER time puts it.
+          const temp = prev.find((m) => m.id === tempId);
+          return reconcileOptimistic(prev, tempId, {
+            ...real,
+            status: "sent",
+            user: real.user
+              ? { ...real.user, avatarUrl: real.user.avatarUrl ?? temp?.user?.avatarUrl }
+              : temp?.user,
+          } as RoomMessage);
         });
       } catch {
-        setMessages((prev) => (asCommand ? [...prev, { ...optimistic, status: "failed" as MessageStatus }] : prev.map((m) => (m.id === tempId ? { ...m, status: "failed" } : m))));
+        setMessages((prev) => (asCommand ? insertOrdered(prev, { ...optimistic, status: "failed" as MessageStatus }) : prev.map((m) => (m.id === tempId ? { ...m, status: "failed" } : m))));
       } finally {
         setIsSending(false);
       }
@@ -472,8 +466,7 @@ export function useRoomChat(
       } catch (e) {
         setMessages((prev) => {
           if (prev.some((m) => m.id === messageId)) return prev;
-          const next = [...prev, before];
-          return next.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+          return insertOrdered(prev, before);
         });
         throw e;
       }
@@ -521,12 +514,12 @@ export function useRoomChat(
     setMessages((prev) => {
       const known = new Set(prev.map((m) => m.id));
       const fresh = incoming.filter((m) => !known.has(m.id)).map((m) => ({ ...m, status: "sent" as MessageStatus }));
-      return fresh.length === 0 ? prev : [...prev, ...fresh].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+      return fresh.length === 0 ? prev : normalizeOrder([...prev, ...fresh]);
     });
   }, []);
 
   const addLocalMessage = useCallback((message: RoomMessage) => {
-    setMessages((prev) => [...prev, message]);
+    setMessages((prev) => insertOrdered(prev, message));
   }, []);
 
   const updateLocalMessage = useCallback((id: string, updates: Partial<RoomMessage>) => {
