@@ -132,7 +132,7 @@ export function CategorySettingsModal({ open, onClose, teamId, accessToken, grou
               type="button"
               aria-selected={tab === id}
               onClick={() => setTab(id)}
-              className={`-mb-px flex-1 border-b-2 px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none ${tab === id ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+              className={`-mb-px flex-1 border-b-2 px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none ${tab === id ? "border-primary/50 text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
             >
               {t(`channel.tabs.${id}`)}
             </button>

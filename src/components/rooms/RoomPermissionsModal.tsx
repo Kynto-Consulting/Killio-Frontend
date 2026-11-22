@@ -90,7 +90,7 @@ export function RoomPermissionsModal({ isOpen, onClose, roomId, accessToken, cur
               onClick={() => setActiveTab(tab)}
               className={`flex-1 py-2.5 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 ${
                 activeTab === tab
-                  ? "border-accent text-accent"
+                  ? "border-accent/60 text-accent"
                   : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
             >

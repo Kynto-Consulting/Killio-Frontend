@@ -214,7 +214,7 @@ export function ChannelSettingsModal({
     const on = channelType === value;
     return (
       <label
-        className={`flex cursor-pointer items-start gap-2 rounded-xl border p-2.5 text-sm transition-colors focus-within:ring-2 focus-within:ring-primary/40 motion-reduce:transition-none ${on ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "border-border hover:bg-muted/50"}`}
+        className={`flex cursor-pointer items-start gap-2 rounded-xl border p-2.5 text-sm transition-colors focus-within:ring-2 focus-within:ring-primary/40 motion-reduce:transition-none ${on ? "border-primary/50 bg-primary/5 ring-1 ring-primary/30" : "border-border hover:bg-muted/50"}`}
       >
         <input type="radio" name="channel-type" className="sr-only" checked={on} onChange={() => setChannelType(value)} />
         <span className="mt-0.5 shrink-0">{icon}</span>
@@ -265,7 +265,7 @@ export function ChannelSettingsModal({
               aria-selected={tab === id}
               aria-controls={`channel-panel-${id}`}
               onClick={() => { setTab(id); if (id === "webhooks") setWebhooksOpened(true); }}
-              className={`-mb-px flex-1 border-b-2 px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none ${tab === id ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+              className={`-mb-px flex-1 border-b-2 px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none ${tab === id ? "border-primary/50 text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
             >
               {t(`channel.tabs.${id}`)}
             </button>

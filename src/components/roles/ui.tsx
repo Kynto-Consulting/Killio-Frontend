@@ -12,7 +12,7 @@ export const cx = (...parts: Array<string | false | null | undefined>) => parts.
 /** Soft surfaces shared with the document dialogs: thin border, no offset shadow. */
 export const card = "rounded-xl border border-border bg-card";
 export const inputCls =
-  "h-9 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground/60 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50";
+  "h-9 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground/60 focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50";
 export const btn =
   "inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-input bg-background px-4 text-xs font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50";
 export const btnPrimary =
@@ -125,11 +125,11 @@ export function ColorField({ value, onChange, label, disabled }: { value: string
     <div>
       <span id={id} className="mb-1 block text-xs font-medium text-muted-foreground">{label}</span>
       <div role="group" aria-labelledby={id} className="flex flex-wrap items-center gap-1.5">
-        <button type="button" disabled={disabled} onClick={() => onChange(null)} aria-label={t("color.none")} title={t("color.none")} className={cx("flex h-6 w-6 items-center justify-center rounded-full border text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40", value === null ? "border-foreground ring-2 ring-ring" : "border-border")}>
+        <button type="button" disabled={disabled} onClick={() => onChange(null)} aria-label={t("color.none")} title={t("color.none")} className={cx("flex h-6 w-6 items-center justify-center rounded-full border text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40", value === null ? "border-foreground/40 ring-2 ring-ring/40" : "border-border")}>
           <X className="h-3 w-3" />
         </button>
         {ROLE_COLOR_PRESETS.map((c) => (
-          <button key={c} type="button" disabled={disabled} aria-label={c} aria-pressed={value?.toLowerCase() === c.toLowerCase()} onClick={() => onChange(c)} className={cx("h-6 w-6 rounded-full border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40", value?.toLowerCase() === c.toLowerCase() ? "border-foreground ring-2 ring-ring" : "border-border")} style={{ background: c }} />
+          <button key={c} type="button" disabled={disabled} aria-label={c} aria-pressed={value?.toLowerCase() === c.toLowerCase()} onClick={() => onChange(c)} className={cx("h-6 w-6 rounded-full border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40", value?.toLowerCase() === c.toLowerCase() ? "border-foreground/40 ring-2 ring-ring/40" : "border-border")} style={{ background: c }} />
         ))}
         <label className="ml-1 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
           <input type="color" disabled={disabled} value={isHexColor(value) ? value : "#2F6FED"} onChange={(e) => onChange(e.target.value.toUpperCase())} aria-label={t("color.custom")} className="h-6 w-8 cursor-pointer rounded border border-border bg-transparent p-0" />
@@ -233,7 +233,7 @@ export function TabBar({ tabs, active, onChange, label, idPrefix = "settings" }:
             aria-controls={`${idPrefix}-panel-${tab.id}`}
             tabIndex={on ? 0 : -1}
             onClick={() => onChange(tab.id)}
-            className={cx("-mb-px flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none", on ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}
+            className={cx("-mb-px flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none", on ? "border-primary/50 text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}
           >
             {tab.icon}
             {tab.label}

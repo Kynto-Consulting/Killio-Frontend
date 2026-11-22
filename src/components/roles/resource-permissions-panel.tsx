@@ -274,7 +274,7 @@ export function ShareTabs({ active, onChange }: { active: "share" | "permissions
           onKeyDown={(e) => {
             if (e.key === "ArrowRight" || e.key === "ArrowLeft") onChange(active === "share" ? "permissions" : "share");
           }}
-          className={cx("-mb-px border-b-2 px-3 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", active === id ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}
+          className={cx("-mb-px border-b-2 px-3 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", active === id ? "border-primary/50 text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}
         >
           {label}
         </button>
