@@ -150,7 +150,12 @@ export function RoomMembersPanel({
       : undefined),
     [onOpenProfile, providerOpen],
   );
-  const onlineIds = useMemo(() => new Set(presenceMembers.map((m) => m.clientId)), [presenceMembers]);
+  // The person looking at the panel is online by definition (their own presence entry may not have arrived yet).
+  const onlineIds = useMemo(() => {
+    const ids = new Set(presenceMembers.map((m) => m.clientId));
+    if (currentUserId) ids.add(currentUserId);
+    return ids;
+  }, [presenceMembers, currentUserId]);
   const inCallIds = useMemo(() => new Set(presenceMembers.filter((m) => m.data.status === "in-call").map((m) => m.clientId)), [presenceMembers]);
   const byId = useMemo(() => new Map(roomMembers.map((m) => [m.userId, m])), [roomMembers]);
   const now = Date.now();

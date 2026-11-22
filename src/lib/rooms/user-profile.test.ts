@@ -69,9 +69,9 @@ test("a human with nothing filled in shows only what exists: no empty About, no 
   assert.deepEqual(profileSections(profile({ timezone: "Europe/Madrid", groups: [{ id: "g", name: "G", color: null }], mute: { until: null, reason: null } })), ["about", "groups", "mute"]);
 });
 
-test("a bot gets the bot block and its commands, never the human About", () => {
+test("a bot gets only the bot block (no commands list), never the human About", () => {
   const bot = { id: "b", description: "x", isActive: true, createdByName: null, createdAt: "2026-01-01T00:00:00Z", commands: [{ name: "ping", description: "", usage: null }] };
-  assert.deepEqual(profileSections(profile({ isBot: true, bio: "ignored", bot })), ["bot", "commands"]);
+  assert.deepEqual(profileSections(profile({ isBot: true, bio: "ignored", bot })), ["bot"]);
   assert.deepEqual(profileSections(profile({ isBot: true, bot: { ...bot, commands: [] } })), ["bot"]);
 });
 

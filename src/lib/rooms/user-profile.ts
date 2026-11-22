@@ -145,8 +145,8 @@ export function profileTabs(profile: Pick<MemberProfile, "room"> | null): Profil
 export function profileSections(profile: MemberProfile): ProfileSection[] {
   const out: ProfileSection[] = [];
   if (profile.isBot) {
+    // The commands of a bot are not listed in its profile (they are discoverable with "/"): the card stays short.
     out.push("bot");
-    if (profile.bot && profile.bot.commands.length > 0) out.push("commands");
   } else if (profile.bio || profile.timezone) {
     out.push("about");
   }

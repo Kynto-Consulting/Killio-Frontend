@@ -914,8 +914,10 @@ Team Context: ${activeTeamId}.`;
   }, [panelMembers]);
   const profilePresenceOf = useCallback<NonNullable<UserProfileProviderProps["presenceOf"]>>((id) => {
     const here = presenceMembers.find((p) => p.clientId === id);
+    // Whoever is looking at this page is online by definition, even if their own presence entry has not arrived yet (or the socket is reconnecting).
+    if (!here && user?.id && id === user.id) return "online";
     return here ? (here.data.status === "in-call" ? "in-call" : "online") : "offline";
-  }, [presenceMembers]);
+  }, [presenceMembers, user?.id]);
   const canModerateProfiles = capabilities.canMuteMembers && room?.type !== "dm";
   const profileActions = useMemo<NonNullable<UserProfileProviderProps["actions"]>>(() => ({
     onMessage: (id) => { void handleOpenDirectMessage(id); if (overlayPanels) closePanels(); },
