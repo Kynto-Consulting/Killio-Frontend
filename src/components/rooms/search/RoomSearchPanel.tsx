@@ -44,7 +44,7 @@ function writeRecent(list: string[]) {
   }
 }
 
-const seg = "px-2.5 py-1 text-[11px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40 motion-reduce:transition-none";
+const seg = "px-3 py-2 text-xs font-bold lg:px-2.5 lg:py-1 lg:text-[11px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40 motion-reduce:transition-none";
 
 /**
  * Advanced search of the rooms: operators as chips with suggestions, room / whole team scope, order, paged results and
@@ -220,8 +220,8 @@ export function RoomSearchPanel({ roomId, roomName, teamId, accessToken, members
   };
 
   return (
-    <section role="search" aria-label={t("search.title")} className="absolute inset-x-1 top-1 z-30 flex max-h-[min(36rem,calc(100vh-8rem))] flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-xl md:inset-x-auto md:right-2 md:w-[32rem]">
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-2.5 py-2">
+    <section role="search" aria-label={t("search.title")} className="fixed inset-0 z-[220] flex flex-col overflow-hidden bg-card pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] text-card-foreground lg:absolute lg:inset-auto lg:right-2 lg:top-1 lg:z-30 lg:max-h-[min(36rem,calc(100vh-8rem))] lg:w-[32rem] lg:rounded-2xl lg:border lg:border-border lg:p-0 lg:shadow-xl">
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border/60 px-3 py-3 lg:px-2.5 lg:py-2">
         <div role="group" aria-label={t("search.scopeLabel")} className="inline-flex overflow-hidden rounded-lg border border-border">
           <button type="button" aria-pressed={scope === "room"} onClick={() => setScope("room")} className={`${seg} ${scope === "room" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}>
             <span className="inline-block max-w-[9rem] truncate align-bottom" title={roomName}>{t("search.scopeRoom")}</span>
@@ -230,20 +230,20 @@ export function RoomSearchPanel({ roomId, roomName, teamId, accessToken, members
             {t("search.scopeTeam")}
           </button>
         </div>
-        <label className="ml-auto flex items-center gap-1 text-[11px] text-muted-foreground">
+        <label className="ml-auto flex items-center gap-1 text-xs text-muted-foreground lg:text-[11px]">
           <span className="sr-only sm:not-sr-only">{t("search.sortLabel")}</span>
-          <select value={sort} onChange={(e) => setSort(e.target.value as SearchSort)} className="rounded-md border border-border bg-background px-1.5 py-1 text-[11px] font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+          <select value={sort} onChange={(e) => setSort(e.target.value as SearchSort)} className="rounded-md border border-border bg-background px-2 py-2 text-xs font-semibold lg:px-1.5 lg:py-1 lg:text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
             <option value="relevance">{t("search.sortRelevance")}</option>
             <option value="recent">{t("search.sortRecent")}</option>
           </select>
         </label>
-        <button type="button" onClick={onClose} aria-label={t("search.close")} className="rounded-md p-1 text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
-          <X className="h-4 w-4" aria-hidden />
+        <button type="button" onClick={onClose} aria-label={t("search.close")} className="flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 lg:h-7 lg:w-7">
+          <X className="h-5 w-5 lg:h-4 lg:w-4" aria-hidden />
         </button>
       </div>
 
-      <div className="relative shrink-0 border-b border-border px-2.5 py-2">
-        <div className="flex min-h-[2.25rem] flex-wrap items-center gap-1 rounded-xl border border-border bg-background px-2 py-1 focus-within:ring-2 focus-within:ring-primary/40">
+      <div className="relative shrink-0 border-b border-border/60 px-3 py-3 lg:px-2.5 lg:py-2">
+        <div className="flex min-h-[2.75rem] flex-wrap items-center gap-1 rounded-xl border border-border bg-background px-3 py-1.5 lg:min-h-[2.25rem] lg:px-2 lg:py-1 focus-within:ring-2 focus-within:ring-primary/40">
           <SearchIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
           {statuses.map(({ chip, problem }, i) => {
             const why = problemText(problem, chip);
@@ -290,7 +290,7 @@ export function RoomSearchPanel({ roomId, roomName, teamId, accessToken, members
             placeholder={chips.length === 0 ? t("search.placeholder") : ""}
             autoComplete="off"
             spellCheck={false}
-            className="min-w-[8rem] flex-1 bg-transparent py-0.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none"
+            className="min-w-[8rem] flex-1 bg-transparent py-1 text-base lg:text-sm placeholder:text-muted-foreground focus-visible:outline-none"
           />
         </div>
         {tooLong && <p role="alert" className="mt-1 text-[11px] text-destructive">{t("search.errors.tooLong")} ({queryLength(model)}/{MAX_QUERY_LENGTH})</p>}

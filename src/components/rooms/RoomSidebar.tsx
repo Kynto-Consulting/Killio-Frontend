@@ -107,7 +107,7 @@ function RoomItem({ room, title, isActive, peer, t }: { room: SidebarRoom; title
       data-room-link={room.id}
       aria-current={isActive ? "page" : undefined}
       title={room.description ? `${title} · ${room.description}` : title}
-      className={`group/row flex min-h-[30px] items-center gap-2 rounded-lg px-2 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none ${
+      className={`group/row flex min-h-[44px] lg:min-h-[30px] items-center gap-2 rounded-lg px-2 py-2 text-sm lg:py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none ${
         isActive ? "bg-muted font-semibold text-foreground" : bold ? "font-semibold text-foreground hover:bg-muted/60" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
       } ${room.muted && !isActive ? "opacity-55" : ""}`}
     >
@@ -148,7 +148,7 @@ function SectionHeader({ id, label, collapsed, onToggle, unread = 0, mentions = 
         onKeyDown={onKeyDown}
         aria-expanded={!collapsed}
         aria-controls={id}
-        className="flex min-w-0 flex-1 items-center gap-1 rounded-md px-1 py-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none"
+        className="flex min-w-0 flex-1 items-center gap-1 rounded-md px-1 py-2 text-[11px] lg:py-1 font-bold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none"
       >
         {collapsed ? <ChevronRight className="h-3 w-3 shrink-0" aria-hidden /> : <ChevronDown className="h-3 w-3 shrink-0" aria-hidden />}
         <span className="truncate">{label}</span>
@@ -181,7 +181,7 @@ function CategoryMenu({ group, index, total, onMove, onEdit, onDelete, t }: {
     return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
   }, [open]);
 
-  const item = "flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted focus-visible:bg-muted focus-visible:outline-none disabled:opacity-40";
+  const item = "flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm lg:py-1.5 lg:text-xs hover:bg-muted focus-visible:bg-muted focus-visible:outline-none disabled:opacity-40";
 
   return (
     <div ref={ref} className="relative">
@@ -343,7 +343,7 @@ export function RoomSidebar({
   const nothingMatches = filtering && model.categories.every((c) => c.rooms.length === 0) && model.entityGroups.length === 0 && model.directMessages.length === 0;
 
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col overflow-hidden border-r border-border/50 bg-card md:w-60" aria-label={t("title")}>
+    <aside className="flex h-full w-72 max-w-full shrink-0 flex-col overflow-hidden border-r border-border/50 bg-card lg:w-60" aria-label={t("title")}>
       <div className="flex shrink-0 items-center justify-between gap-1 border-b border-border px-3 py-2.5">
         <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t("title")}</h2>
         <div className="flex items-center gap-0.5">
@@ -375,7 +375,7 @@ export function RoomSidebar({
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder={t("sidebar.filter")}
-              className="w-full rounded-lg border border-border bg-background py-1 pl-7 pr-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              className="w-full rounded-lg border border-border bg-background py-2 pl-7 pr-2 text-sm lg:py-1 lg:text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             />
           </label>
         </div>

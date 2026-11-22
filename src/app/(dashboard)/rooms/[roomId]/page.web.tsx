@@ -53,6 +53,7 @@ import { useMyBookmarks } from "@/hooks/use-my-bookmarks";
 import { useRoomEphemeral } from "@/hooks/use-room-ephemeral";
 import { PinExpiryDialog } from "@/components/rooms/PinExpiryDialog";
 import { usePinExpiry } from "@/hooks/use-pin-expiry";
+import { useNarrowViewport } from "@/hooks/use-narrow-viewport";
 import { applyPinPatch, resolvePinCaps, syncServerClock, type PinBody, type PinPatch, type PinSummary } from "@/lib/rooms/pins";
 import { MuteMemberModal } from "@/components/rooms/MuteMemberModal";
 import { ChannelSettingsModal } from "@/components/rooms/ChannelSettingsModal";
@@ -109,6 +110,9 @@ const buildRoomAiContent = (text: string, toolEvents: any[]): string => {
 export default function RoomDetailWeb() {
   const platform = usePlatform();
   const isMobile = platform === "mobile";
+  // Below `lg` the side panels (copilot, thread, members, pins, bookmarks, search) are full-screen overlays, never a column next to the chat.
+  const isNarrow = useNarrowViewport();
+  const overlayPanels = isMobile || isNarrow;
 
   const t = useTranslations("rooms");
   const params = useParams();
@@ -683,9 +687,9 @@ Team Context: ${activeTeamId}.`;
       router.push(`/rooms/${r.roomId}?m=${encodeURIComponent(r.messageId)}${r.threadId ? `&t=${encodeURIComponent(r.threadId)}` : ""}`);
       return;
     }
-    if (isMobile) setIsSearchOpen(false);
+    if (overlayPanels) setIsSearchOpen(false);
     void openMessage(r.messageId, r.threadId);
-  }, [roomId, router, isMobile, openMessage]);
+  }, [roomId, router, overlayPanels, openMessage]);
 
   // Arriving from a search result of another room (`?m=<message>&t=<thread>`): show the message once the room is loaded.
   const arrivalHandled = useRef<string | null>(null);
@@ -1099,7 +1103,7 @@ Team Context: ${activeTeamId}.`;
                   />
 
                   {isSearchOpen && (
-                    <div className="relative z-30 h-0 shrink-0">
+                    <div className="relative h-0 shrink-0 lg:z-30">
                       <RoomSearchPanel
                         roomId={roomId}
                         roomName={roomTitle}
@@ -1227,7 +1231,7 @@ Team Context: ${activeTeamId}.`;
             </div>
 
             {/* Right panel (desktop): copilot, thread, pins or members */}
-            {!isMobile && anyPanelOpen && room && (
+            {!overlayPanels && anyPanelOpen && room && (
               <aside aria-label={panelTitle} className="flex w-72 shrink-0 flex-col overflow-hidden border-l border-border/50 lg:w-80">
                 {rightPanel(false)}
               </aside>
@@ -1237,8 +1241,8 @@ Team Context: ${activeTeamId}.`;
       </RoomsLayout>
 
       {/* Right panel (phones): full screen */}
-      {isMobile && anyPanelOpen && room && (
-        <div role="dialog" aria-modal="true" aria-label={panelTitle} className="fixed inset-0 z-[220] flex flex-col overflow-hidden bg-card">
+      {overlayPanels && anyPanelOpen && room && (
+        <div role="dialog" aria-modal="true" aria-label={panelTitle} className="fixed inset-0 z-[220] flex flex-col overflow-hidden bg-card pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]">
           <div className="min-h-0 flex-1">{rightPanel(true)}</div>
         </div>
       )}

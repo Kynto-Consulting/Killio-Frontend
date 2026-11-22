@@ -38,10 +38,10 @@ function MemberRow({ member, isOnline, isInCall, isYou, canModerate, isMuted, on
     return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
   }, [open]);
 
-  const item = "flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted focus-visible:bg-muted focus-visible:outline-none";
+  const item = "flex w-full items-center gap-2 px-3 py-3 text-left text-sm hover:bg-muted lg:py-1.5 lg:text-xs focus-visible:bg-muted focus-visible:outline-none";
 
   return (
-    <li className={`group/member flex items-center gap-2 rounded-lg px-2 py-1 transition-colors hover:bg-muted/60 motion-reduce:transition-none ${isOnline || member.isBot ? "" : "opacity-60"}`}>
+    <li className={`group/member flex items-center gap-2 rounded-lg px-2 py-2 transition-colors hover:bg-muted/60 lg:py-1 motion-reduce:transition-none ${isOnline || member.isBot ? "" : "opacity-60"}`}>
       <div className="relative shrink-0">
         <img src={getUserAvatarUrl(member.avatarUrl, member.email, 28)} alt="" className="h-7 w-7 rounded-full border border-border object-cover" />
         <span
@@ -139,8 +139,8 @@ export function RoomMembersPanel({
       <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-2.5">
         <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t("members.title")} — {roomMembers.length}</h2>
         {onClose && (
-          <button type="button" onClick={onClose} className="rounded-md p-1 text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40" aria-label={t("members.close")}>
-            <X className="h-4 w-4" aria-hidden />
+          <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 lg:h-7 lg:w-7" aria-label={t("members.close")}>
+            <X className="h-5 w-5 lg:h-4 lg:w-4" aria-hidden />
           </button>
         )}
       </div>

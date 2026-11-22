@@ -503,7 +503,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden selection:bg-accent/30 selection:text-foreground">
+    <div className="flex h-screen supports-[height:1dvh]:h-[100dvh] bg-background overflow-hidden selection:bg-accent/30 selection:text-foreground">
       <CommandPalette />
       <OnboardingHost />
       {/* Offline → online-workspace switch prompt. Keeps the session alive

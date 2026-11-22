@@ -242,7 +242,7 @@ export function RoomInput({
 
   return (
     <div
-      className={`${isMobile ? "sticky bottom-0 z-30 bg-background/95 backdrop-blur-sm" : "bg-background/40"} shrink-0 border-t border-border/50 ${pad}`}
+      className={`${isMobile ? "sticky bottom-0 z-30 bg-background/95 backdrop-blur-sm" : "bg-background/40"} shrink-0 border-t border-border/50 pb-[max(0.75rem,env(safe-area-inset-bottom))] ${pad}`}
       onPaste={handlePaste}
       onDragOver={(e) => e.preventDefault()}
       onDrop={handleDrop}
@@ -306,13 +306,13 @@ export function RoomInput({
         </div>
       )}
 
-      <div className="relative flex items-center gap-0.5">
+      <div className="relative flex items-end gap-1">
         <input type="file" accept="image/*,application/pdf,text/markdown,.md" className="sr-only" tabIndex={-1} ref={fileInputRef} onChange={handleFileChange} />
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading}
-          className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50 motion-reduce:transition-none"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50 motion-reduce:transition-none lg:h-8 lg:w-8"
           aria-label={t("chat.attachFile")}
           title={t("chat.attachFile")}
         >
@@ -420,20 +420,20 @@ export function RoomInput({
             focusSignal={inputKey > 0 ? `slash-${inputKey}` : replyTo?.id}
             disabled={disabled || isUploading}
             className="w-full"
-            inputClassName={isMobile ? "pr-12 shadow-sm" : "pr-10 shadow-sm"}
+            inputClassName="shadow-sm"
           />
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={disabled || isUploading || (!value.trim() && attachments.length === 0)}
-            aria-label={t("chat.send")}
-            className={`absolute right-1.5 top-1/2 -translate-y-1/2 rounded-full p-2 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-40 motion-reduce:transition-none ${
-              isAiQuery ? "bg-violet-600 text-white hover:bg-violet-700" : "bg-primary text-primary-foreground hover:bg-primary/90"
-            }`}
-          >
-            {isAiQuery ? <Bot className="h-4 w-4" aria-hidden /> : <Send className="h-4 w-4" aria-hidden />}
-          </button>
         </div>
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={disabled || isUploading || (!value.trim() && attachments.length === 0)}
+          aria-label={t("chat.send")}
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-sm transition-colors lg:h-9 lg:w-9 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-40 motion-reduce:transition-none ${
+            isAiQuery ? "bg-violet-600 text-white hover:bg-violet-700" : "bg-primary text-primary-foreground hover:bg-primary/90"
+          }`}
+        >
+          {isAiQuery ? <Bot className="h-4 w-4" aria-hidden /> : <Send className="h-4 w-4" aria-hidden />}
+        </button>
       </div>
     </div>
   );

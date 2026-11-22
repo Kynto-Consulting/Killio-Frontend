@@ -57,8 +57,8 @@ export function BookmarksPanel({ bookmarks, state, currentRoomId, roomNameOf, on
     <div className="flex h-full w-full flex-col overflow-hidden bg-card/40">
       <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-2.5">
         <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t("bookmarks.title")}</h2>
-        <button type="button" onClick={onClose} aria-label={t("members.close")} className="rounded-md p-1 text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
-          <X className="h-4 w-4" aria-hidden />
+        <button type="button" onClick={onClose} aria-label={t("members.close")} className="flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 lg:h-7 lg:w-7">
+          <X className="h-5 w-5 lg:h-4 lg:w-4" aria-hidden />
         </button>
       </div>
 

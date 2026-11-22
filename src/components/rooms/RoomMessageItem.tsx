@@ -30,6 +30,7 @@ import { API_BASE_URL } from "@/lib/api/client";
 import { MessageInfoPanel } from "./MessageInfoPanel";
 import { canUnpinMessage, formatPinCountdown, pinNow, pinTimeLeft, type PinCaps } from "@/lib/rooms/pins";
 import { Portal } from "@/components/ui/portal";
+import { useNarrowViewport } from "@/hooks/use-narrow-viewport";
 import { parseInlineToolEvents, resolveToolCallRenderState } from "@/hooks/use-agent-chat";
 import { Emoji } from "@/components/emoji";
 
@@ -204,7 +205,7 @@ const PollRenderer = ({
 type TFn = (key: string, params?: Record<string, string | number>) => string;
 
 const toolButton =
-  "rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50 motion-reduce:transition-none";
+  "rounded-md p-2.5 lg:p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50 motion-reduce:transition-none";
 
 interface RoomMessageItemProps {
   message: RoomMessage;
@@ -406,6 +407,8 @@ export function RoomMessageItem({
   const [expandedMarkup, setExpandedMarkup] = useState<Set<string>>(new Set());
   const platform = usePlatform();
   const isMobile = platform === "mobile";
+  const narrow = useNarrowViewport();
+  const tapTools = isMobile || narrow;
   const { blocks: markupBlocks, visibleText } = useMemo(() => parseAiMarkup(fromWireMentions(message.content)), [message.content]);
 
   const toggleMarkup = useCallback((key: string) => {
@@ -479,7 +482,7 @@ export function RoomMessageItem({
     <>
       <div
         id={`msg-${message.id}`}
-        onClick={isMobile ? (e) => { if (!(e.target as HTMLElement).closest("a,button,textarea,input,[role=toolbar]")) setToolsOpen((v) => !v); } : undefined}
+        onClick={tapTools ? (e) => { if (!(e.target as HTMLElement).closest("a,button,textarea,input,[role=toolbar]")) setToolsOpen((v) => !v); } : undefined}
         className={`group relative flex gap-2.5 rounded-lg px-2 py-0.5 transition-colors hover:bg-muted/30 motion-reduce:transition-none ${showAvatar ? "mt-2.5" : ""} ${mentionsMe ? "bg-amber-500/10 hover:bg-amber-500/15 shadow-[inset_2px_0_0_0_rgb(245_158_11)]" : ""} ${message.pinnedAt ? "shadow-[inset_2px_0_0_0_hsl(var(--primary)/0.3)]" : ""}`}
       >
         {/* Avatar */}

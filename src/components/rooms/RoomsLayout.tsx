@@ -32,7 +32,7 @@ export function RoomsLayout({ sidebar, children, drawerLabel = "Channels" }: Roo
   return (
     <div className="relative flex h-full overflow-hidden">
       {drawerOpen && (
-        <button type="button" tabIndex={-1} aria-hidden className="fixed inset-0 z-40 cursor-default bg-black/50 md:hidden" onClick={close} />
+        <button type="button" tabIndex={-1} aria-hidden className="fixed inset-0 z-40 cursor-default bg-black/50 lg:hidden" onClick={close} />
       )}
 
       <div
@@ -41,8 +41,8 @@ export function RoomsLayout({ sidebar, children, drawerLabel = "Channels" }: Roo
         aria-modal={drawerOpen ? true : undefined}
         aria-label={drawerOpen ? drawerLabel : undefined}
         className={[
-          "fixed inset-y-0 left-0 z-50 md:static md:z-auto md:translate-x-0",
-          "transition-transform duration-200 ease-out motion-reduce:transition-none md:transition-none",
+          "fixed inset-y-0 left-0 z-50 max-w-[85vw] pt-[env(safe-area-inset-top)] lg:static lg:z-auto lg:max-w-none lg:translate-x-0 lg:pt-0",
+          "transition-transform duration-200 ease-out motion-reduce:transition-none lg:transition-none",
           drawerOpen ? "translate-x-0" : "-translate-x-full",
         ].join(" ")}
       >
@@ -55,12 +55,12 @@ export function RoomsLayout({ sidebar, children, drawerLabel = "Channels" }: Roo
         ) : (
           <>
             {/* Plain children (pages without their own header): a slim bar holds the menu button on phones. */}
-            <div className="flex shrink-0 items-center gap-3 border-b border-border/40 bg-background/80 px-3 py-2 md:hidden">
+            <div className="flex shrink-0 items-center gap-3 border-b border-border/40 bg-background/80 px-3 py-2 lg:hidden">
               <button
                 type="button"
                 onClick={open}
                 aria-label={drawerLabel}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none"
+                className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none"
               >
                 <Menu className="h-4 w-4" aria-hidden />
               </button>
