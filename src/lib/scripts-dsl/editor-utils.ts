@@ -7,10 +7,10 @@ export interface HighlightToken {
   cls: TokenClass;
 }
 
-export const KEYWORDS_EN = ["on", "if", "else", "when", "match", "case", "default", "parallel", "branch", "for each", "as", "index", "set", "unset", "do", "literal", "ignorecase"];
-export const KEYWORDS_ES = ["al recibir", "cuando", "si", "si no", "sino", "verificar", "segun", "caso", "otro", "paralelo", "rama", "para cada", "como", "indice", "definir", "establecer", "borrar", "hacer", "literal", "ignorarmayusculas"];
-export const ACTIONS_EN = ["reply", "send", "dm", "react", "unreact", "wait", "http", "assign_role", "remove_role", "mute", "kick"];
-export const ACTIONS_ES = ["responder", "enviar", "mensajeprivado", "reaccionar", "quitarreaccion", "esperar", "http", "asignar_rol", "quitar_rol", "silenciar", "expulsar"];
+export const KEYWORDS_EN = ["on", "if", "else", "when", "match", "case", "default", "parallel", "branch", "for each", "as", "index", "set", "unset", "do", "literal", "ignorecase", "shared", "continue", "route"];
+export const KEYWORDS_ES = ["al recibir", "cuando", "si", "si no", "sino", "verificar", "segun", "caso", "otro", "paralelo", "rama", "para cada", "como", "indice", "definir", "establecer", "borrar", "hacer", "literal", "ignorarmayusculas", "compartido", "continuar", "ruta"];
+export const ACTIONS_EN = ["reply", "send", "dm", "react", "unreact", "wait", "http", "assign_role", "remove_role", "mute", "kick", "create_card", "add_brick", "update_card", "move_card", "assign_card", "create_document", "read_table", "write_table", "database", "find", "ai", "edit_message", "delete_message", "pin_message", "create_thread"];
+export const ACTIONS_ES = ["responder", "enviar", "mensajeprivado", "reaccionar", "quitarreaccion", "esperar", "http", "asignar_rol", "quitar_rol", "silenciar", "expulsar", "crear_tarjeta", "agregar_brick", "actualizar_tarjeta", "mover_tarjeta", "asignar_tarjeta", "crear_documento", "leer_tabla", "escribir_tabla", "base_de_datos", "buscar", "ia", "editar_mensaje", "borrar_mensaje", "fijar_mensaje", "crear_hilo"];
 export const TRIGGERS_EN = ["command", "message", "reaction", "edit", "delete", "join", "schedule", "interaction", "webhook", "manual", "commit", "whatsapp"];
 export const TRIGGERS_ES = ["comando", "mensaje", "reaccion", "edicion", "borrado", "ingreso", "horario", "interaccion", "webhook", "manual", "commit", "whatsapp"];
 export const OPERATORS_EN = ["is", "is not", "contains", "does not contain", "starts with", "ends with", "matches", "exists", "does not exist", "is greater than", "is at least", "is less than", "is at most"];
@@ -18,6 +18,25 @@ export const OPERATORS_ES = ["es", "no es", "contiene", "no contiene", "empieza 
 
 /** Fields the triggers put in the item (from the node descriptions), offered after `if`/`when`/`set`. */
 export const COMMON_FIELDS = ["text", "command", "args", "roomId", "messageId", "authorUserId", "authorName", "mentionsBot", "options", "invokedBy", "invokedByName", "emoji", "userId", "userName", "messageText", "messageAuthorUserId", "roomSendResult.sent", "roomSendResult.error"];
+
+/** Fields each trigger puts in the item (from the node descriptions), keyed by the English trigger word. */
+export const TRIGGER_FIELDS: Record<string, string[]> = {
+  command: ["command", "subcommandGroup", "subcommand", "options", "invokedBy", "invokedByName", "roomId", "messageId", "text", "args"],
+  message: ["text", "command", "args", "roomId", "messageId", "authorUserId", "authorName", "mentionsBot"],
+  reaction: ["roomId", "messageId", "emoji", "invokedBy", "invokedByName", "messageAuthorUserId", "messageText"],
+  join: ["userId", "userName", "invokedBy", "roomId", "teamId", "joinedAt"],
+};
+const TRIGGER_ALIASES: Record<string, string> = { comando: "command", mensaje: "message", reaccion: "reaction", ingreso: "join" };
+
+/** English trigger word of the 'on ...' block that contains `offset` (or null). */
+export function triggerAt(source: string, offset: number): string | null {
+  const lines = source.slice(0, offset).split("\n");
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const m = /^(?:on|al recibir|cuando)\s+(?:(?:el|la|un|una|the|a|an)\s+)?([a-zA-Z]+)/i.exec(lines[i].normalize("NFD").replace(/[̀-ͯ]/g, ""));
+    if (m) { const w = m[1].toLowerCase(); return TRIGGER_ALIASES[w] ?? w; }
+  }
+  return null;
+}
 
 const norm = (s: string): string => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const STRUCT = new Set([...KEYWORDS_EN, ...KEYWORDS_ES].flatMap((k) => k.split(" ")).map(norm));
@@ -132,7 +151,8 @@ export function completionsAt(source: string, offset: number, ctx: CompletionCon
     return items.filter((c) => !p || norm(c.label).startsWith(p) || norm(c.label).includes(p)).slice(0, 40);
   };
   const vars = variablesInScope(source);
-  const fields = [...new Set([...vars, ...COMMON_FIELDS])];
+  const trig = triggerAt(source, offset);
+  const fields = [...new Set([...vars, ...((trig && TRIGGER_FIELDS[trig]) || COMMON_FIELDS)])];
 
   // statement start
   if (!trimmed) {

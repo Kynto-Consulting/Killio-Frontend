@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { completionsAt, diagnosticsByLine, foldRanges, formatSource, highlightLine, variablesInScope } from "./editor-utils.ts";
+import { triggerAt, completionsAt, diagnosticsByLine, foldRanges, formatSource, highlightLine, variablesInScope } from "./editor-utils.ts";
 
 const join = (line: string) => highlightLine(line).map((t) => t.text).join("");
 
@@ -62,4 +62,15 @@ test("foldRanges and diagnosticsByLine", () => {
     { line: 2, col: 5, endCol: 6, severity: "error", code: "E", message: "b" },
   ]);
   assert.equal(m.get(2)?.length, 2);
+});
+
+test("fields depend on the enclosing trigger", () => {
+  assert.equal(triggerAt('on reaction "x":\n  if ', 25), "reaction");
+  assert.equal(triggerAt('al recibir el comando "a":\n  si ', 33), "command");
+  const src = 'on join roomId="r":\n  if ';
+  const labels = completionsAt(src, src.length, { lang: "en" }).items.map((i) => i.label);
+  assert.ok(labels.includes("userName"));
+  assert.ok(!labels.includes("authorName"));
+  const s2 = "on message:\n  add_";
+  assert.ok(completionsAt(s2, s2.length, { lang: "en" }).items.some((i) => i.label === "add_brick"));
 });
