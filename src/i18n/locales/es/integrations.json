@@ -504,6 +504,21 @@
       "shortcuts": "Ctrl+S guardar · Ctrl+Mayús+F formatear · Ctrl+Espacio sugerencias",
       "mobileNote": "Editor básico en pantallas pequeñas.",
       "dryRunNote": "Solo valida: desde este editor no se ejecuta nada."
+    },
+    "topbar": {
+      "label": "Barra del editor de scripts",
+      "toggleList": "Mostrar u ocultar la lista de scripts",
+      "rename": "Renombrar script",
+      "views": "Vistas del editor",
+      "tabs": {
+        "blocks": "Bloques",
+        "text": "Texto",
+        "runs": "Ejecuciones"
+      },
+      "togglePalette": "Mostrar u ocultar la paleta de bloques",
+      "toggleConfig": "Mostrar u ocultar la configuración del nodo",
+      "more": "Más acciones",
+      "webhookUrl": "URL del webhook"
     }
   },
   "presets": {

@@ -504,6 +504,21 @@
       "shortcuts": "Ctrl+S save · Ctrl+Shift+F format · Ctrl+Space suggestions",
       "mobileNote": "Basic editor on small screens.",
       "dryRunNote": "Checking only: nothing runs from this editor."
+    },
+    "topbar": {
+      "label": "Script editor bar",
+      "toggleList": "Show or hide the script list",
+      "rename": "Rename script",
+      "views": "Editor views",
+      "tabs": {
+        "blocks": "Blocks",
+        "text": "Text",
+        "runs": "Runs"
+      },
+      "togglePalette": "Show or hide the blocks palette",
+      "toggleConfig": "Show or hide node settings",
+      "more": "More actions",
+      "webhookUrl": "Webhook URL"
     }
   },
   "presets": {

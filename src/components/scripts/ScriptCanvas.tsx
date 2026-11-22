@@ -78,6 +78,7 @@ import {
   type SlackWebhookManualCredential,
 } from "@/lib/api/integrations";
 import { Loader2, Save, Power, Play, Copy, Check, Maximize2, Minimize2, Eye } from "lucide-react";
+import { configAfterSelection, defaultPanels, readPanels, shortcutAction, writePanels, type PanelId, type PanelState } from "@/lib/scripts-ui/workbench";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -859,6 +860,32 @@ interface ScriptCanvasProps {
   onToggle: (isActive: boolean) => Promise<void>;
   canRunManually?: boolean;
   onRunManual?: () => Promise<void>;
+  /**
+   * When given, the canvas does NOT draw its own toolbar: the parent renders the single top bar of the editor with these actions
+   * (save, preview, fullscreen, active switch, webhook URL, run, panel toggles).
+   */
+  renderTopbar?: (api: CanvasChromeApi) => React.ReactNode;
+}
+
+export interface CanvasChromeApi {
+  save: () => Promise<void>;
+  saving: boolean;
+  saveError: string | null;
+  isActive: boolean;
+  toggleActive: () => Promise<void>;
+  toggling: boolean;
+  preview: () => Promise<void>;
+  previewLoading: boolean;
+  canPreview: boolean;
+  isFullscreen: boolean;
+  toggleFullscreen: () => void;
+  runManual: () => Promise<void>;
+  running: boolean;
+  webhookUrl: string | null;
+  copyWebhook: () => Promise<void>;
+  copied: boolean;
+  panels: PanelState;
+  togglePanel: (id: PanelId) => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1145,7 +1172,7 @@ function buildNodePayloadPreview(node: Node | null): Record<string, unknown> | n
 // Component
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, accessToken, onSave, onToggle, canRunManually, onRunManual }: ScriptCanvasProps) {
+export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, accessToken, onSave, onToggle, canRunManually, onRunManual, renderTopbar }: ScriptCanvasProps) {
   const t = useTranslations("integrations");
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>(graph ? toRfNodes(graph.nodes) : []);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(graph ? toRfEdges(graph.edges) : []);
@@ -1172,6 +1199,26 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
   const [installedPacks, setInstalledPacks] = useState<InstalledPack[]>([]);
   const [hasActiveGithubIntegration, setHasActiveGithubIntegration] = useState(false);
   const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
+  // Collapsible palette / node-config panels, remembered per screen class (localStorage, never required).
+  const [panels, setPanels] = useState<PanelState>(() => defaultPanels(false));
+  const [narrow, setNarrow] = useState(false);
+  const prevSelectedRef = useRef<string | null>(null);
+  useEffect(() => {
+    const isNarrow = typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(max-width: 767px)").matches;
+    let storage: Storage | null = null;
+    try { storage = window.localStorage; } catch { storage = null; }
+    setNarrow(isNarrow);
+    setPanels(readPanels(storage, isNarrow));
+  }, []);
+  const togglePanel = useCallback((id: PanelId) => {
+    setPanels((prev) => {
+      const next = { ...prev, [id]: !prev[id] };
+      let storage: Storage | null = null;
+      try { storage = window.localStorage; } catch { storage = null; }
+      writePanels(storage, narrow, { [id]: next[id] });
+      return next;
+    });
+  }, [narrow]);
 
   const selectedNode = useMemo(
     () => (selectedNodeId ? nodes.find((node) => node.id === selectedNodeId) ?? null : null),
@@ -1749,24 +1796,40 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
     }
   }, [scriptId, teamId, accessToken]);
 
+  const saveRef = useRef<() => Promise<void>>(async () => undefined);
   useEffect(() => {
     if (!isFullscreen) return;
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsFullscreen(false);
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
     return () => {
       document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", onKeyDown);
     };
   }, [isFullscreen]);
+
+  // Esc leaves fullscreen; Ctrl/Cmd+S saves the graph (browser "save page" is suppressed only while this editor is mounted).
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const action = shortcutAction(event, { fullscreen: isFullscreen, canSave: true });
+      if (action === "exitFullscreen") setIsFullscreen(false);
+      if (action === "save") {
+        event.preventDefault();
+        void saveRef.current();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isFullscreen]);
+
+  useEffect(() => {
+    const prev = prevSelectedRef.current;
+    prevSelectedRef.current = selectedNodeId;
+    setPanels((p) => {
+      const open = configAfterSelection(prev, selectedNodeId, p.config);
+      return open === p.config ? p : { ...p, config: open };
+    });
+  }, [selectedNodeId]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -1806,6 +1869,28 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
     setCopied(true);
     setTimeout(() => setCopied(false), 1600);
   };
+  saveRef.current = handleSave;
+
+  const chromeApi: CanvasChromeApi = {
+    save: handleSave,
+    saving,
+    saveError,
+    isActive,
+    toggleActive: handleToggle,
+    toggling,
+    preview: handlePreviewOutput,
+    previewLoading,
+    canPreview: !!(teamId && accessToken),
+    isFullscreen,
+    toggleFullscreen: () => setIsFullscreen((prev) => !prev),
+    runManual: handleRunManual,
+    running,
+    webhookUrl: webhookUrl ?? null,
+    copyWebhook: handleCopyWebhookUrl,
+    copied,
+    panels,
+    togglePanel,
+  };
 
   return (
     <div
@@ -1814,8 +1899,9 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
         isFullscreen ? "fixed inset-0 z-[200] shadow-2xl" : "h-full",
       )}
     >
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-card/60 px-3 py-2 sm:px-4">
+      {renderTopbar ? renderTopbar(chromeApi) : null}
+      {/* Toolbar (only when the parent does not render the single top bar) */}
+      {!renderTopbar && (<div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-card/60 px-3 py-2 sm:px-4">
         <div className="min-w-0 flex-1">
           <span className="text-sm font-medium text-foreground">{t("canvas.editorTitle")}</span>
           {webhookUrl && (
@@ -1891,7 +1977,7 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
             {saving ? t("canvas.saving") : t("canvas.save")}
           </button>
         </div>
-      </div>
+      </div>)}
 
       {saveError !== null && (
         <p role="alert" className="border-b border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-700 dark:text-red-300">
@@ -1918,7 +2004,11 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
 
       {/* Canvas + Palette */}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:flex-row">
-        <NodePalette integrationAvailability={{ github: hasActiveGithubIntegration, whatsapp: true, slack: true }} />
+        {panels.palette && (
+          <div className="fixed inset-x-0 bottom-0 z-40 flex max-h-[55dvh] flex-col overflow-y-auto rounded-t-2xl border-t border-border/50 bg-card shadow-2xl md:static md:z-auto md:max-h-none md:rounded-none md:border-t-0 md:shadow-none">
+            <NodePalette integrationAvailability={{ github: hasActiveGithubIntegration, whatsapp: true, slack: true }} />
+          </div>
+        )}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden xl:flex-row">
           <div
             className="min-h-0 min-w-0 flex-1"
@@ -1939,12 +2029,12 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
               className="killio-reactflow h-full w-full bg-background"
             >
               <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="var(--rf-dots-color)" />
-              <Controls />
-              <MiniMap nodeStrokeWidth={3} zoomable pannable />
+              <Controls position="top-left" />
+              <MiniMap nodeStrokeWidth={3} zoomable pannable className="!hidden md:!block" />
             </ReactFlow>
           </div>
 
-          <aside className="h-[300px] overflow-y-auto border-t border-border bg-card/40 p-3 xl:h-auto xl:w-80 xl:border-l xl:border-t-0">
+          {panels.config && (<aside className="fixed inset-x-0 bottom-0 z-40 max-h-[55dvh] overflow-y-auto rounded-t-2xl border-t border-border/50 bg-card p-3 shadow-2xl md:static md:z-auto md:h-auto md:max-h-none md:w-80 md:shrink-0 md:rounded-none md:border-l md:border-t-0 md:shadow-none">
             <div className="mb-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("canvas.nodeConfigTitle")}</p>
               <p className="mt-1 text-[11px] text-muted-foreground">{t("canvas.nodeConfigHint")}</p>
@@ -2380,7 +2470,7 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
                 </div>
               </div>
             )}
-          </aside>
+          </aside>)}
         </div>
       </div>
     </div>

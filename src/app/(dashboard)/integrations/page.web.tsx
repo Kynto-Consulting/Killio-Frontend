@@ -42,8 +42,8 @@ import {
   listTeamBoards,
 } from "@/lib/api/contracts";
 import { ScriptList } from "@/components/scripts/ScriptList";
-import { LockedScriptPanel, ScriptLockBar } from "@/components/scripts/script-lock";
-import { ScriptEditorSwitch } from "@/components/scripts/ScriptEditorSwitch";
+import { ScriptWorkbench } from "@/components/scripts/ScriptWorkbench";
+import { readPanels, writePanels } from "@/lib/scripts-ui/workbench";
 import { KillioTable } from "../../../components/scripts/KillioTable";
 import { RunLogsPanel } from "@/components/scripts/RunLogsPanel";
 import { IntegrationCatalogGrid } from "@/components/integrations/integration-catalog-grid";
@@ -245,6 +245,18 @@ export function IntegrationsPageView({
   const [presetContextLoading, setPresetContextLoading] = useState(false);
   const [showMetaTutorialModal, setShowMetaTutorialModal] = useState(false);
   const [showMobileScriptList, setShowMobileScriptList] = useState(true);
+  // Desktop: the script list can be folded away to give the editor the whole width (remembered in localStorage, never required).
+  const [listOpen, setListOpen] = useState(true);
+  useEffect(() => {
+    try { setListOpen(readPanels(window.localStorage, false).list); } catch { /* storage blocked: keep the default */ }
+  }, []);
+  const toggleListOpen = () => {
+    setListOpen((prev) => {
+      const next = !prev;
+      try { writePanels(window.localStorage, false, { list: next }); } catch { /* not remembered */ }
+      return next;
+    });
+  };
 
   // Create form state
   const [showCreate, setShowCreate] = useState(false);
@@ -932,6 +944,45 @@ export function IntegrationsPageView({
     );
   }
 
+  const handleRenamedScript = (updated: ScriptSummary) => {
+    setScripts((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
+    setSelectedScript(updated);
+  };
+  const scriptWorkbench =
+    selectedScript && activeTeamId && accessToken ? (
+      <ScriptWorkbench
+        script={selectedScript}
+        teamId={activeTeamId}
+        accessToken={accessToken}
+        graph={graph}
+        graphLoading={graphLoading}
+        webhookUrl={webhookUrl ?? null}
+        canRunManually={!!graph?.nodes.some((node) => node.nodeKind === "core.trigger.manual")}
+        onSaveGraph={handleSaveGraph}
+        onToggleActive={handleToggleActive}
+        onRunManual={handleRunManual}
+        onDelete={() => handleDelete(selectedScript)}
+        onLockChanged={handleLockChanged}
+        onDuplicated={handleDuplicated}
+        onRenamed={handleRenamedScript}
+        listCollapsed={mobileScriptsOptimized ? !showMobileScriptList : !listOpen}
+        onToggleList={mobileScriptsOptimized ? () => setShowMobileScriptList((prev) => !prev) : toggleListOpen}
+      />
+    ) : (
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
+        <div style={{ borderRadius: "50%", background: "rgba(216,255,114,0.08)", padding: 20, color: "hsl(var(--accent-ink))" }}>
+          <Zap className="h-8 w-8" />
+        </div>
+        <p style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--ink))" }}>{t("scripts.selectToEdit")}</p>
+        <p style={{ fontSize: 12, color: "hsl(var(--ink) / 0.45)" }}>{t("scripts.selectToEditHelp")}</p>
+        {mobileScriptsOptimized && !showMobileScriptList && (
+          <button type="button" onClick={() => setShowMobileScriptList(true)} className="rounded-lg bg-foreground/10 px-3 py-1.5 text-xs font-medium hover:bg-foreground/15">
+            {t("tabs.scripts")}
+          </button>
+        )}
+      </div>
+    );
+
   return (
     <>
       {navbarUsageSlotEl && usagePortalContent ? createPortal(usagePortalContent, navbarUsageSlotEl) : null}
@@ -1000,258 +1051,45 @@ export function IntegrationsPageView({
           <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden" style={{ background: "hsl(var(--surface-deep))", padding: mobileScriptsOptimized ? "8px" : "12px 16px" }}>
             {mobileScriptsOptimized ? (
               <div className="flex min-h-0 flex-1 flex-col gap-2">
-                <div className="flex items-center gap-2 rounded-xl border border-foreground/10 dark:border-white/10 bg-foreground/5 dark:bg-white/5 p-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowMobileScriptList((prev) => !prev)}
-                    className="inline-flex h-9 items-center justify-center rounded-lg border border-foreground/15 dark:border-white/15 bg-foreground/5 dark:bg-white/5 px-3 text-xs font-semibold text-foreground/90 dark:text-white/90"
-                  >
-                    {showMobileScriptList ? t("actions.close") : t("tabs.scripts")}
-                  </button>
-                  <div className="ml-auto flex items-center gap-1 rounded-lg border border-foreground/10 dark:border-white/10 bg-black/30 p-1">
-                    <button
-                      type="button"
-                      onClick={() => setScriptSubView("canvas")}
-                      disabled={!selectedScript}
-                      className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${scriptSubView === "canvas" ? "bg-foreground/15 dark:bg-white/15 text-foreground dark:text-white" : "text-foreground/60 dark:text-white/60"} ${!selectedScript ? "cursor-not-allowed opacity-50" : ""}`}
-                    >
-                      {t("scripts.graphTab")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setScriptSubView("runs")}
-                      disabled={!selectedScript}
-                      className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${scriptSubView === "runs" ? "bg-foreground/15 dark:bg-white/15 text-foreground dark:text-white" : "text-foreground/60 dark:text-white/60"} ${!selectedScript ? "cursor-not-allowed opacity-50" : ""}`}
-                    >
-                      {t("scripts.runsTab")}
-                    </button>
-                  </div>
-                </div>
-
                 {showMobileScriptList && (
-                  <div className="max-h-[42vh] min-h-[220px] overflow-y-auto rounded-xl border border-foreground/10 dark:border-white/10 bg-foreground/5 dark:bg-white/5 p-1">
-                    <ScriptList
-                      scripts={scripts}
-                      selectedId={selectedScript?.id ?? null}
-                      onSelect={(s) => {
-                        setSelectedScript(s);
-                        setScriptSubView("canvas");
-                        setShowMobileScriptList(false);
-                      }}
-                      onToggle={handleToggle}
-                      onDelete={handleDelete}
-                      onCreate={() => setShowCreate(true)}
-                      onOpenPresets={handleOpenPresets}
-                      loading={scriptsLoading}
-                    />
+                  <div className="max-h-[42vh] min-h-[220px] overflow-y-auto rounded-xl border border-border/50 bg-card/50 p-2">
+              <ScriptList
+                scripts={scripts}
+                selectedId={selectedScript?.id ?? null}
+                onSelect={(sc) => {
+                  setSelectedScript(sc);
+                  setShowMobileScriptList(false);
+                }}
+                onToggle={handleToggle}
+                onDelete={handleDelete}
+                onCreate={() => setShowCreate(true)}
+                onOpenPresets={handleOpenPresets}
+                loading={scriptsLoading}
+              />
                   </div>
                 )}
-
-                <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-foreground/10 dark:border-white/10 bg-foreground/5 dark:bg-white/5">
-                  <div className="flex items-center gap-2 border-b border-foreground/10 dark:border-white/10 px-3 py-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-foreground dark:text-white">
-                        {selectedScript?.name ?? t("tabs.scripts")}
-                      </p>
-                      <p className="truncate text-[11px] text-foreground/60 dark:text-white/60">
-                        {selectedScript?.description || t("scripts.selectToEditHelp")}
-                      </p>
-                    </div>
-                    {selectedScript && (
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (window.confirm(t("scripts.deleteConfirm"))) {
-                            await handleDelete(selectedScript);
-                          }
-                        }}
-                        className="inline-flex h-8 items-center gap-1 rounded-md border border-red-300/30 bg-red-400/10 px-2 text-[11px] font-semibold text-red-600 dark:text-red-300"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        {t("scripts.delete")}
-                      </button>
-                    )}
-                  </div>
-
-                  {selectedScript && activeTeamId && accessToken ? (
-                    <ScriptLockBar script={selectedScript} teamId={activeTeamId} accessToken={accessToken} onChanged={handleLockChanged} onDuplicated={handleDuplicated} />
-                  ) : null}
-                  {selectedScript?.locked ? (
-                    <LockedScriptPanel script={selectedScript} />
-                  ) : selectedScript ? (
-                    scriptSubView === "canvas" ? (
-                      graphLoading ? (
-                        <div className="flex flex-1 items-center justify-center">
-                          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                        </div>
-                      ) : (
-                        <div className="flex min-h-0 flex-1 overflow-hidden">
-                          <ScriptEditorSwitch
-                            scriptId={selectedScript.id}
-                            graph={graph}
-                            isActive={selectedScript.isActive}
-                            webhookUrl={webhookUrl}
-                            teamId={activeTeamId}
-                            accessToken={accessToken}
-                            onSave={handleSaveGraph}
-                            onToggle={handleToggleActive}
-                            canRunManually={!!graph?.nodes.some((node) => node.nodeKind === "core.trigger.manual")}
-                            onRunManual={handleRunManual}
-                          />
-                        </div>
-                      )
-                    ) : (
-                      <div className="min-h-0 flex-1 overflow-hidden">
-                        <RunLogsPanel
-                          scriptId={selectedScript.id}
-                          teamId={activeTeamId}
-                          accessToken={accessToken}
-                        />
-                      </div>
-                    )
-                  ) : (
-                    <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
-                      <div style={{ borderRadius: "50%", background: "rgba(216,255,114,0.08)", padding: 20, color: "hsl(var(--accent-ink))" }}>
-                        <Zap className="h-8 w-8" />
-                      </div>
-                      <p style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--ink))" }}>
-                        {t("scripts.selectToEdit")}
-                      </p>
-                      <p style={{ fontSize: 12, color: "hsl(var(--ink) / 0.45)" }}>
-                        {t("scripts.selectToEditHelp")}
-                      </p>
-                    </div>
-                  )}
-                </div>
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border/50 bg-card/40">{scriptWorkbench}</div>
               </div>
             ) : (
-              <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[320px,minmax(0,1fr)] xl:grid-cols-[340px,minmax(0,1fr)]">
-                <div className="min-h-[320px] lg:min-h-0">
-                  <ScriptList
-                    scripts={scripts}
-                    selectedId={selectedScript?.id ?? null}
-                    onSelect={(s) => {
-                      setSelectedScript(s);
-                      setScriptSubView("canvas");
-                    }}
-                    onToggle={handleToggle}
-                    onDelete={handleDelete}
-                    onCreate={() => setShowCreate(true)}
-                    onOpenPresets={handleOpenPresets}
-                    loading={scriptsLoading}
-                  />
-                </div>
-
-                <div className="flex min-h-[360px] min-w-0 flex-1 flex-col overflow-hidden lg:min-h-0" style={{ borderRadius: 14, border: "1px solid hsl(var(--ink) / 0.08)", background: "hsl(var(--ink) / 0.035)" }}>
-                  <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, borderBottom: "1px solid hsl(var(--ink) / 0.08)", padding: "10px 16px" }}>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate" style={{ fontSize: 13, fontWeight: 700, color: "hsl(var(--ink))" }}>
-                        {selectedScript?.name ?? t("tabs.scripts")}
-                      </p>
-                      {selectedScript ? (
-                        <p className="truncate" style={{ fontSize: 11, color: "hsl(var(--ink) / 0.45)" }}>{selectedScript.description || t("scripts.selectToEditHelp")}</p>
-                      ) : (
-                        <p className="truncate" style={{ fontSize: 11, color: "hsl(var(--ink) / 0.45)" }}>{t("scripts.selectToEditHelp")}</p>
-                      )}
-                    </div>
-
-                    {selectedScript && (
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (window.confirm(t("scripts.deleteConfirm"))) {
-                            await handleDelete(selectedScript);
-                          }
-                        }}
-                        style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 30, padding: "0 12px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid rgba(248,113,113,0.2)", background: "rgba(248,113,113,0.07)", color: "hsl(var(--c-red))" }}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        {t("scripts.delete")}
-                      </button>
-                    )}
-
-                    <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 2, padding: "4px", borderRadius: 10, border: "1px solid hsl(var(--ink) / 0.08)", background: "hsl(var(--shade) / calc(0.25 * var(--shade-k)))" }}>
-                      <button
-                        type="button"
-                        onClick={() => setScriptSubView("canvas")}
-                        disabled={!selectedScript}
-                        style={{
-                          padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: selectedScript ? "pointer" : "not-allowed",
-                          transition: "all .15s", color: scriptSubView === "canvas" ? "hsl(var(--ink) / 0.92)" : "hsl(var(--ink) / 0.45)",
-                          background: scriptSubView === "canvas" ? "hsl(var(--ink) / 0.06)" : "transparent",
-                          opacity: !selectedScript ? 0.5 : 1, border: "none",
-                        }}
-                      >
-                        {t("scripts.graphTab")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setScriptSubView("runs")}
-                        disabled={!selectedScript}
-                        style={{
-                          padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: selectedScript ? "pointer" : "not-allowed",
-                          transition: "all .15s", color: scriptSubView === "runs" ? "hsl(var(--ink) / 0.92)" : "hsl(var(--ink) / 0.45)",
-                          background: scriptSubView === "runs" ? "hsl(var(--ink) / 0.06)" : "transparent",
-                          opacity: !selectedScript ? 0.5 : 1, border: "none",
-                        }}
-                      >
-                        {t("scripts.runsTab")}
-                      </button>
-                    </div>
+              <div className={`grid min-h-0 flex-1 gap-3 ${listOpen ? "lg:grid-cols-[320px,minmax(0,1fr)] xl:grid-cols-[340px,minmax(0,1fr)]" : "lg:grid-cols-[minmax(0,1fr)]"}`}>
+                {listOpen && (
+                  <div className="min-h-[320px] lg:min-h-0">
+              <ScriptList
+                scripts={scripts}
+                selectedId={selectedScript?.id ?? null}
+                onSelect={(sc) => {
+                  setSelectedScript(sc);
+                  
+                }}
+                onToggle={handleToggle}
+                onDelete={handleDelete}
+                onCreate={() => setShowCreate(true)}
+                onOpenPresets={handleOpenPresets}
+                loading={scriptsLoading}
+              />
                   </div>
-
-                  {selectedScript && activeTeamId && accessToken ? (
-                    <ScriptLockBar script={selectedScript} teamId={activeTeamId} accessToken={accessToken} onChanged={handleLockChanged} onDuplicated={handleDuplicated} />
-                  ) : null}
-                  {selectedScript?.locked ? (
-                    <LockedScriptPanel script={selectedScript} />
-                  ) : selectedScript ? (
-                    <>
-                      {scriptSubView === "canvas" ? (
-                        graphLoading ? (
-                          <div className="flex flex-1 items-center justify-center">
-                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                          </div>
-                        ) : (
-                          <div className="flex min-h-0 flex-1 overflow-hidden">
-                            <ScriptEditorSwitch
-                              scriptId={selectedScript.id}
-                              graph={graph}
-                              isActive={selectedScript.isActive}
-                              webhookUrl={webhookUrl}
-                              teamId={activeTeamId}
-                              accessToken={accessToken}
-                              onSave={handleSaveGraph}
-                              onToggle={handleToggleActive}
-                              canRunManually={!!graph?.nodes.some((node) => node.nodeKind === "core.trigger.manual")}
-                              onRunManual={handleRunManual}
-                            />
-                          </div>
-                        )
-                      ) : (
-                        <div className="min-h-0 flex-1 overflow-hidden">
-                          <RunLogsPanel
-                            scriptId={selectedScript.id}
-                            teamId={activeTeamId}
-                            accessToken={accessToken}
-                          />
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
-                      <div style={{ borderRadius: "50%", background: "rgba(216,255,114,0.08)", padding: 20, color: "hsl(var(--accent-ink))" }}>
-                        <Zap className="h-8 w-8" />
-                      </div>
-                      <p style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--ink))" }}>
-                        {t("scripts.selectToEdit")}
-                      </p>
-                      <p style={{ fontSize: 12, color: "hsl(var(--ink) / 0.45)" }}>
-                        {t("scripts.selectToEditHelp")}
-                      </p>
-                    </div>
-                  )}
-                </div>
+                )}
+                <div className="flex min-h-[360px] min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border/50 bg-card/40 lg:min-h-0">{scriptWorkbench}</div>
               </div>
             )}
           </div>

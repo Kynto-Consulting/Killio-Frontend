@@ -19,6 +19,17 @@ interface Props {
   /** Saves the compiled graph through the same path as the block editor. */
   onSave: (graph: ScriptGraph) => Promise<void>;
   onBackToBlocks: () => void;
+  /** When given, the Save button is NOT drawn here: the single top bar of the editor drives saving through this api. */
+  onApi?: (api: TextEditorApi) => void;
+}
+
+export interface TextEditorApi {
+  save: () => Promise<void>;
+  dirty: boolean;
+  saving: boolean;
+  errorCount: number;
+  /** Text could not be loaded or the script has no text form: there is nothing to save. */
+  ready: boolean;
 }
 
 const CLS: Record<HighlightToken["cls"], string> = {
@@ -50,7 +61,7 @@ function withSquiggles(tokens: HighlightToken[], diags: DslDiagnosticLike[]): Ar
   return out;
 }
 
-export default function ScriptTextEditor({ scriptId, teamId, accessToken, onSave, onBackToBlocks }: Props) {
+export default function ScriptTextEditor({ scriptId, teamId, accessToken, onSave, onBackToBlocks, onApi }: Props) {
   const t = useTranslations("integrations");
   const tt = (k: string, vars?: Record<string, string | number>) => {
     let s = t(`scripts.dsl.${k}`);
@@ -147,6 +158,13 @@ export default function ScriptTextEditor({ scriptId, teamId, accessToken, onSave
 
   const format = () => setSource((s) => formatSource(s));
 
+  const saveRef = useRef(save);
+  saveRef.current = save;
+  useEffect(() => {
+    onApi?.({ save: () => saveRef.current(), dirty, saving: status === "saving", errorCount, ready: !!loaded && loaded.origin !== "unrepresentable" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dirty, status, errorCount, loaded]);
+
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const ta = e.currentTarget;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); void save(); return; }
@@ -197,9 +215,11 @@ export default function ScriptTextEditor({ scriptId, teamId, accessToken, onSave
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2 p-3" aria-label={tt("editorLabel")}>
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        <button type="button" onClick={() => void save()} disabled={status === "saving" || !dirty} className="rounded-lg bg-foreground px-3 py-1.5 font-semibold text-background disabled:opacity-40">
-          {status === "saving" ? tt("saving") : tt("save")}
-        </button>
+        {!onApi && (
+          <button type="button" onClick={() => void save()} disabled={status === "saving" || !dirty} className="rounded-lg bg-foreground px-3 py-1.5 font-semibold text-background disabled:opacity-40">
+            {status === "saving" ? tt("saving") : tt("save")}
+          </button>
+        )}
         <button type="button" onClick={format} className="inline-flex items-center gap-1 rounded-lg bg-foreground/10 px-3 py-1.5 font-medium hover:bg-foreground/15"><Wand2 className="h-3.5 w-3.5" />{tt("format")}</button>
         <label className="flex items-center gap-1 text-foreground/70">
           <span className="sr-only">{tt("templates")}</span>
