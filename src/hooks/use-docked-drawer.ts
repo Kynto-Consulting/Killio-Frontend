@@ -36,6 +36,7 @@ export function useDockedDrawer(isOpen: boolean, width: number) {
     };
   }, [docked, width]);
 
-  const place = (node: ReactNode): ReactNode => (docked && slot ? createPortal(node, slot) : node);
+  // Overlay mode goes to <body>: a `fixed` drawer inside the page would sit under the top bar (stacking context of <main>).
+  const place = (node: ReactNode): ReactNode => (docked && slot ? createPortal(node, slot) : typeof document !== "undefined" ? createPortal(node, document.body) : node);
   return { docked, place };
 }

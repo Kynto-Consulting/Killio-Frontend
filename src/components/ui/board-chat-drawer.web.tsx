@@ -125,14 +125,14 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
     };
   }, [isResizingDrawer]);
 
-  const { place } = useDockedDrawer(isOpen, drawerWidth);
+  const { place, docked } = useDockedDrawer(isOpen, drawerWidth);
 
   if (!isOpen) return null;
 
 
   return place(
     <div
-      className="absolute top-0 right-0 bottom-0 min-w-[20rem] max-w-[90vw] bg-card border-l border-border/60 rounded-l-2xl shadow-xl flex flex-col overflow-hidden z-[50] transform transition-transform animate-in slide-in-from-right duration-300"
+      className={`${docked ? "absolute z-[50]" : "fixed z-[230]"} top-0 right-0 bottom-0 min-w-[20rem] max-w-[90vw] bg-card border-l border-border/60 rounded-l-2xl shadow-xl flex flex-col overflow-hidden transform transition-transform animate-in slide-in-from-right duration-300`}
       style={{ width: drawerWidth, maxWidth: "100%" }}
     >
       <div
