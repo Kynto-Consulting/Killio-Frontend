@@ -78,40 +78,46 @@ export function EphemeralList({ items, onDismiss }: { items: readonly EphemeralM
   if (items.length === 0) return null;
   return (
     <ul className="mt-2 space-y-2" aria-label={t("bot.ephemeral.listLabel")}>
-      {items.map((e) => (
-        <li key={e.id} data-testid="ephemeral-message" className="group relative flex gap-2.5 rounded-lg border border-dashed border-border bg-muted/30 px-2.5 py-2">
-          <span className="mt-0.5 h-7 w-7 shrink-0 overflow-hidden rounded-full border border-border bg-muted/50">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={getUserAvatarUrl(e.botAvatarUrl, `${e.botName}@bot.killio.local`, 28)} alt="" className="h-full w-full object-cover" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="mb-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-              <span className="text-[13px] font-bold">{e.botName}</span>
-              <span className="inline-flex items-center gap-0.5 rounded bg-violet-500/15 px-1 text-[9px] font-bold uppercase tracking-tight text-violet-700 dark:text-violet-300">
-                <Bot className="h-2.5 w-2.5" aria-hidden />
-                {t("ai.bot")}
-              </span>
-              <time className="text-[10px] text-muted-foreground" dateTime={e.createdAt}>{new Date(e.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
-            </div>
-            {readCommandGhost(e.metadata) && <div><CommandGhostHeader ghost={readCommandGhost(e.metadata)!} /></div>}
-            <p className="mb-1 inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
-              <EyeOff className="h-3 w-3" aria-hidden />
-              {t("bot.ephemeral.onlyYou")}
-            </p>
-            <EphemeralBody e={e} />
-          </div>
-          <button
-            type="button"
-            onClick={() => onDismiss(e.id)}
-            aria-label={t("bot.ephemeral.dismiss")}
-            title={t("bot.ephemeral.dismiss")}
-            className="absolute right-1.5 top-1.5 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-          >
-            <X className="h-3.5 w-3.5" aria-hidden />
-          </button>
-        </li>
-      ))}
+      {items.map((e) => <EphemeralItem key={e.id} e={e} onDismiss={onDismiss} />)}
     </ul>
+  );
+}
+
+/** One private answer card ("Only you see this"). Rendered inside the timeline, between the channel's messages. */
+export function EphemeralItem({ e, onDismiss }: { e: EphemeralMessage; onDismiss: (id: string) => void }) {
+  const t = useTranslations("rooms");
+  return (
+    <li data-testid="ephemeral-message" className="group relative flex gap-2.5 rounded-lg border border-dashed border-border bg-muted/30 px-2.5 py-2">
+      <span className="mt-0.5 h-7 w-7 shrink-0 overflow-hidden rounded-full border border-border bg-muted/50">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={getUserAvatarUrl(e.botAvatarUrl, `${e.botName}@bot.killio.local`, 28)} alt="" className="h-full w-full object-cover" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="mb-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+          <span className="text-[13px] font-bold">{e.botName}</span>
+          <span className="inline-flex items-center gap-0.5 rounded bg-violet-500/15 px-1 text-[9px] font-bold uppercase tracking-tight text-violet-700 dark:text-violet-300">
+            <Bot className="h-2.5 w-2.5" aria-hidden />
+            {t("ai.bot")}
+          </span>
+          <time className="text-[10px] text-muted-foreground" dateTime={e.createdAt}>{new Date(e.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
+        </div>
+        {readCommandGhost(e.metadata) && <div><CommandGhostHeader ghost={readCommandGhost(e.metadata)!} /></div>}
+        <p className="mb-1 inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+          <EyeOff className="h-3 w-3" aria-hidden />
+          {t("bot.ephemeral.onlyYou")}
+        </p>
+        <EphemeralBody e={e} />
+      </div>
+      <button
+        type="button"
+        onClick={() => onDismiss(e.id)}
+        aria-label={t("bot.ephemeral.dismiss")}
+        title={t("bot.ephemeral.dismiss")}
+        className="absolute right-1.5 top-1.5 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      >
+        <X className="h-3.5 w-3.5" aria-hidden />
+      </button>
+    </li>
   );
 }
 

@@ -8,7 +8,8 @@ import type { ResolverContext } from "@/lib/reference-resolver";
 import type { DocumentSummary } from "@/lib/api/documents";
 import { RoomMessageItem } from "./RoomMessageItem";
 import { RoomInput } from "./RoomInput";
-import { EphemeralList } from "./BotMessageExtras";
+import { EphemeralItem } from "./BotMessageExtras";
+import { mergeTimeline, type TimelineItem } from "@/lib/rooms/timeline";
 import type { EphemeralMessage } from "@/lib/rooms/ephemeral";
 import { parseAiMarkup } from "@/lib/ai-markup";
 import { getProactiveSuggestion } from "@/lib/api/agent";
@@ -109,21 +110,28 @@ function formatTypingText(users: TypingUser[], t: TFn): string {
   return t("chat.typing_many");
 }
 
-type Row = { kind: "divider"; label: string; key: string } | { kind: "unread"; key: string } | { kind: "message"; message: RoomMessage; showAvatar: boolean };
+type Row = { kind: "divider"; label: string; key: string } | { kind: "unread"; key: string } | { kind: "ephemeral"; key: string; ephemeral: EphemeralMessage } | { kind: "message"; message: RoomMessage; showAvatar: boolean };
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000;
 
-function buildRows(messages: RoomMessage[], unreadBeforeId?: string | null): Row[] {
+function buildRows(items: TimelineItem<RoomMessage, EphemeralMessage>[], unreadBeforeId?: string | null): Row[] {
   const rows: Row[] = [];
   let lastDate = "";
   let prev: RoomMessage | null = null;
-  for (const msg of messages) {
-    const d = new Date(msg.createdAt).toLocaleDateString();
+  for (const item of items) {
+    const d = new Date(item.createdAt).toLocaleDateString();
     const newDay = d !== lastDate;
     if (newDay) {
       lastDate = d;
       rows.push({ kind: "divider", label: d, key: `divider-${d}` });
     }
+    if (item.kind === "ephemeral") {
+      // a private answer is one more item of the timeline; the next message starts a new group
+      rows.push({ kind: "ephemeral", key: item.key, ephemeral: item.ephemeral });
+      prev = null;
+      continue;
+    }
+    const msg = item.message;
     const banner = msg.type === "system" || msg.type === "call_started" || msg.type === "call_ended";
     const prevBanner = prev ? prev.type === "system" || prev.type === "call_started" || prev.type === "call_ended" : false;
     const sameAuthor = prev && prev.userId === msg.userId && prev.type === msg.type && !prevBanner && !banner;
@@ -192,7 +200,12 @@ export function RoomChatArea({
     }
   }, [messages.length, ephemeral?.length, reducedMotion, searching, history]);
 
-  const messageIds = useMemo(() => messages.map((m) => m.id), [messages]);
+  // The room's messages with the person's private bot answers mixed in by date (same order rule as every message).
+  const timeline = useMemo(
+    () => mergeTimeline(messages, searching || !onDismissEphemeral ? [] : ephemeral ?? [], { hasMoreBefore: history?.hasMoreBefore, hasMoreAfter: history?.hasMoreAfter }),
+    [messages, ephemeral, searching, onDismissEphemeral, history?.hasMoreBefore, history?.hasMoreAfter],
+  );
+  const messageIds = useMemo(() => timeline.map((i) => i.key), [timeline]);
   const hs = useRoomHistoryScroll({
     scrollRef, contentRef, enabled: Boolean(history) && !searching, ids: messageIds, view: history?.view,
     hasMoreBefore: history?.hasMoreBefore ?? false, hasMoreAfter: history?.hasMoreAfter ?? false,
@@ -244,7 +257,7 @@ export function RoomChatArea({
   }, [messages.length]);
 
   const unreadBeforeId = history && !searching ? history.unreadAnchorId : null;
-  const rows = useMemo(() => buildRows(messages, unreadBeforeId), [messages, unreadBeforeId]);
+  const rows = useMemo(() => buildRows(timeline, unreadBeforeId), [timeline, unreadBeforeId]);
   const typingText = formatTypingText(typingUsers, t);
 
   // Proactive suggestions (unchanged behaviour): only while the user can actually write.
@@ -337,6 +350,7 @@ export function RoomChatArea({
 
             {rows.map((row) => {
               if (row.kind === "unread") return <UnreadDivider key={row.key} t={t} />;
+              if (row.kind === "ephemeral") return <ul key={row.key} id={`eph-${row.ephemeral.id}`} className="my-1.5"><EphemeralItem e={row.ephemeral} onDismiss={onDismissEphemeral!} /></ul>;
               if (row.kind === "divider") {
                 return (
                   <div key={row.key} className="flex items-center gap-2 py-3" role="separator" aria-label={row.label}>
@@ -383,7 +397,6 @@ export function RoomChatArea({
               );
             })}
 
-            {ephemeral && ephemeral.length > 0 && onDismissEphemeral && <EphemeralList items={ephemeral} onDismiss={onDismissEphemeral} />}
             {history && !searching && history.hasMoreAfter && (
               <>
                 <div ref={hs.bottomSentinel} aria-hidden className="h-px" />
