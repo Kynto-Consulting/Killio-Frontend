@@ -31,6 +31,27 @@
     "description": "Create a channel to start collaborating with your team in real time.",
     "createButton": "Create Room"
   },
+  "channelMenu": {
+    "open": "Options for {{name}}",
+    "title": "Channel options",
+    "markRead": "Mark as read",
+    "notifications": "Notifications",
+    "notifAll": "All messages",
+    "notifMentions": "Only mentions",
+    "notifNone": "Mute channel",
+    "notifNoneHint": "No alerts from this channel",
+    "settings": "Channel settings",
+    "copyLink": "Copy channel link",
+    "linkCopied": "Link copied",
+    "copyFailed": "Could not copy the link",
+    "delete": "Delete channel",
+    "deleteConfirm": "Press again to delete",
+    "deleteFailed": "Could not delete the channel",
+    "back": "Back",
+    "close": "Close menu",
+    "prefFailed": "Could not change the preference",
+    "readFailed": "Could not mark as read"
+  },
   "sidebar": {
     "channels": "Channels",
     "linked": "Linked",

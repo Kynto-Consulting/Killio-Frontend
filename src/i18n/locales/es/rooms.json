@@ -31,6 +31,27 @@
     "description": "Crea un canal para colaborar con tu equipo en tiempo real.",
     "createButton": "Crear sala"
   },
+  "channelMenu": {
+    "open": "Opciones de {{name}}",
+    "title": "Opciones del canal",
+    "markRead": "Marcar como leído",
+    "notifications": "Notificaciones",
+    "notifAll": "Todos los mensajes",
+    "notifMentions": "Solo menciones",
+    "notifNone": "Silenciar canal",
+    "notifNoneHint": "Sin avisos de este canal",
+    "settings": "Ajustes del canal",
+    "copyLink": "Copiar enlace del canal",
+    "linkCopied": "Enlace copiado",
+    "copyFailed": "No se pudo copiar el enlace",
+    "delete": "Eliminar canal",
+    "deleteConfirm": "Pulsa de nuevo para eliminar",
+    "deleteFailed": "No se pudo eliminar el canal",
+    "back": "Volver",
+    "close": "Cerrar menú",
+    "prefFailed": "No se pudo cambiar la preferencia",
+    "readFailed": "No se pudo marcar como leído"
+  },
   "sidebar": {
     "channels": "Canales",
     "linked": "Vinculadas",

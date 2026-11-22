@@ -15,6 +15,7 @@ import {
 } from "@/lib/rooms/channel-layout";
 import { moveChannel, sameLayout, shiftChannel, toLayoutItems, type ChannelSection, type LayoutItem } from "@/lib/rooms/channel-order";
 import { Emoji } from "@/components/emoji";
+import { useChannelMenu, type ChannelMenuHandlers, type ChannelMenuRoom, type MenuAnchor } from "./ChannelMenu";
 
 type TFn = (key: string, params?: Record<string, string | number>) => string;
 
@@ -56,6 +57,13 @@ interface RoomSidebarProps {
   onReorderChannels?: (items: LayoutItem[]) => void;
   onOpenDirectMessage?: (userId: string) => void;
   onClose?: () => void;
+  /** The "..." menu of each channel row (and the right click / long press). Without it rows have no menu. */
+  channelMenu?: ChannelMenuHandlers;
+  /** Soft navigation: select a channel without remounting the page (the row stays a real link for new tabs). */
+  onNavigate?: (roomId: string) => void;
+  /** The pointer / focus rests on a channel: the page may prefetch it (debounced there). */
+  onPrefetch?: (roomId: string) => void;
+  onPrefetchCancel?: (roomId: string) => void;
   t: TFn;
 }
 
@@ -95,33 +103,100 @@ function Badges({ unread, mentions, t }: { unread: number; mentions: number; t: 
   return null;
 }
 
-function RoomItem({ room, title, isActive, peer, t }: { room: SidebarRoom; title: string; isActive: boolean; peer?: DmPeer | null; t: TFn }) {
+interface RoomItemProps {
+  room: SidebarRoom;
+  title: string;
+  isActive: boolean;
+  peer?: DmPeer | null;
+  onMenu?: (room: SidebarRoom, anchor: MenuAnchor) => void;
+  onNavigate?: (roomId: string) => void;
+  onPrefetch?: (roomId: string) => void;
+  onPrefetchCancel?: (roomId: string) => void;
+  menuOpenFor?: string | null;
+  t: TFn;
+}
+
+const LONG_PRESS_MS = 500;
+
+function RoomItem({ room, title, isActive, peer, onMenu, onNavigate, onPrefetch, onPrefetchCancel, menuOpenFor, t }: RoomItemProps) {
   const unread = room.muted ? 0 : room.unreadCount ?? 0;
   const mentions = room.mentionCount ?? 0; // a mention still shows in a silenced room
   const Icon = room.type === "dm" ? MessageSquare : room.linkedEntityType ? ENTITY_ICON[room.linkedEntityType] ?? Hash : room.channelType === "announcement" ? Megaphone : Hash;
   const bold = unread > 0 || mentions > 0;
+  const linkRef = useRef<HTMLAnchorElement>(null);
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressed = useRef(false);
+  const menuOpen = menuOpenFor === room.id;
+
+  const clearPress = () => { if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = null; } };
+  const anchorFromLink = (): MenuAnchor => {
+    const r = linkRef.current?.getBoundingClientRect();
+    return r ? { x: r.right, y: r.top, rect: { left: r.left, right: r.right, top: r.top, bottom: r.bottom } } : { x: 0, y: 0 };
+  };
 
   return (
-    <Link
-      href={`/rooms/${room.id}`}
-      data-room-link={room.id}
-      aria-current={isActive ? "page" : undefined}
-      title={room.description ? `${title} · ${room.description}` : title}
-      className={`group/row flex min-h-[44px] lg:min-h-[30px] items-center gap-2 rounded-lg px-2 py-2 text-sm lg:py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none ${
-        isActive ? "bg-muted font-semibold text-foreground" : bold ? "font-semibold text-foreground hover:bg-muted/60" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-      } ${room.muted && !isActive ? "opacity-55" : ""}`}
-    >
-      {room.type === "dm" && peer ? (
-        <img src={getUserAvatarUrl(peer.avatarUrl, peer.email, 20)} alt="" className="h-5 w-5 shrink-0 rounded-full border border-border object-cover" />
-      ) : room.emoji && room.type === "channel" ? (
-        <span className="w-4 shrink-0 text-center text-xs" aria-hidden><Emoji value={room.emoji} size={14} label="" /></span>
-      ) : (
-        <Icon className="h-4 w-4 shrink-0 opacity-70" />
+    <div className="group/row relative">
+      <Link
+        ref={linkRef}
+        href={`/rooms/${room.id}`}
+        data-room-link={room.id}
+        aria-current={isActive ? "page" : undefined}
+        title={room.description ? `${title} · ${room.description}` : title}
+        onClick={(e) => {
+          if (longPressed.current) { e.preventDefault(); longPressed.current = false; return; }
+          if (onNavigate && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) { e.preventDefault(); onNavigate(room.id); }
+        }}
+        onMouseEnter={onPrefetch ? () => onPrefetch(room.id) : undefined}
+        onMouseLeave={onPrefetchCancel ? () => onPrefetchCancel(room.id) : undefined}
+        onFocus={onPrefetch ? () => onPrefetch(room.id) : undefined}
+        onBlur={onPrefetchCancel ? () => onPrefetchCancel(room.id) : undefined}
+        onContextMenu={onMenu ? (e) => {
+          e.preventDefault();
+          // from the keyboard (menu key / Shift+F10) the browser reports 0,0: anchor to the row instead
+          onMenu(room, e.clientX === 0 && e.clientY === 0 ? anchorFromLink() : { x: e.clientX, y: e.clientY });
+        } : undefined}
+        onPointerDown={onMenu ? (e) => {
+          if (e.pointerType !== "touch") return;
+          clearPress();
+          const point = { x: e.clientX, y: e.clientY };
+          pressTimer.current = setTimeout(() => { longPressed.current = true; onMenu(room, point); }, LONG_PRESS_MS);
+        } : undefined}
+        onPointerUp={clearPress}
+        onPointerMove={clearPress}
+        onPointerCancel={clearPress}
+        className={`flex min-h-[44px] lg:min-h-[30px] items-center gap-2 rounded-lg py-2 pl-2 text-sm lg:py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none ${onMenu ? "pr-9" : "pr-2"} ${
+          isActive ? "bg-muted font-semibold text-foreground" : bold ? "font-semibold text-foreground hover:bg-muted/60" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+        } ${room.muted && !isActive ? "opacity-55" : ""}`}
+      >
+        {room.type === "dm" && peer ? (
+          <img src={getUserAvatarUrl(peer.avatarUrl, peer.email, 20)} alt="" className="h-5 w-5 shrink-0 rounded-full border border-border object-cover" />
+        ) : room.emoji && room.type === "channel" ? (
+          <span className="w-4 shrink-0 text-center text-xs" aria-hidden><Emoji value={room.emoji} size={14} label="" /></span>
+        ) : (
+          <Icon className="h-4 w-4 shrink-0 opacity-70" />
+        )}
+        <span className="truncate">{title}</span>
+        {room.muted && <BellOff className="h-3 w-3 shrink-0 opacity-70" aria-label={t("sidebar.muted")} />}
+        <Badges unread={unread} mentions={mentions} t={t} />
+      </Link>
+      {onMenu && (
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          aria-label={t("channelMenu.open", { name: title })}
+          title={t("channelMenu.open", { name: title })}
+          onClick={(e) => {
+            const r = e.currentTarget.getBoundingClientRect();
+            onMenu(room, { x: r.right, y: r.top, rect: { left: r.left, right: r.right, top: r.top, bottom: r.bottom } });
+          }}
+          className={`absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-opacity hover:bg-background/80 hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 group-hover/row:opacity-100 [@media(hover:none)]:opacity-100 lg:h-6 lg:w-6 motion-reduce:transition-none ${isActive || menuOpen ? "opacity-100" : "opacity-0"}`}
+        >
+          <MoreHorizontal className="h-4 w-4" aria-hidden />
+        </button>
       )}
-      <span className="truncate">{title}</span>
-      {room.muted && <BellOff className="h-3 w-3 shrink-0 opacity-70" aria-label={t("sidebar.muted")} />}
-      <Badges unread={unread} mentions={mentions} t={t} />
-    </Link>
+    </div>
   );
 }
 
@@ -260,7 +335,7 @@ function NewDirectMessage({ members, currentUserId, onPick, t }: { members: Side
 
 export function RoomSidebar({
   rooms, groups, activeRoomId, isLoading, hasError, onRetry, canCreate, canManage: canManageProp, entityTitles = {}, peers = {}, selfNames = [], members = [],
-  currentUserId, onCreateRoom, onCreateGroup, onEditGroup, onDeleteGroup, onReorderGroups, onReorderChannels, onOpenDirectMessage, onClose, t,
+  currentUserId, onCreateRoom, onCreateGroup, onEditGroup, onDeleteGroup, onReorderGroups, onReorderChannels, onOpenDirectMessage, onClose, channelMenu, onNavigate, onPrefetch, onPrefetchCancel, t,
 }: RoomSidebarProps) {
   // Callers that do not tell the difference (older pages) get the old rule: whoever can create channels manages categories.
   const canManage = canManageProp ?? canCreate;
@@ -289,6 +364,14 @@ export function RoomSidebar({
   );
   const dmTitle = useCallback((r: SidebarRoom) => dmDisplayName(r, selfNames, peers[r.id]?.name), [selfNames, peers]);
   const titleOf = useCallback((r: SidebarRoom) => (r.type === "dm" ? dmTitle(r) : r.linkedEntityType || r.type === "thread" ? entityTitle(r) : r.name), [dmTitle, entityTitle]);
+
+  const cm = useChannelMenu(channelMenu, t);
+  const soft = onNavigate ? (roomId: string) => { onNavigate(roomId); onClose?.(); } : undefined;
+  const openMenu = channelMenu ? (r: SidebarRoom, anchor: MenuAnchor) => {
+    const info: ChannelMenuRoom = { id: r.id, name: titleOf(r), type: r.type, linkedEntityType: r.linkedEntityType ?? null, unread: (r.unreadCount ?? 0) > 0 || (r.mentionCount ?? 0) > 0 };
+    cm.show(info, anchor);
+  } : undefined;
+  const rowProps = { onMenu: openMenu, onNavigate: soft, onPrefetch, onPrefetchCancel, menuOpenFor: cm.openRoomId } as const;
 
   const visible = useMemo(
     () => (q ? rooms.filter((r) => norm(titleOf(r)).includes(q)) : rooms).map((r) => ({ ...r, position: r.sortOrder ?? null })),
@@ -488,7 +571,7 @@ export function RoomSidebar({
                             }
                           } : undefined}
                         >
-                          <RoomItem room={r} title={r.name} isActive={r.id === activeRoomId} t={t} />
+                          <RoomItem room={r} title={r.name} isActive={r.id === activeRoomId} {...rowProps} t={t} />
                         </li>
                       ))}
                     </ul>
@@ -517,7 +600,7 @@ export function RoomSidebar({
                               <Icon className="h-3 w-3" aria-hidden />{typeLabel(g.entityType)}
                             </div>
                             <ul className="space-y-px">
-                              {g.rooms.map((r) => <li key={r.id}><RoomItem room={r} title={entityTitle(r)} isActive={r.id === activeRoomId} t={t} /></li>)}
+                              {g.rooms.map((r) => <li key={r.id}><RoomItem room={r} title={entityTitle(r)} isActive={r.id === activeRoomId} {...rowProps} t={t} /></li>)}
                             </ul>
                           </div>
                         );
@@ -544,7 +627,7 @@ export function RoomSidebar({
                 {(filtering || !isSectionCollapsed(collapsed, "dms")) && (
                   <ul id="section-dms" className="space-y-px pl-1">
                     {model.directMessages.length === 0 && <li className="px-2 py-1 text-xs italic text-muted-foreground/70">{t("sidebar.noDMs")}</li>}
-                    {model.directMessages.map((r) => <li key={r.id}><RoomItem room={r} title={dmTitle(r)} peer={peers[r.id]} isActive={r.id === activeRoomId} t={t} /></li>)}
+                    {model.directMessages.map((r) => <li key={r.id}><RoomItem room={r} title={dmTitle(r)} peer={peers[r.id]} isActive={r.id === activeRoomId} {...rowProps} t={t} /></li>)}
                   </ul>
                 )}
               </section>
@@ -552,6 +635,7 @@ export function RoomSidebar({
           </>
         )}
       </nav>
+      {cm.element}
     </aside>
   );
 }

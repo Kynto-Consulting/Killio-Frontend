@@ -43,6 +43,8 @@ interface RoomHeaderProps {
   onToggleBookmarks?: () => void;
   onToggleSearch: () => void;
   onOpenSettings: () => void;
+  /** Opens the channel "..." menu (notifications, settings, mark as read, copy link...) next to the given button. */
+  onOpenChannelMenu?: (anchor: { x: number; y: number; rect: { left: number; right: number; top: number; bottom: number } }) => void;
   t: TFn;
 }
 
@@ -145,7 +147,7 @@ const menuItem = "flex w-full items-center gap-2 px-3 py-3 text-left text-sm hov
 
 export function RoomHeader({
   room, title, presenceMembers, memberCount, isInCall, isAiPanelOpen, isMembersPanelOpen, isPinsOpen, isBookmarksOpen = false, isSearchOpen, pinCount, controls, isAiRoom = false,
-  onOpenSidebar, onStartCall, callBlockedReason, onLeaveCall, onToggleAiPanel, onToggleMembersPanel, onTogglePins, onToggleBookmarks, onToggleSearch, onOpenSettings, t,
+  onOpenSidebar, onStartCall, callBlockedReason, onLeaveCall, onToggleAiPanel, onToggleMembersPanel, onTogglePins, onToggleBookmarks, onToggleSearch, onOpenSettings, onOpenChannelMenu, t,
 }: RoomHeaderProps) {
   const platform = usePlatform();
   const isMobile = platform === "mobile";
@@ -227,7 +229,6 @@ export function RoomHeader({
                 </Link>
               )}
               <IconButton label={t("header.copilot")} pressed={isAiPanelOpen} onClick={onToggleAiPanel}><Bot className="h-4 w-4" aria-hidden /></IconButton>
-              <NotificationPrefButton pref={notifPref} setPref={setNotifPref} t={t} />
             </span>
           )}
 
@@ -237,8 +238,19 @@ export function RoomHeader({
             </IconButton></span>
           )}
 
-          {controls.showSettings && !isAiRoom && (
-            <span className="hidden sm:contents"><IconButton label={t("header.settings")} onClick={onOpenSettings}><Settings className="h-4 w-4" aria-hidden /></IconButton></span>
+          {onOpenChannelMenu && (
+            <span className="hidden lg:contents">
+              <button
+                type="button"
+                aria-haspopup="menu"
+                aria-label={t("channelMenu.title")}
+                title={t("channelMenu.title")}
+                onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); onOpenChannelMenu({ x: r.left, y: r.bottom, rect: { left: r.left, right: r.right, top: r.top, bottom: r.bottom } }); }}
+                className={btn}
+              >
+                <MoreHorizontal className="h-4 w-4" aria-hidden />
+              </button>
+            </span>
           )}
 
           <div className={isMobile ? "contents" : "contents lg:hidden"}>
@@ -246,7 +258,7 @@ export function RoomHeader({
               {(close) => (
                 <>
                   {showMembers && <button role="menuitem" className={`${menuItem} sm:hidden`} onClick={() => { close(); onToggleMembersPanel(); }}><Users className="h-4 w-4" aria-hidden />{memberCount !== undefined ? t("header.membersCount", { count: memberCount }) : t("header.members")}</button>}
-                  {controls.showSettings && !isAiRoom && <button role="menuitem" className={`${menuItem} sm:hidden`} onClick={() => { close(); onOpenSettings(); }}><Settings className="h-4 w-4" aria-hidden />{t("header.settings")}</button>}
+                  {controls.showSettings && !isAiRoom && <button role="menuitem" className={menuItem} onClick={() => { close(); onOpenSettings(); }}><Settings className="h-4 w-4" aria-hidden />{t("header.settings")}</button>}
                   <button role="menuitem" className={menuItem} onClick={() => { close(); onTogglePins(); }}><Pin className="h-4 w-4" aria-hidden />{pinCount > 0 ? t("header.pinsCount", { count: pinCount }) : t("header.pins")}</button>
                   {onToggleBookmarks && <button role="menuitem" className={menuItem} onClick={() => { close(); onToggleBookmarks(); }}><Bookmark className="h-4 w-4" aria-hidden />{t("header.bookmarks")}</button>}
                   <button role="menuitem" className={menuItem} onClick={() => { close(); onToggleAiPanel(); }}><Bot className="h-4 w-4" aria-hidden />{t("header.copilot")}</button>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { usePlatform } from "@/components/providers/platform-provider";
@@ -23,7 +23,7 @@ import { useRoomReferences } from "@/hooks/use-room-references";
 import { useRealtimeAccessRenewal } from "@/hooks/use-room-realtime-access";
 import { useCall } from "@/components/providers/call-provider";
 import {
-  getRoom, listRoomMembers, listPinnedMessages, listActiveMutes, deleteRoomGroup, reorderRoomGroups, setRoomLayout, findOrCreateDm, unmuteTeamMember, sendAiRoomMessage, getActiveCall, getRoomPinSummary,
+  getRoom, getRoomNotificationPref, setRoomNotificationPref, markAllMessagesAsRead, deleteRoom, listRoomMembers, listPinnedMessages, listActiveMutes, deleteRoomGroup, reorderRoomGroups, setRoomLayout, findOrCreateDm, unmuteTeamMember, sendAiRoomMessage, getActiveCall, getRoomPinSummary,
   type Room, type RoomCall, type RoomMember, type RoomGroup, RoomMessage,
 } from "@/lib/api/rooms";
 import { buildSidebarModel, dmDisplayName } from "@/lib/rooms/channel-layout";
@@ -60,6 +60,16 @@ import { ChannelSettingsModal } from "@/components/rooms/ChannelSettingsModal";
 import { CategorySettingsModal } from "@/components/rooms/CategorySettingsModal";
 import { Loader2, Menu, Phone, ShieldOff, X } from "lucide-react";
 import { useTeamGroups } from "@/hooks/use-team-groups";
+import { useChannelMenu, type ChannelMenuHandlers } from "@/components/rooms/ChannelMenu";
+import { DraftStore } from "@/lib/rooms/room-cache";
+import { PrefetchScheduler, likelyNeighbours } from "@/lib/rooms/prefetch";
+import { prefetchNotNeeded, prefetchRoom, roomCache } from "@/lib/rooms/room-snapshot";
+
+/** `/rooms/<id>` -> id. The pathname (not the route param) is the source of truth: soft navigation changes it without remounting the page. */
+const roomIdFromPath = (pathname: string | null): string | null => {
+  const m = /^\/rooms\/([^/?#]+)/.exec(pathname ?? "");
+  return m && m[1] !== "vault" ? decodeURIComponent(m[1]) : null;
+};
 
 const escapeXmlAttr = (value: string) => String(value).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
@@ -118,7 +128,14 @@ export default function RoomDetailWeb() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const roomId = params.roomId as string;
+  const pathname = usePathname();
+  const roomId = roomIdFromPath(pathname) ?? (params.roomId as string);
+  // Switching channels is a client-side route change: the page, sidebar, header and composer stay mounted and only the room data changes.
+  const goRoom = useCallback((id: string, replace = false) => {
+    const url = `/rooms/${id}`;
+    if (replace) window.history.replaceState(null, "", url);
+    else window.history.pushState(null, "", url);
+  }, []);
   const { accessToken, activeTeamId, user } = useSession();
   const realtime = useRealtime();
   const { can: canTeam } = useTeamPermissions(activeTeamId, accessToken, user?.id);
@@ -241,6 +258,20 @@ export default function RoomDetailWeb() {
 
   useEffect(() => { loadRoom(); }, [loadRoom]);
 
+  // The header shows the room at once from the (already loaded) channel list; getRoom revalidates it in the background.
+  useEffect(() => {
+    const seed = directory.rooms.find((r) => r.id === roomId);
+    if (!seed) return;
+    setRoom((prev) => (prev?.id === roomId ? prev : seed));
+    setRoomLoadError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, directory.rooms]);
+
+  const drafts = useRef(new DraftStore());
+  const chatInputRef = useRef("");
+  chatInputRef.current = chatInput;
+  const prevRoomRef = useRef(roomId);
+
   // Panels belong to a room: switching rooms closes thread, search and the jump target.
   useEffect(() => {
     setThreadRootId(null);
@@ -253,7 +284,9 @@ export default function RoomDetailWeb() {
     setPinSummary(null);
     setPinDialog(null);
     setReplyTo(null);
-    setChatInput("");
+    // the composer draft belongs to its room: saved when leaving, restored when coming back
+    if (prevRoomRef.current !== roomId) { drafts.current.save(prevRoomRef.current, chatInputRef.current); prevRoomRef.current = roomId; }
+    setChatInput(drafts.current.get(roomId));
   }, [roomId]);
 
   // Detect navbar usage slot for portal rendering
@@ -630,7 +663,7 @@ Team Context: ${activeTeamId}.`;
     const pending = searchParams.get("ai");
     if (!pending) return;
     pendingAiSentRef.current = true;
-    router.replace(`/rooms/${roomId}`);
+    goRoom(roomId, true);
     handleSend(`#ai ${pending}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoadingRoom, room, chatHook.isLoading, permissionsReady, searchParams, roomId]);
@@ -699,7 +732,7 @@ Team Context: ${activeTeamId}.`;
     if (isLoadingRoom || !room || room.id !== roomId || chatHook.history.status !== "ready") return;
     arrivalHandled.current = `${roomId}:${m}`;
     const threadParam = searchParams.get("t");
-    router.replace(`/rooms/${roomId}`);
+    goRoom(roomId, true);
     void openMessage(m, threadParam);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, roomId, isLoadingRoom, room, chatHook.history.status]);
@@ -727,7 +760,8 @@ Team Context: ${activeTeamId}.`;
   const pins = useMemo(() => mergePinned(chatHook.messages, fetchedPins), [chatHook.messages, fetchedPins]);
   const threadRoot = threadRootId ? chatHook.messages.find((m) => m.id === threadRootId) : undefined;
   const myGroupIds = useMemo(() => teamGroups.filter((g) => g.isMember).map((g) => g.id), [teamGroups]);
-  const decoratedRooms = useRoomUnread({ rooms: directory.rooms, activeRoomId: roomId, userId: user?.id, roleIds: myRoleIds, groupIds: myGroupIds }).rooms;
+  const unreadApi = useRoomUnread({ rooms: directory.rooms, activeRoomId: roomId, userId: user?.id, roleIds: myRoleIds, groupIds: myGroupIds });
+  const decoratedRooms = unreadApi.rooms;
 
   const selfNames = useMemo(
     () => [user?.displayName, user?.username, user?.email, user?.email ? user.email.split("@")[0] : null],
@@ -804,9 +838,11 @@ Team Context: ${activeTeamId}.`;
     setRoomMutedLocally(removedId, false);
     if (removedId === roomId) {
       if (announce) setNotice(t("channel.deletedByOther"));
-      router.replace(next ? `/rooms/${next}` : "/rooms");
+      roomCache.invalidate(removedId);
+      if (next) goRoom(next, true);
+      else router.replace("/rooms");
     }
-  }, [orderedChannelIds, directory, roomId, router, t]);
+  }, [orderedChannelIds, directory, roomId, router, goRoom, t]);
 
   useRoomDeleted(activeTeamId, useMemo(() => directory.rooms.filter((r) => r.type === "channel" && !r.linkedEntityType).map((r) => r.id), [directory.rooms]), (id) => {
     if (directory.rooms.some((r) => r.id === id)) handleRoomRemoved(id, true);
@@ -828,7 +864,7 @@ Team Context: ${activeTeamId}.`;
       const dm = await findOrCreateDm(activeTeamId, userId, accessToken);
       await renewRealtimeAccess(); // the DM may be new: its channel was not in the token
       directory.refresh();
-      router.push(`/rooms/${dm.id}`);
+      goRoom(dm.id);
     } catch {
       setNotice(t("sidebar.dmFailed"));
     }
@@ -979,7 +1015,7 @@ Team Context: ${activeTeamId}.`;
           roomNameOf={(id) => directory.rooms.find((r) => r.id === id)?.name ?? null}
           onJump={(b) => {
             if (b.roomId === roomId) { setSearchQuery(""); setIsSearchOpen(false); setJumpToMessageId(b.messageId); if (isMobileView) closePanels(); }
-            else router.push(`/rooms/${b.roomId}`);
+            else goRoom(b.roomId);
           }}
           onRemove={(b) => bookmarks.remove(b)}
           onSaveNote={(b, note) => bookmarks.setNote(b, note)}
@@ -1014,6 +1050,63 @@ Team Context: ${activeTeamId}.`;
   const panelTitle = isAiPanelOpen ? t("header.copilot") : threadRootId ? t("thread.title") : isPinsOpen ? t("pins.title") : isBookmarksOpen ? t("bookmarks.title") : t("members.title");
   const channelRooms = useMemo(() => directory.rooms.filter((r) => r.type === "channel").map((r) => ({ id: r.id, name: r.name })), [directory.rooms]);
 
+  // ── prefetch of a channel's first messages on hover / focus (debounced, cancelled on leave) and a quiet warm-up of the neighbours ──
+  const liveRef = useRef({ token: accessToken, userId: user?.id, roomId });
+  liveRef.current = { token: accessToken, userId: user?.id, roomId };
+  const prefetcher = useMemo(() => new PrefetchScheduler({
+    skip: (id) => !liveRef.current.token || prefetchNotNeeded(id, liveRef.current.roomId),
+    load: (id, signal) => prefetchRoom(id, liveRef.current.token as string, liveRef.current.userId, signal),
+  }), []);
+  useEffect(() => () => prefetcher.cancelAll(), [prefetcher]);
+  const onPrefetch = useCallback((id: string) => prefetcher.hover(id), [prefetcher]);
+  const onPrefetchCancel = useCallback((id: string) => prefetcher.leave(id), [prefetcher]);
+  const neighboursKey = likelyNeighbours(orderedChannelIds, roomId).join("|");
+  const roomReady = chatHook.history.status === "ready";
+  useEffect(() => {
+    if (!roomReady || !neighboursKey) return;
+    prefetcher.warm(neighboursKey.split("|"));
+  }, [roomReady, neighboursKey, prefetcher]);
+
+  // ── channel "..." menu (sidebar rows, right click, long press and the header) ──
+  const pendingSettingsRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (pendingSettingsRef.current === roomId && room?.id === roomId && permissionsReady && controls.showSettings) {
+      pendingSettingsRef.current = null;
+      setIsSettingsOpen(true);
+    }
+  }, [roomId, room, permissionsReady, controls.showSettings]);
+  const channelMenuHandlers = useMemo<ChannelMenuHandlers>(() => ({
+    // the open channel: the same check the header gear used; the others: who may manage channels (the server decides anyway)
+    canManage: (r) => (r.id === roomId ? controls.showSettings && !isAiRoom : capabilities.canManageChannels),
+    canDelete: () => capabilities.canManageChannels,
+    isAiRoom: (r) => r.id === roomId && isAiRoom,
+    loadPref: async (id) => { try { return accessToken ? await getRoomNotificationPref(id, accessToken) : null; } catch { return null; } },
+    setPref: async (r, pref) => {
+      if (!accessToken) return;
+      await setRoomNotificationPref(r.id, pref, accessToken);
+      setRoomMutedLocally(r.id, pref === "none");
+    },
+    markRead: async (r) => {
+      if (!accessToken) return;
+      if (r.id === roomId) await chatHook.history.markAllRead();
+      else await markAllMessagesAsRead(r.id, accessToken);
+      unreadApi.clear(r.id);
+    },
+    openSettings: (r) => {
+      if (r.id === roomId) setIsSettingsOpen(true);
+      else { pendingSettingsRef.current = r.id; goRoom(r.id); }
+    },
+    deleteRoom: async (r) => {
+      if (!accessToken) return;
+      await deleteRoom(r.id, accessToken);
+      handleRoomRemoved(r.id);
+      directory.refresh();
+    },
+    notify: setNotice,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [roomId, controls.showSettings, isAiRoom, capabilities.canManageChannels, accessToken, chatHook.history, unreadApi, goRoom, handleRoomRemoved, directory]);
+  const headerMenu = useChannelMenu(channelMenuHandlers, t);
+
   const sidebarNode = (onClose: () => void) => (
     <RoomSidebar
       rooms={decoratedRooms}
@@ -1037,6 +1130,10 @@ Team Context: ${activeTeamId}.`;
       onReorderChannels={handleReorderChannels}
       onOpenDirectMessage={(id) => { void handleOpenDirectMessage(id); onClose(); }}
       onClose={onClose}
+      channelMenu={channelMenuHandlers}
+      onNavigate={goRoom}
+      onPrefetch={onPrefetch}
+      onPrefetchCancel={onPrefetchCancel}
       t={t}
     />
   );
@@ -1066,7 +1163,7 @@ Team Context: ${activeTeamId}.`;
                     </button>
                   </div>
                 </>
-              ) : isLoadingRoom || !roomMatches || !room ? (
+              ) : !roomMatches || !room ? (
                 <>
                   {slimBar(openSidebar)}
                   <div className="flex flex-1 items-center justify-center" role="status" aria-label={t("chat.loading")}>
@@ -1099,6 +1196,7 @@ Team Context: ${activeTeamId}.`;
                     onToggleBookmarks={handleToggleBookmarks}
                     onToggleSearch={() => setIsSearchOpen((v) => !v)}
                     onOpenSettings={() => setIsSettingsOpen(true)}
+                    onOpenChannelMenu={(a) => headerMenu.show({ id: room.id, name: roomTitle, type: room.type, linkedEntityType: room.linkedEntityType ?? null, unread: false }, a)}
                     t={t}
                   />
 
@@ -1207,7 +1305,7 @@ Team Context: ${activeTeamId}.`;
                       unreadCount: chatHook.history.readState?.unreadCount ?? 0, unreadMentions: chatHook.history.readState?.unreadMentions ?? 0,
                       unreadCapped: chatHook.history.readState?.unreadCapped ?? false, unreadSince: chatHook.history.readState?.firstUnreadAt ?? null,
                       onLoadOlder: chatHook.history.loadOlder, onLoadNewer: chatHook.history.loadNewer, onGoToLatest: () => void chatHook.history.goToLatest(),
-                      onReadUpTo: chatHook.history.markReadUpTo, onMarkAllRead: () => void chatHook.history.markAllRead(), onJumpToUnread: () => void chatHook.history.jumpToUnread(),
+                      onReadUpTo: chatHook.history.markReadUpTo, onScrollPosition: chatHook.history.saveScroll, onMarkAllRead: () => void chatHook.history.markAllRead(), onJumpToUnread: () => void chatHook.history.jumpToUnread(),
                     }}
                     transcripts={(callHistoryHook.calls as any[]).map((c) => ({
                       callId: c.id,
@@ -1296,7 +1394,7 @@ Team Context: ${activeTeamId}.`;
             rooms={directory.rooms}
             initialGroupId={createInitialGroupId}
             canEditPermissions={capabilities.canManageChannels}
-            onCreated={(created) => { directory.refresh(); router.push(`/rooms/${created.id}`); }}
+            onCreated={(created) => { directory.refresh(); goRoom(created.id); }}
             t={t}
           />
           <CategorySettingsModal
@@ -1311,6 +1409,8 @@ Team Context: ${activeTeamId}.`;
           />
         </>
       )}
+
+      {headerMenu.element}
 
       {notice && (
         <div role="status" className="fixed bottom-4 left-1/2 z-[300] -translate-x-1/2 rounded-xl border border-border bg-card px-4 py-2 text-xs font-medium shadow-lg">
