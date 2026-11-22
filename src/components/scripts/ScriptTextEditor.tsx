@@ -5,9 +5,8 @@ import { AlertTriangle, CheckCircle2, Loader2, Wand2 } from "lucide-react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { getScriptNodeDefinitionKinds } from "./dsl-node-kinds";
 import {
-  attachDslSource, compileDslText, DslApiError, DslLang, DslSourceResult, DslTemplate, getDslSource, getDslTemplates, toScriptGraph, translateDslText,
+  attachDslSource, compileDslText, DslApiError, DslLang, DslSourceResult, DslTemplate, getDslSource, getDslTemplates, toScriptGraph,
 } from "@/lib/api/scripts-dsl";
-import { conversionOffer, readKeywordLang, writeKeywordLang, type TextKeywordLanguage } from "@/lib/scripts-dsl/prefs";
 import type { ScriptGraph } from "@/lib/api/scripts";
 import {
   Completion, completionsAt, DslDiagnosticLike, diagnosticsByLine, formatSource, highlightLine, HighlightToken,
@@ -69,12 +68,7 @@ export default function ScriptTextEditor({ scriptId, teamId, accessToken, onSave
     if (vars) for (const [a, b] of Object.entries(vars)) s = s.replace(`{${a}}`, String(b));
     return s;
   };
-  // Keyword language: English is the base; the choice is remembered by this browser. It never affects what the compiler accepts.
-  const [lang, setLang] = useState<DslLang>(() => {
-    try { return readKeywordLang(window.localStorage); } catch { return "en"; }
-  });
-  const [textLang, setTextLang] = useState<TextKeywordLanguage | undefined>(undefined);
-  const [converting, setConverting] = useState(false);
+  const [lang, setLang] = useState<DslLang>("es");
   const [loaded, setLoaded] = useState<DslSourceResult | null>(null);
   const [source, setSource] = useState("");
   const [saved, setSaved] = useState("");
@@ -94,7 +88,7 @@ export default function ScriptTextEditor({ scriptId, teamId, accessToken, onSave
   useEffect(() => {
     let alive = true;
     getDslSource(scriptId, teamId, lang, accessToken)
-      .then((r) => { if (alive) { setLoaded(r); setSource(r.source ?? ""); setSaved(r.source ?? ""); setTextLang(r.keywordLanguage?.lang); } })
+      .then((r) => { if (alive) { setLoaded(r); setSource(r.source ?? ""); setSaved(r.source ?? ""); } })
       .catch((e) => { if (alive) setError(e instanceof DslApiError && e.code === "SCRIPT_LOCKED" ? tt("locked") : tt("loadError")); });
     getDslTemplates(accessToken).then((x) => alive && setTemplates(x)).catch(() => undefined);
     getScriptNodeDefinitionKinds(teamId, accessToken).then((k) => alive && setNodeKinds(k)).catch(() => undefined);
@@ -107,16 +101,15 @@ export default function ScriptTextEditor({ scriptId, teamId, accessToken, onSave
     if (!loaded || loaded.origin === "unrepresentable") return;
     const mine = ++seq.current;
     const h = setTimeout(() => {
-      compileDslText(teamId, source, accessToken, scriptId)
-        .then((r) => { if (mine === seq.current) { setDiags(r.diagnostics); setTextLang(r.keywordLanguage?.lang); } })
+      compileDslText(teamId, source, accessToken)
+        .then((r) => { if (mine === seq.current) setDiags(r.diagnostics); })
         .catch(() => undefined);
     }, 350);
     return () => clearTimeout(h);
-  }, [source, loaded, teamId, accessToken, scriptId]);
+  }, [source, loaded, teamId, accessToken]);
 
   const lines = useMemo(() => source.split("\n"), [source]);
-  // Only errors are underlined; warnings (e.g. a comment that cannot be stored on a node) are listed below.
-  const byLine = useMemo(() => diagnosticsByLine(diags.filter((d) => d.severity === "error")), [diags]);
+  const byLine = useMemo(() => diagnosticsByLine(diags), [diags]);
   const errorCount = diags.filter((d) => d.severity === "error").length;
   const dirty = source !== saved;
 
@@ -152,7 +145,7 @@ export default function ScriptTextEditor({ scriptId, teamId, accessToken, onSave
     if (errorCount > 0) { setError(tt("fixFirst")); return; }
     setStatus("saving"); setError(null);
     try {
-      const compiled = await compileDslText(teamId, source, accessToken, scriptId);
+      const compiled = await compileDslText(teamId, source, accessToken);
       setDiags(compiled.diagnostics);
       if (!compiled.ok || !compiled.graph) { setStatus("error"); setError(tt("fixFirst")); return; }
       await onSave(toScriptGraph(scriptId, compiled.graph));
@@ -164,20 +157,6 @@ export default function ScriptTextEditor({ scriptId, teamId, accessToken, onSave
   };
 
   const format = () => setSource((s) => formatSource(s));
-
-  const offer = conversionOffer(textLang, lang);
-  const convert = async () => {
-    if (!offer) return;
-    setConverting(true); setError(null);
-    try {
-      const r = await translateDslText(teamId, source, offer, accessToken);
-      setSource(r.source); setTextLang(r.keywordLanguage.lang); setStatus("idle");
-    } catch (e) {
-      setError(e instanceof Error && e.message ? e.message : tt("saveError"));
-    } finally {
-      setConverting(false);
-    }
-  };
 
   const saveRef = useRef(save);
   saveRef.current = save;
@@ -256,25 +235,11 @@ export default function ScriptTextEditor({ scriptId, teamId, accessToken, onSave
         </label>
         <label className="flex items-center gap-1 text-foreground/70">
           {tt("language")}
-          <select
-            value={lang}
-            onChange={(e) => {
-              const next = e.target.value as DslLang;
-              setLang(next);
-              try { writeKeywordLang(window.localStorage, next); } catch { /* not remembered */ }
-            }}
-            className="rounded-lg bg-foreground/10 px-2 py-1.5"
-          >
-            <option value="en">{tt("langEn")}</option>
+          <select value={lang} onChange={(e) => setLang(e.target.value as DslLang)} className="rounded-lg bg-foreground/10 px-2 py-1.5">
             <option value="es">{tt("langEs")}</option>
+            <option value="en">{tt("langEn")}</option>
           </select>
         </label>
-        {offer && (
-          <button type="button" onClick={() => void convert()} disabled={converting} className="inline-flex items-center gap-1 rounded-lg bg-foreground/10 px-3 py-1.5 font-medium hover:bg-foreground/15 disabled:opacity-50" title={tt("convertHelp")}>
-            {converting ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : null}
-            {offer === "en" ? tt("convertToEnglish") : tt("convertToSpanish")}
-          </button>
-        )}
         <span aria-live="polite" className={`ml-auto inline-flex items-center gap-1 ${errorCount ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
           {errorCount ? <AlertTriangle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
           {errorCount ? tt("errorsCount", { count: errorCount }) : status === "saved" && !dirty ? tt("saved") : tt("noErrors")}
@@ -343,7 +308,7 @@ export default function ScriptTextEditor({ scriptId, teamId, accessToken, onSave
           <button
             key={i}
             type="button"
-            className={`flex items-start gap-2 rounded-lg px-2 py-1 text-left ${d.severity === "warning" ? "bg-amber-500/10 text-amber-800 hover:bg-amber-500/15 dark:text-amber-300" : "bg-red-500/10 text-red-700 hover:bg-red-500/15 dark:text-red-300"}`}
+            className="flex items-start gap-2 rounded-lg bg-red-500/10 px-2 py-1 text-left text-red-700 hover:bg-red-500/15 dark:text-red-300"
             onClick={() => {
               const ta = taRef.current; if (!ta) return;
               const off = lines.slice(0, d.line - 1).reduce((n, l) => n + l.length + 1, 0) + d.col - 1;

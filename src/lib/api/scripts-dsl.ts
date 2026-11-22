@@ -16,8 +16,6 @@ export interface DslSourceResult {
   reason?: string;
   nodeId?: string;
   version: number;
-  /** Language of the keywords of `source` (English is the base; Spanish is a full alias). */
-  keywordLanguage?: { en: number; es: number; lang: "en" | "es" | "mixed" | "neutral" };
 }
 
 export interface DslCompileResult {
@@ -25,7 +23,6 @@ export interface DslCompileResult {
   diagnostics: DslDiagnosticLike[];
   graph?: { nodes: Array<Omit<ScriptGraph["nodes"][number], "scriptId">>; edges: Array<Omit<ScriptGraph["edges"][number], "scriptId">> };
   version: number;
-  keywordLanguage?: { en: number; es: number; lang: "en" | "es" | "mixed" | "neutral" };
 }
 
 export interface DslTemplate {
@@ -55,13 +52,8 @@ async function request<T>(path: string, accessToken: string, init?: RequestInit)
   return res.json();
 }
 
-/** With `scriptId` the compiled graph also carries the system-managed options (e.g. webhook token) and positions of the stored graph. */
-export const compileDslText = (teamId: string, source: string, accessToken: string, scriptId?: string) =>
-  request<DslCompileResult>("/compile", accessToken, { method: "POST", body: JSON.stringify({ teamId, source, ...(scriptId ? { scriptId } : {}) }) });
-
-/** Rewrites the keywords of a text in English (base) or Spanish; comments, strings and identifiers are kept. */
-export const translateDslText = (teamId: string, source: string, lang: DslLang, accessToken: string) =>
-  request<{ source: string; keywordLanguage: NonNullable<DslCompileResult["keywordLanguage"]> }>("/translate", accessToken, { method: "POST", body: JSON.stringify({ teamId, source, lang }) });
+export const compileDslText = (teamId: string, source: string, accessToken: string) =>
+  request<DslCompileResult>("/compile", accessToken, { method: "POST", body: JSON.stringify({ teamId, source }) });
 
 export const getDslSource = (scriptId: string, teamId: string, lang: DslLang, accessToken: string) =>
   request<DslSourceResult>(`/${scriptId}/source?teamId=${encodeURIComponent(teamId)}&lang=${lang}`, accessToken);

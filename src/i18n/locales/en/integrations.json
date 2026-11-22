@@ -491,7 +491,7 @@
       "unrepresentableBody": "It uses a shape the text language can't express ({reason}). Your blocks are untouched; keep editing them in the Blocks tab.",
       "backToBlocks": "Back to blocks",
       "origin_saved": "Showing your saved text",
-      "origin_decompiled": "Generated from the blocks (comments are kept)",
+      "origin_decompiled": "Generated from the blocks (comments are not kept)",
       "editorLabel": "Script text editor",
       "suggestions": "Suggestions",
       "language": "Keywords",
@@ -503,10 +503,7 @@
       "saveError": "Couldn't save the text.",
       "shortcuts": "Ctrl+S save · Ctrl+Shift+F format · Ctrl+Space suggestions",
       "mobileNote": "Basic editor on small screens.",
-      "dryRunNote": "Checking only: nothing runs from this editor.",
-      "convertToEnglish": "Convert to English",
-      "convertToSpanish": "Convert to Spanish",
-      "convertHelp": "Rewrites only the keywords; comments, strings and names stay as they are. Save to keep it."
+      "dryRunNote": "Checking only: nothing runs from this editor."
     },
     "topbar": {
       "label": "Script editor bar",
@@ -1529,9 +1526,7 @@
           "node_invalid": "Needs attention: {{field}}."
         }
       }
-    },
-    "nodeNote": "Note",
-    "nodeNotePlaceholder": "Comment shown above this block in the text editor"
+    }
   },
   "nodes": {
     "common": {

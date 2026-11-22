@@ -59,65 +59,6 @@ export function menuItems(ctx: Pick<WorkbenchContext, "locked" | "lockSource" | 
   return items;
 }
 
-// ─── adaptive bar (width of the BAR, not of the window) ─────────────────────
-
-export type TopbarLevel = "wide" | "medium" | "narrow";
-
-/** Container widths (px) where the bar changes level. The window width is irrelevant: the panel can be narrow in a wide window. */
-export const TOPBAR_WIDE_MIN = 1100;
-export const TOPBAR_MEDIUM_MIN = 760;
-
-export function topbarLevel(width: number | null | undefined): TopbarLevel {
-  if (width == null || !Number.isFinite(width) || width <= 0) return "wide";
-  if (width >= TOPBAR_WIDE_MIN) return "wide";
-  if (width >= TOPBAR_MEDIUM_MIN) return "medium";
-  return "narrow";
-}
-
-export type InlineControl = "list" | "rename" | "active" | "tabs" | "panelToggles" | "run" | "preview" | "fullscreen" | "save" | "menu";
-export type MenuOnlyControl = "run" | "preview" | "fullscreen" | "palette" | "config" | "rename";
-
-export interface TopbarLayout {
-  level: TopbarLevel;
-  /** Controls drawn in the bar. Save, the Active switch and the menu are ALWAYS inline (never clipped or moved). */
-  inline: InlineControl[];
-  /** Controls that move into the "…" menu at this level (besides the ones that always live there). */
-  menu: MenuOnlyControl[];
-  labels: { active: boolean; run: boolean; preview: boolean; save: boolean };
-  /** Tabs use smaller paddings. */
-  compactTabs: boolean;
-}
-
-/** What the bar shows at a width, given which controls the current tab offers (see primaryActions). */
-export function topbarLayout(level: TopbarLevel, has: { list: boolean; run: boolean; preview: boolean; fullscreen: boolean; panelToggles: boolean; tabs: boolean; save: boolean; rename: boolean }): TopbarLayout {
-  const inline: InlineControl[] = [];
-  const menu: MenuOnlyControl[] = [];
-  if (has.list) inline.push("list");
-  const narrow = level === "narrow";
-  if (has.rename && !narrow) inline.push("rename");
-  else if (has.rename) menu.push("rename");
-  inline.push("active");
-  if (has.tabs) inline.push("tabs");
-  if (has.panelToggles) {
-    if (narrow) menu.push("palette", "config");
-    else inline.push("panelToggles");
-  }
-  for (const id of ["run", "preview", "fullscreen"] as const) {
-    if (!has[id]) continue;
-    if (narrow) menu.push(id);
-    else inline.push(id);
-  }
-  if (has.save) inline.push("save");
-  inline.push("menu");
-  return {
-    level,
-    inline,
-    menu,
-    labels: { active: level === "wide", run: level === "wide", preview: level === "wide", save: level !== "narrow" },
-    compactTabs: level !== "wide",
-  };
-}
-
 // ─── collapsible panels ─────────────────────────────────────────────────────
 
 export type PanelId = "list" | "palette" | "config";

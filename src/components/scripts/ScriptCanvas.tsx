@@ -897,7 +897,7 @@ function toRfNodes(backendNodes: ScriptNodeData[]): Node[] {
     id: n.id,
     type: n.nodeKind,
     position: { x: n.positionX, y: n.positionY },
-    data: { config: normalizeHttpRequestConfigForCanvas(n.nodeKind, n.config), label: n.label ?? n.nodeKind, comment: n.comment ?? "" },
+    data: { config: normalizeHttpRequestConfigForCanvas(n.nodeKind, n.config), label: n.label ?? n.nodeKind },
   }));
 }
 
@@ -974,8 +974,6 @@ function fromRfGraph(nodes: Node[], edges: Edge[], scriptId: string): ScriptGrap
     scriptId,
     nodeKind: n.type as NodeKind,
     label: (n.data?.label as string) ?? null,
-    // The note of the node (the comments of the text editor): optional, never read by the engine.
-    comment: typeof n.data?.comment === "string" && n.data.comment.trim() ? (n.data.comment as string) : null,
     positionX: n.position.x,
     positionY: n.position.y,
   }));
@@ -2063,21 +2061,6 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
                     onChange={(event) => handleLabelChange(event.target.value)}
                     className="w-full rounded-md border border-border bg-background px-2.5 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                     placeholder={t("canvas.nodeLabelPlaceholder")}
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-[11px] font-medium text-muted-foreground" htmlFor={`node-note-${selectedNode.id}`}>
-                    {t("canvas.nodeNote")}
-                  </label>
-                  <textarea
-                    id={`node-note-${selectedNode.id}`}
-                    rows={2}
-                    maxLength={4000}
-                    value={String((selectedNode.data?.comment as string) ?? "")}
-                    onChange={(event) => updateSelectedNode((node) => ({ ...node, data: { ...node.data, comment: event.target.value } }))}
-                    placeholder={t("canvas.nodeNotePlaceholder")}
-                    className="w-full resize-y rounded-md border border-border/50 bg-background px-2.5 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
 

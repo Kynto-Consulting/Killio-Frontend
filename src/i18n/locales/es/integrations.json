@@ -491,7 +491,7 @@
       "unrepresentableBody": "Usa una forma que el lenguaje de texto no puede expresar ({reason}). Tus bloques siguen intactos; sigue editándolos en la pestaña Bloques.",
       "backToBlocks": "Volver a bloques",
       "origin_saved": "Mostrando tu texto guardado",
-      "origin_decompiled": "Generado desde los bloques (los comentarios se conservan)",
+      "origin_decompiled": "Generado desde los bloques (no se conservan comentarios)",
       "editorLabel": "Editor de texto del script",
       "suggestions": "Sugerencias",
       "language": "Palabras clave",
@@ -503,10 +503,7 @@
       "saveError": "No se pudo guardar el texto.",
       "shortcuts": "Ctrl+S guardar · Ctrl+Mayús+F formatear · Ctrl+Espacio sugerencias",
       "mobileNote": "Editor básico en pantallas pequeñas.",
-      "dryRunNote": "Solo valida: desde este editor no se ejecuta nada.",
-      "convertToEnglish": "Convertir a inglés",
-      "convertToSpanish": "Convertir a español",
-      "convertHelp": "Reescribe solo las palabras clave; comentarios, textos y nombres no cambian. Guarda para conservarlo."
+      "dryRunNote": "Solo valida: desde este editor no se ejecuta nada."
     },
     "topbar": {
       "label": "Barra del editor de scripts",
@@ -1529,9 +1526,7 @@
           "node_invalid": "Necesita atención: {{field}}."
         }
       }
-    },
-    "nodeNote": "Nota",
-    "nodeNotePlaceholder": "Comentario que se muestra sobre este bloque en el editor de texto"
+    }
   },
   "nodes": {
     "common": {
