@@ -1,4 +1,5 @@
 import { fetchApi } from "@/lib/api/client";
+import type { PackSubscription } from "@/lib/marketplace/subscription";
 
 export type MarketplacePublishMode = "private" | "public" | "link";
 export type MarketplaceVersionStatus = "draft" | "published" | "archived";
@@ -16,9 +17,12 @@ export type MarketplacePack = {
   summary: string | null;
   currentVersionId: string | null;
   latestPublishedVersionId: string | null;
-  pricingType?: "free" | "paid";
+  pricingType?: "free" | "paid" | "subscription";
   priceAmountMinor?: number | null;
   currency?: string | null;
+  /** Subscription packs only: free trial length and grace days after a failed charge (billing is monthly). */
+  trialDays?: number;
+  graceDays?: number;
   /** Presentation fields (optional: an older backend may not send them yet). */
   coverImageUrl?: string | null;
   gallery?: MarketplaceGalleryImage[];
@@ -286,6 +290,38 @@ export async function updateMarketplacePublishMode(
     accessToken,
     body: JSON.stringify({ publishMode }),
   });
+}
+
+/** Owner only. Free, one-time (paid) or a monthly subscription with optional trial and grace days. The backend validates and decides. */
+export async function updateMarketplacePackPricing(
+  packId: string,
+  input: { pricingType: "free" | "paid" | "subscription"; priceAmountMinor?: number; currency?: string; trialDays?: number; graceDays?: number },
+  accessToken: string,
+): Promise<MarketplacePack> {
+  return fetchApi<MarketplacePack>(`/marketplace/packs/${encodeURIComponent(packId)}/pricing`, {
+    method: "PATCH",
+    accessToken,
+    body: JSON.stringify(input),
+  });
+}
+
+/** Subscription of a TEAM to a pack (killio.dev only). Needs billing / marketplace management in that team; the server is the authority. */
+export async function getPackSubscription(teamId: string, packId: string, accessToken: string): Promise<{ subscription: PackSubscription | null; entitled: boolean }> {
+  return fetchApi(`/marketplace/teams/${encodeURIComponent(teamId)}/packs/${encodeURIComponent(packId)}/subscription`, { accessToken });
+}
+
+/** Starts (or continues) the checkout: the response carries the payment URL to open. The same pending checkout is never charged twice. */
+export async function subscribeToPack(teamId: string, packId: string, accessToken: string): Promise<{ subscription: PackSubscription; checkoutUrl: string | null; created: boolean }> {
+  return fetchApi(`/marketplace/teams/${encodeURIComponent(teamId)}/packs/${encodeURIComponent(packId)}/subscription`, { method: "POST", accessToken });
+}
+
+/** Stops the next charges; the team keeps the pack until the end of the period it already paid. */
+export async function cancelPackSubscription(teamId: string, packId: string, accessToken: string): Promise<{ subscription: PackSubscription; checkoutUrl?: null }> {
+  return fetchApi(`/marketplace/teams/${encodeURIComponent(teamId)}/packs/${encodeURIComponent(packId)}/subscription/cancel`, { method: "POST", accessToken });
+}
+
+export async function resumePackSubscription(teamId: string, packId: string, accessToken: string): Promise<{ subscription: PackSubscription; checkoutUrl?: null }> {
+  return fetchApi(`/marketplace/teams/${encodeURIComponent(teamId)}/packs/${encodeURIComponent(packId)}/subscription/resume`, { method: "POST", accessToken });
 }
 
 /** Owner only. Sends just the fields you pass; `null` clears the cover or the category. */

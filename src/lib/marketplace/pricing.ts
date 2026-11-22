@@ -1,13 +1,14 @@
-/** Price shown on a pack card. Amounts are integers in minor units (cents) of a 2-decimal currency. */
+/** Price shown on a pack card (a subscription's amount is per month). Amounts are integers in minor units (cents) of a 2-decimal currency. */
 export function formatPackPrice(
-  pack: { pricingType?: "free" | "paid"; priceAmountMinor?: number | null; currency?: string | null },
+  pack: { pricingType?: "free" | "paid" | "subscription"; priceAmountMinor?: number | null; currency?: string | null },
   locale = "en",
-): { kind: "free" } | { kind: "paid"; label: string } {
-  if (pack.pricingType !== "paid" || !pack.priceAmountMinor || !pack.currency) return { kind: "free" };
+): { kind: "free" } | { kind: "paid" | "subscription"; label: string } {
+  if ((pack.pricingType !== "paid" && pack.pricingType !== "subscription") || !pack.priceAmountMinor || !pack.currency) return { kind: "free" };
+  const kind = pack.pricingType;
   try {
-    return { kind: "paid", label: new Intl.NumberFormat(locale, { style: "currency", currency: pack.currency }).format(pack.priceAmountMinor / 100) };
+    return { kind, label: new Intl.NumberFormat(locale, { style: "currency", currency: pack.currency }).format(pack.priceAmountMinor / 100) };
   } catch {
-    return { kind: "paid", label: `${(pack.priceAmountMinor / 100).toFixed(2)} ${pack.currency}` };
+    return { kind, label: `${(pack.priceAmountMinor / 100).toFixed(2)} ${pack.currency}` };
   }
 }
 

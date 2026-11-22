@@ -43,6 +43,7 @@
     "packsPublished": "{{count}} packs publicados",
     "createFirst": "Crea tu primer pack y compártelo con el mundo.",
     "publishSnapshot": "Publicar snapshot",
+    "pricing": "Precio",
     "optional": "(opcional)",
     "visibility": "Visibilidad",
     "locale": "Idioma",
@@ -163,6 +164,8 @@
     "buy": "Comprar {price}",
     "import": "Importar",
     "free": "Gratis",
+    "perMonth": "{price}/mes",
+    "subscription": "Suscripción {price}/mes",
     "redirectingPay": "Redirigiendo a la página de pago...",
     "connecting": "Conectando...",
     "return": {
@@ -226,6 +229,51 @@
     "galleryNext": "Imagen siguiente",
     "galleryThumbs": "Miniaturas",
     "galleryClose": "Cerrar"
+  },
+  "pricing": {
+    "title": "Precio del pack",
+    "type": "¿Cómo se vende?",
+    "types": { "free": "Gratis", "paid": "Pago único", "subscription": "Suscripción mensual" },
+    "amount": "Precio",
+    "amountMonthly": "Precio por mes",
+    "currency": "Moneda",
+    "trialDays": "Prueba gratuita (días)",
+    "trialDaysHint": "Opcional. De 0 a 90 días antes del primer cobro; cada espacio la recibe una sola vez.",
+    "graceDays": "Días de gracia",
+    "graceDaysHint": "Cuánto conserva el pack un espacio tras un cobro fallido (0 a 30).",
+    "subscriptionNote": "Se cobra cada mes al espacio de trabajo. Mientras la suscripción esté al día el pack funciona. Si vence, sus bots se pausan y sus scripts dejan de ejecutarse; los documentos y tableros ya instalados se quedan.",
+    "save": "Guardar precio",
+    "saving": "Guardando...",
+    "saved": "Precio guardado.",
+    "errors": {
+      "amount": "Escribe un precio positivo con máximo 2 decimales.",
+      "currency": "Elige una moneda.",
+      "trialDays": "La prueba debe ser un número entero de días entre 0 y 90.",
+      "graceDays": "Los días de gracia deben ser un entero entre 0 y 30.",
+      "save": "No se pudo guardar el precio."
+    }
+  },
+  "subscription": {
+    "title": "Suscripción mensual",
+    "perMonth": "{price} al mes",
+    "trial": "{days} días de prueba gratuita",
+    "subscribe": "Suscribirse · {price}/mes",
+    "continuePayment": "Continuar al pago",
+    "cancel": "Cancelar suscripción",
+    "cancelHint": "Conservas el pack hasta el {date}. Después sus bots se pausan y sus scripts dejan de ejecutarse; los documentos y tableros instalados se quedan.",
+    "resume": "Reanudar suscripción",
+    "pastDueHint": "El último cobro falló. Actualiza tu medio de pago en MercadoPago para conservar el pack.",
+    "noTeam": "Elige un espacio de trabajo para suscribirte.",
+    "hubOnly": "Las suscripciones se gestionan en killio.dev.",
+    "states": {
+      "pending": "Esperando la confirmación del pago.",
+      "trialing": "Prueba gratuita hasta el {date}.",
+      "active": "Activa. Se renueva el {date}.",
+      "pastDue": "El pago falló. Conservas el acceso hasta el {date}.",
+      "ending": "Cancelada. Conservas el acceso hasta el {date}.",
+      "ended": "La suscripción terminó."
+    },
+    "errors": { "generic": "No se pudo actualizar la suscripción." }
   },
   "presentation": {
     "title": "Presentación del pack",

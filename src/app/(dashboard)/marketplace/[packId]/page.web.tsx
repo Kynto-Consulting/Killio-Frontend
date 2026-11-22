@@ -10,6 +10,7 @@ import { useSession } from "@/components/providers/session-provider";
 import { useTenant } from "@/components/providers/tenant-provider";
 import { PackGallery } from "@/components/marketplace/pack-gallery";
 import { PackDocument } from "@/components/marketplace/pack-document";
+import { PackSubscriptionPanel } from "@/components/marketplace/pack-subscription-panel";
 import { CategoryChip, FOCUS_RING, SOFT_PRIMARY, SOFT_SECONDARY, MemphisIllustration, PackCard, PackCover, PriceBadge } from "@/components/marketplace/pack-ui";
 import { formatPackPrice, nextHubAction } from "@/lib/marketplace/pricing";
 import { groupAssets, humanizeFieldKey, relatedPacks, resolvePlaceholderText } from "@/lib/marketplace/presentation";
@@ -127,6 +128,7 @@ export function MarketplaceDetailView({ packId, compact = false }: { packId: str
     if (action === "connect") return t("hub.connect");
     if (action === "import") return t("hub.import");
     const price = formatPackPrice(pack, locale);
+    if (price.kind === "subscription") return t("hub.subscription", { price: price.label });
     return price.kind === "paid" ? t("hub.buy", { price: price.label }) : t("hub.getFree");
   }, [hubConnected, hubPurchase, isTenant, locale, pack, t]);
 
@@ -208,6 +210,7 @@ export function MarketplaceDetailView({ packId, compact = false }: { packId: str
             {actionLabel}
           </button>
           {!accessToken ? <p className="text-xs text-foreground/70">{t("detail.signInToInstall")}</p> : null}
+          {pack.pricingType === "subscription" ? <PackSubscriptionPanel pack={pack} /> : null}
         </div>
       </div>
 

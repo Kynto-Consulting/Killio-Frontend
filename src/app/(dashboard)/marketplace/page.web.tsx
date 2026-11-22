@@ -314,6 +314,7 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
     if (action === "connect") return t("hub.connect");
     if (action === "import") return t("hub.import");
     const price = formatPackPrice(pack, locale);
+    if (price.kind === "subscription") return t("hub.subscription", { price: price.label });
     return price.kind === "paid" ? t("hub.buy", { price: price.label }) : t("hub.getFree");
   };
 

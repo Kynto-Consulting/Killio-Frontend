@@ -21,6 +21,7 @@ import {
   Zap,
   Check,
   Image as ImageIcon,
+  Tag,
 } from "lucide-react";
 
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
@@ -40,6 +41,7 @@ import {
 } from "@/lib/api/marketplace";
 import { listScripts, ScriptSummary } from "@/lib/api/scripts";
 import { PresentationEditor } from "@/components/marketplace/presentation-editor";
+import { PricingEditor } from "@/components/marketplace/pricing-editor";
 
 /* ── types ── */
 type SourceAsset = {
@@ -735,6 +737,8 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
   const [snapModal, setSnapModal] = useState<SnapModal | null>(null);
   /* presentation editor (cover, gallery, category, tags) */
   const [presentationPack, setPresentationPack] = useState<MarketplacePack | null>(null);
+  /* pricing editor (free, one-time or monthly subscription) */
+  const [pricingPack, setPricingPack] = useState<MarketplacePack | null>(null);
 
   /* ── loaders ── */
   const loadPacks = useCallback(async () => {
@@ -1018,6 +1022,13 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                       </button>
                       <button
                         type="button"
+                        onClick={() => setPricingPack(pack)}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-input bg-background px-4 py-2 text-[13px] font-medium text-foreground transition-colors hover:bg-accent motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                      >
+                        <Tag className="h-4 w-4" aria-hidden="true" />
+                        {t("profile.pricing")}
+                      </button>
+                      <button
                         onClick={() => setSnapModal({ pack, selectedAssetKeys: [], lockedCodeKeys: [], version: "v1.0", status: "published", locale: sanitizeLocaleCode(pack.defaultLocale || locale), title: pack.title, submitting: false, error: null })}
                         className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-foreground/10 dark:border-white/10 bg-white/[0.04] px-4 py-2 text-[13px] font-semibold text-foreground/60 dark:text-white/60 transition-all hover:border-foreground/20 dark:hover:border-white/20 hover:text-foreground dark:hover:text-white"
                       >
@@ -1281,6 +1292,18 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
           onSaved={(updated) => {
             setPacks((cur) => cur.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)));
             setMsgByPack((cur) => ({ ...cur, [updated.id]: t("presentation.saved") }));
+          }}
+        />
+      ) : null}
+
+      {pricingPack && accessToken ? (
+        <PricingEditor
+          pack={pricingPack}
+          accessToken={accessToken}
+          onClose={() => setPricingPack(null)}
+          onSaved={(updated) => {
+            setPacks((cur) => cur.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)));
+            setMsgByPack((cur) => ({ ...cur, [updated.id]: t("pricing.saved") }));
           }}
         />
       ) : null}

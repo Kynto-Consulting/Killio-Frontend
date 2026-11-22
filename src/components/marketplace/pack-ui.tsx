@@ -105,7 +105,7 @@ export function PriceBadge({ pack, className = "" }: { pack: Pick<MarketplacePac
       className={`inline-flex items-center rounded-full border border-black/10 px-2.5 py-0.5 text-[12px] font-bold dark:border-white/10 ${className}`}
       style={{ background: price.kind === "free" ? "var(--cover-badge-free)" : "var(--cover-badge-paid)", color: "var(--cover-ink)" }}
     >
-      {price.kind === "free" ? t("hub.free") : price.label}
+      {price.kind === "free" ? t("hub.free") : price.kind === "subscription" ? t("hub.perMonth", { price: price.label }) : price.label}
     </span>
   );
 }

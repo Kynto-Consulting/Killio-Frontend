@@ -9,7 +9,7 @@ export type PackLike = {
   title: string;
   summary?: string | null;
   updatedAt?: string;
-  pricingType?: "free" | "paid";
+  pricingType?: "free" | "paid" | "subscription";
   priceAmountMinor?: number | null;
   currency?: string | null;
   category?: string | null;
@@ -236,7 +236,7 @@ export type SortMode = "recent" | "freeFirst" | "price";
 export const SORT_MODES: SortMode[] = ["recent", "freeFirst", "price"];
 
 function priceMinor(pack: PackLike): number {
-  return pack.pricingType === "paid" && pack.priceAmountMinor && pack.currency ? pack.priceAmountMinor : 0;
+  return (pack.pricingType === "paid" || pack.pricingType === "subscription") && pack.priceAmountMinor && pack.currency ? pack.priceAmountMinor : 0;
 }
 
 /** recent: newest first. freeFirst: free packs first, newest first inside each group. price: cheapest first, newest breaks ties. */

@@ -43,6 +43,7 @@
     "packsPublished": "{{count}} packs published",
     "createFirst": "Create your first pack and share it with the world.",
     "publishSnapshot": "Publish snapshot",
+    "pricing": "Pricing",
     "optional": "(optional)",
     "visibility": "Visibility",
     "locale": "Locale",
@@ -163,6 +164,8 @@
     "buy": "Buy {price}",
     "import": "Import",
     "free": "Free",
+    "perMonth": "{price}/mo",
+    "subscription": "Subscription {price}/mo",
     "redirectingPay": "Redirecting to the payment page...",
     "connecting": "Connecting...",
     "return": {
@@ -226,6 +229,51 @@
     "galleryNext": "Next image",
     "galleryThumbs": "Thumbnails",
     "galleryClose": "Close"
+  },
+  "pricing": {
+    "title": "Pack pricing",
+    "type": "How is it sold?",
+    "types": { "free": "Free", "paid": "One-time", "subscription": "Monthly subscription" },
+    "amount": "Price",
+    "amountMonthly": "Price per month",
+    "currency": "Currency",
+    "trialDays": "Free trial (days)",
+    "trialDaysHint": "Optional. 0 to 90 days before the first charge; each workspace gets it once.",
+    "graceDays": "Grace days",
+    "graceDaysHint": "How long a workspace keeps the pack after a failed charge (0 to 30).",
+    "subscriptionNote": "Charged every month to the workspace. While the subscription is current the pack works. If it lapses, its bots pause and its scripts stop; documents and boards already installed stay.",
+    "save": "Save pricing",
+    "saving": "Saving...",
+    "saved": "Pricing saved.",
+    "errors": {
+      "amount": "Enter a positive price with at most 2 decimals.",
+      "currency": "Choose a currency.",
+      "trialDays": "The trial must be a whole number of days between 0 and 90.",
+      "graceDays": "Grace days must be a whole number between 0 and 30.",
+      "save": "The pricing could not be saved."
+    }
+  },
+  "subscription": {
+    "title": "Monthly subscription",
+    "perMonth": "{price} per month",
+    "trial": "{days}-day free trial",
+    "subscribe": "Subscribe · {price}/mo",
+    "continuePayment": "Continue to payment",
+    "cancel": "Cancel subscription",
+    "cancelHint": "You keep the pack until {date}. After that its bots pause and its scripts stop; installed documents and boards stay.",
+    "resume": "Resume subscription",
+    "pastDueHint": "The last charge failed. Update your payment method with MercadoPago to keep the pack.",
+    "noTeam": "Choose a workspace to subscribe.",
+    "hubOnly": "Subscriptions are managed on killio.dev.",
+    "states": {
+      "pending": "Waiting for the payment confirmation.",
+      "trialing": "Free trial until {date}.",
+      "active": "Active. Renews on {date}.",
+      "pastDue": "Payment failed. You keep access until {date}.",
+      "ending": "Cancelled. You keep access until {date}.",
+      "ended": "The subscription has ended."
+    },
+    "errors": { "generic": "The subscription could not be updated." }
   },
   "presentation": {
     "title": "Pack presentation",
