@@ -39,17 +39,19 @@ function MemberRow({ member, isOnline, isInCall, isYou, canModerate, isMuted, on
   }, [open]);
 
   const item = "flex w-full items-center gap-2 px-3 py-3 text-left text-sm hover:bg-muted lg:py-1.5 lg:text-xs focus-visible:bg-muted focus-visible:outline-none";
+  // Offline people are dimmed (avatar and text), never the status dot: that one stays a solid, readable badge.
+  const dim = !(isOnline || member.isBot);
 
   return (
-    <li className={`group/member flex items-center gap-2 rounded-lg px-2 py-2 transition-colors hover:bg-muted/60 lg:py-1 motion-reduce:transition-none ${isOnline || member.isBot ? "" : "opacity-60"}`}>
+    <li className={`group/member flex items-center gap-2 rounded-lg px-2 py-2 transition-colors hover:bg-muted/60 lg:py-1 motion-reduce:transition-none`}>
       <div className="relative shrink-0">
-        <img src={getUserAvatarUrl(member.avatarUrl, member.email, 28)} alt="" className="h-7 w-7 rounded-full border border-border object-cover" />
+        <img src={getUserAvatarUrl(member.avatarUrl, member.email, 28)} alt="" className={`h-7 w-7 rounded-full border border-border object-cover transition-opacity ${dim ? "opacity-55" : ""}`} />
         <span
-          className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card ${isInCall ? "bg-sky-500" : isOnline ? "bg-emerald-500" : "bg-muted-foreground/40"}`}
+          className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-[2.5px] border-card ${isInCall ? "bg-sky-500" : isOnline ? "bg-emerald-500" : "bg-slate-400 dark:bg-slate-500"}`}
           aria-hidden
         />
       </div>
-      <div className="min-w-0 flex-1">
+      <div className={`min-w-0 flex-1 transition-opacity ${dim ? "opacity-60" : ""}`}>
         <div className="flex items-center gap-1">
           <span className="truncate text-xs font-medium" style={color ? { color } : undefined}>{member.displayName}</span>
           {member.isBot && (
@@ -188,7 +190,6 @@ export function RoomMembersPanel({
           ))
         )}
       </div>
-      <p className="shrink-0 border-t border-border px-3 py-2 text-[10px] leading-snug text-muted-foreground">{t("members.visibilityNote")}</p>
     </div>
   );
 }

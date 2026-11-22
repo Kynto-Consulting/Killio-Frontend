@@ -342,7 +342,6 @@
     "inherited": "Heredado de un grupo",
     "message": "Mensaje directo",
     "actions": "Acciones para {{name}}",
-    "visibilityNote": "Aquí aparecen las personas que pueden ver este canal.",
     "section": {
       "online": "En línea",
       "bots": "Bots",

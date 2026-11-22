@@ -342,7 +342,6 @@
     "inherited": "Inherited from a group",
     "message": "Direct message",
     "actions": "Actions for {{name}}",
-    "visibilityNote": "These are the people who can see this channel.",
     "section": {
       "online": "Online",
       "bots": "Bots",
