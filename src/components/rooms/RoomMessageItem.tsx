@@ -17,6 +17,8 @@ import type { MessageActions } from "@/lib/rooms/message-structure";
 import { fromWireMentions, mentionsMe as mentionsMeFn } from "@/lib/rooms/mentions";
 import { readMessageExtras } from "@/lib/bots/rich";
 import { BotMessageExtras, BotReplyRef, hidesFallbackText } from "./BotMessageExtras";
+import { CommandGhostHeader } from "./CommandGhostHeader";
+import { ghostOf } from "@/lib/rooms/command-ghost";
 import type { ResolverContext } from "@/lib/reference-resolver";
 import { getAiMarkupLabel, parseAiMarkup, parseContactBlock, parsePreThinkSections, splitAtPartialToolTag } from "@/lib/ai-markup";
 import { RoomCallHistoryCard } from "./RoomCallHistoryCard";
@@ -447,6 +449,8 @@ export function RoomMessageItem({
   // What a bot adds to a message (rich blocks, buttons, a reply reference); people's messages carry none of it.
   const botExtras = readMessageExtras(message.metadata);
   const hideFallbackText = hidesFallbackText(message);
+  // "Ana used /hola": the bot answer to a slash command (the command itself is never a message).
+  const commandGhost = ghostOf(message);
   const botReplyName = botExtras.replyTo?.userId
     ? (resolverContext?.users as Array<Record<string, any>> | undefined)?.find((u) => u?.id === botExtras.replyTo?.userId)
     : undefined;
@@ -551,6 +555,7 @@ export function RoomMessageItem({
           <div
             className="relative w-full min-w-0 text-sm leading-relaxed text-foreground [&_a]:underline"
           >
+            {commandGhost && <CommandGhostHeader ghost={commandGhost} />}
             {/* Quoted Message (Reply) */}
             {botExtras.replyTo && <BotReplyRef messageId={botExtras.replyTo.messageId} name={botReplyAuthor} excerpt={botExtras.replyTo.excerpt} />}
             {!botExtras.replyTo && message.metadata?.replyTo && (

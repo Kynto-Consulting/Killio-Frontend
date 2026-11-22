@@ -19,6 +19,7 @@ import {
   RoomMessage,
   MessageStatus,
 } from "@/lib/api/rooms";
+import { looksLikeCommand } from "@/lib/rooms/command-ghost";
 import { applyPinPatch, normalizePinEvent, patchesFromPinResponse, type PinBody, type PinPatch } from "@/lib/rooms/pins";
 import { usePinExpiry } from "@/hooks/use-pin-expiry";
 import { useRoomHistory } from "@/hooks/use-room-history";
@@ -312,9 +313,13 @@ export function useRoomChat(
           avatarUrl: currentUser?.avatarUrl ?? undefined,
         },
       };
-      setMessages((prev) => [...prev, optimistic]);
+      // A slash command is sent as an interaction: when a bot owns it NO message of the person ever exists, so nothing is drawn up front
+      // (no flicker). If the server posts it as an ordinary message after all (no bot claims it), that message is appended below.
+      const asCommand = looksLikeCommand(content, { threadRootId, metadata });
+      if (!asCommand) setMessages((prev) => [...prev, optimistic]);
       try {
-        const real = await sendRoomMessage(targetRoomId, content, accessToken, metadata, threadRootId);
+        const real = await sendRoomMessage(targetRoomId, content, accessToken, metadata, threadRootId, { asCommand });
+        if (!real) return; // a bot took the command: its answer arrives through the room channel
         setMessages((prev) => {
           // A first message may create the room: the reload that follows can drop the optimistic row.
           if (!prev.some((m) => m.id === tempId)) {
@@ -332,7 +337,7 @@ export function useRoomChat(
           });
         });
       } catch {
-        setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: "failed" } : m)));
+        setMessages((prev) => (asCommand ? [...prev, { ...optimistic, status: "failed" as MessageStatus }] : prev.map((m) => (m.id === tempId ? { ...m, status: "failed" } : m))));
       } finally {
         setIsSending(false);
       }

@@ -907,6 +907,21 @@
       "onlyYou": "Solo tú ves esto",
       "dismiss": "Descartar"
     },
+    "command": {
+      "used": "usó",
+      "someone": "Alguien",
+      "usedBy": "Usado por",
+      "when": "Cuándo",
+      "params": "Parámetros",
+      "noParams": "Sin parámetros",
+      "close": "Cerrar",
+      "failed": {
+        "no_response": "La aplicación no respondió.",
+        "rate_limited": "Este comando se está usando demasiado. Inténtalo de nuevo en un minuto.",
+        "quota": "Este espacio de trabajo no tiene ejecuciones de scripts este mes.",
+        "error": "El comando falló."
+      }
+    },
     "replyTo": {
       "goTo": "Ir al mensaje que escribió {{name}}",
       "unknown": "Mensaje"

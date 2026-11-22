@@ -907,6 +907,21 @@
       "onlyYou": "Only you see this",
       "dismiss": "Dismiss"
     },
+    "command": {
+      "used": "used",
+      "someone": "Someone",
+      "usedBy": "Used by",
+      "when": "When",
+      "params": "Parameters",
+      "noParams": "No parameters",
+      "close": "Close",
+      "failed": {
+        "no_response": "The application did not respond.",
+        "rate_limited": "This command is being used too often. Try again in a minute.",
+        "quota": "This workspace has no script runs left this month.",
+        "error": "The command failed."
+      }
+    },
     "replyTo": {
       "goTo": "Go to the message {{name}} wrote",
       "unknown": "Message"

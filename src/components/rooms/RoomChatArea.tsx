@@ -16,6 +16,7 @@ import { useSession } from "@/components/providers/session-provider";
 import type { RoomControls } from "@/lib/rooms/room-controls";
 import { messageActions, type SlashCommand } from "@/lib/rooms/message-structure";
 import { newerFromOthers } from "@/lib/rooms/history";
+import { ghostOf } from "@/lib/rooms/command-ghost";
 import { useRoomHistoryScroll } from "@/hooks/use-room-history-scroll";
 import { EdgeStatus, JumpToLatestButton, StartOfConversation, UnreadBanner, UnreadDivider, type RoomHistoryView } from "./history/HistoryParts";
 
@@ -129,7 +130,7 @@ function buildRows(messages: RoomMessage[], unreadBeforeId?: string | null): Row
     const close = prev ? Math.abs(new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime()) < GROUP_WINDOW_MS : false;
     const unreadHere = Boolean(unreadBeforeId) && msg.id === unreadBeforeId;
     if (unreadHere) rows.push({ kind: "unread", key: "unread-divider" });
-    rows.push({ kind: "message", message: msg, showAvatar: newDay || unreadHere || !sameAuthor || !close });
+    rows.push({ kind: "message", message: msg, showAvatar: newDay || unreadHere || !sameAuthor || !close || ghostOf(msg) !== null });
     prev = msg;
   }
   return rows;

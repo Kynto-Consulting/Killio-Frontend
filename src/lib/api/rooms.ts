@@ -1,5 +1,6 @@
 import { normalizeComposerCommands } from '@/lib/bots/model';
 import { normalizeOptions, type CommandOption } from '@/lib/bots/options';
+import { isCommandAck } from '@/lib/rooms/command-ghost';
 import { normalizePinSummary, type PinBody, type PinSummary } from '@/lib/rooms/pins';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
@@ -342,18 +343,22 @@ export async function sendRoomMessage(
   content: string,
   accessToken: string,
   metadata?: any,
-  threadRootId?: string
-): Promise<RoomMessage> {
+  threadRootId?: string,
+  /** `asCommand`: the text is a slash command. A bot that owns it answers and NO message is created (resolves null); otherwise it is posted as usual. */
+  options: { asCommand?: boolean } = {}
+): Promise<RoomMessage | null> {
   // The thread root travels as a field AND inside metadata: the stored `thread_root_id` column is not exposed by every
   // backend build yet, while metadata always round-trips.
   const meta = threadRootId ? { ...(metadata ?? {}), threadRootId } : metadata;
   const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/messages`, {
     method: 'POST',
     headers: authHeader(accessToken),
-    body: JSON.stringify({ content, metadata: meta, ...(threadRootId ? { threadRootId } : {}) }),
+    body: JSON.stringify({ content, metadata: meta, ...(threadRootId ? { threadRootId } : {}), ...(options.asCommand ? { asCommand: true } : {}) }),
   });
   if (!res.ok) throw await RoomsApiError.from(res, 'Failed to send message');
-  return normalizeMessage(await res.json());
+  const body = await res.json();
+  if (options.asCommand && isCommandAck(body)) return null;
+  return normalizeMessage(body);
 }
 
 export async function sendAiRoomMessage(roomId: string, content: string, accessToken: string, metadata?: any): Promise<RoomMessage> {

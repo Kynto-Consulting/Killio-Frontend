@@ -13,9 +13,11 @@ import { useSession } from "@/components/providers/session-provider";
 import { interactWithComponent } from "@/lib/api/room-tools";
 import type { RoomMessage } from "@/lib/api/rooms";
 import { isFallbackContent, readMessageExtras } from "@/lib/bots/rich";
+import { readCommandGhost } from "@/lib/rooms/command-ghost";
 import { ephemeralExtras, type EphemeralMessage } from "@/lib/rooms/ephemeral";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { InteractiveComponents, RichBlocks } from "./bot-message-parts";
+import { CommandGhostHeader } from "./CommandGhostHeader";
 
 /** True when the text of the message only repeats its blocks (the backend's plain-text fallback), so the text is not drawn twice. */
 export function hidesFallbackText(message: Pick<RoomMessage, "content" | "metadata">): boolean {
@@ -91,6 +93,7 @@ export function EphemeralList({ items, onDismiss }: { items: readonly EphemeralM
               </span>
               <time className="text-[10px] text-muted-foreground" dateTime={e.createdAt}>{new Date(e.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
             </div>
+            {readCommandGhost(e.metadata) && <div><CommandGhostHeader ghost={readCommandGhost(e.metadata)!} /></div>}
             <p className="mb-1 inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
               <EyeOff className="h-3 w-3" aria-hidden />
               {t("bot.ephemeral.onlyYou")}
@@ -114,10 +117,14 @@ export function EphemeralList({ items, onDismiss }: { items: readonly EphemeralM
 
 function EphemeralBody({ e }: { e: EphemeralMessage }) {
   const extras = useMemo(() => ephemeralExtras(e), [e]);
+  const t = useTranslations("rooms");
   const hide = extras.blocks.length > 0 && isFallbackContent(e.content, extras.blocks);
+  // "The application did not respond" and the like: a code the client words in the person's language (the server text is the fallback).
+  const failed = readCommandGhost(e.metadata)?.failed ?? null;
   return (
     <div className="min-w-0 space-y-1.5 text-sm">
-      {!hide && e.content && <p className="whitespace-pre-wrap break-words">{e.content}</p>}
+      {failed && <p className="whitespace-pre-wrap break-words text-muted-foreground">{t(`bot.command.failed.${failed}`)}</p>}
+      {!failed && !hide && e.content && <p className="whitespace-pre-wrap break-words">{e.content}</p>}
       <RichBlocks blocks={extras.blocks} />
       {extras.componentRows.length > 0 && <InteractiveComponents rows={extras.componentRows} expiresAt={extras.componentsExpiresAt} idPrefix={`e-${e.id}`} />}
     </div>
