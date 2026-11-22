@@ -17,7 +17,14 @@ export type ChannelMenuItemId =
   | "notif:none"
   | "settings"
   | "copyLink"
-  | "delete";
+  | "delete"
+  // channel actions that a small header hides (only offered when the menu opens from it)
+  | "h:members"
+  | "h:pins"
+  | "h:bookmarks"
+  | "h:copilot"
+  | "h:transcripts"
+  | "h:linked";
 
 export interface ChannelMenuItem {
   id: ChannelMenuItemId;
@@ -27,6 +34,20 @@ export interface ChannelMenuItem {
   checked?: boolean;
   disabled?: boolean;
   destructive?: boolean;
+  /** A counter shown with the label (members, pinned messages). */
+  count?: number;
+}
+
+/** Which of the header actions a small screen hides. Present only when the menu opens from the small header. */
+export interface HeaderActionsInput {
+  /** Members panel (not offered in DMs / the assistant room). */
+  members?: { count?: number } | false;
+  pins: { count: number };
+  bookmarks: boolean;
+  copilot: boolean;
+  transcripts: boolean;
+  /** Linked document / board / mesh, when the room belongs to one. */
+  linked: boolean;
 }
 
 export interface ChannelMenuInput {
@@ -42,12 +63,26 @@ export interface ChannelMenuInput {
   canManage: boolean;
   /** Can delete this channel. */
   canDelete: boolean;
+  /** Opened from the small header: adds the channel actions the header hides as the first section. */
+  headerActions?: HeaderActionsInput;
 }
 
 export const NOTIF_PREFS: NotifPref[] = ["all", "mentions", "none"];
 
 export function buildChannelMenu(i: ChannelMenuInput): ChannelMenuItem[][] {
   const sections: ChannelMenuItem[][] = [];
+
+  if (i.headerActions) {
+    const h = i.headerActions;
+    const top: ChannelMenuItem[] = [];
+    if (h.members) top.push({ id: "h:members", count: h.members.count });
+    top.push({ id: "h:pins", count: h.pins.count });
+    if (h.bookmarks) top.push({ id: "h:bookmarks" });
+    if (h.copilot) top.push({ id: "h:copilot" });
+    if (h.transcripts) top.push({ id: "h:transcripts" });
+    if (h.linked) top.push({ id: "h:linked" });
+    sections.push(top);
+  }
 
   sections.push([{ id: "markRead", disabled: !i.unread }]);
 
@@ -61,7 +96,7 @@ export function buildChannelMenu(i: ChannelMenuInput): ChannelMenuItem[][] {
 
   const editable = i.roomType === "channel" && !i.linkedEntity && !i.isAiRoom;
   const manage: ChannelMenuItem[] = [];
-  if (i.canManage && editable) manage.push({ id: "settings" });
+  if (i.canManage && !i.isAiRoom && i.roomType !== "dm" && i.roomType !== "thread") manage.push({ id: "settings" });
   if (manage.length) sections.push(manage);
 
   const tail: ChannelMenuItem[] = [{ id: "copyLink" }];

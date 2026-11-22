@@ -1,17 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useId, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
-  Bell, BellOff, Bot, Captions, Check, FileText, GitBranch, Hash, Layout, Megaphone, Menu, MessageSquare, MoreHorizontal, Phone, PhoneOff,
-  Pin, Search, Settings, Users, List, StickyNote, Bookmark,
+  Bot, Captions, FileText, GitBranch, Hash, Layout, Megaphone, Menu, MessageSquare, MoreHorizontal, Phone, PhoneOff,
+  Pin, Search, Users, List, StickyNote, Bookmark,
 } from "lucide-react";
 import { getUserAvatarUrl } from "@/lib/gravatar";
-import type { Room, RoomNotificationPref } from "@/lib/api/rooms";
+import type { Room } from "@/lib/api/rooms";
+import type { ChannelMenuExtras } from "./ChannelMenu";
 import type { RoomPresenceMember } from "@/hooks/use-room-presence";
 import type { RoomControls } from "@/lib/rooms/room-controls";
 import { usePlatform } from "@/components/providers/platform-provider";
-import { useRoomNotificationPref } from "@/hooks/use-room-notification-pref";
 
 type TFn = (key: string, params?: Record<string, string | number>) => string;
 
@@ -44,15 +44,10 @@ interface RoomHeaderProps {
   onToggleSearch: () => void;
   onOpenSettings: () => void;
   /** Opens the channel "..." menu (notifications, settings, mark as read, copy link...) next to the given button. */
-  onOpenChannelMenu?: (anchor: { x: number; y: number; rect: { left: number; right: number; top: number; bottom: number } }) => void;
+  /** Small screens only: opens THE channel menu (the sidebar row's one) with the actions this header hides on top. */
+  onOpenChannelMenu?: (anchor: { x: number; y: number; rect: { left: number; right: number; top: number; bottom: number } }, extras: ChannelMenuExtras) => void;
   t: TFn;
 }
-
-const NOTIF_OPTIONS: Array<{ pref: RoomNotificationPref; labelKey: string }> = [
-  { pref: "all", labelKey: "header.notifAll" },
-  { pref: "mentions", labelKey: "header.notifMentions" },
-  { pref: "none", labelKey: "header.notifNone" },
-];
 
 const ENTITY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   board: Layout,
@@ -82,76 +77,13 @@ function IconButton({ label, pressed, onClick, children, tone, disabledReason }:
   );
 }
 
-function useDismiss(open: boolean, close: () => void, ref: React.RefObject<HTMLElement | null>) {
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) close(); };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
-  }, [open, close, ref]);
-}
-
-function NotificationPrefButton({ pref, setPref, t }: { pref: RoomNotificationPref; setPref: (p: RoomNotificationPref) => void | Promise<void>; t: TFn }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const menuId = useId();
-  useDismiss(open, () => setOpen(false), ref);
-
-  return (
-    <div ref={ref} className="relative">
-      <button type="button" onClick={() => setOpen((v) => !v)} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuId : undefined} aria-label={t("header.notifications")} title={t("header.notifications")} className={`${btn} ${open ? btnOn : ""}`}>
-        {pref === "none" ? <BellOff className="h-4 w-4" aria-hidden /> : <Bell className="h-4 w-4" aria-hidden />}
-      </button>
-      {open && (
-        <div id={menuId} role="menu" className="absolute right-0 top-full z-50 mt-1 w-48 overflow-hidden rounded-xl border border-border bg-popover py-1 shadow-lg">
-          {NOTIF_OPTIONS.map((opt) => (
-            <button
-              key={opt.pref}
-              role="menuitemradio"
-              aria-checked={pref === opt.pref}
-              onClick={() => { setPref(opt.pref); setOpen(false); }}
-              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
-            >
-              <span className="flex-1">{t(opt.labelKey)}</span>
-              {pref === opt.pref && <Check className="h-3 w-3 shrink-0" aria-hidden />}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Overflow({ children, label }: { children: (close: () => void) => React.ReactNode; label: string }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const menuId = useId();
-  useDismiss(open, () => setOpen(false), ref);
-  return (
-    <div ref={ref} className="relative">
-      <button type="button" onClick={() => setOpen((v) => !v)} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuId : undefined} aria-label={label} title={label} className={`${btn} ${open ? btnOn : ""}`}>
-        <MoreHorizontal className="h-4 w-4" aria-hidden />
-      </button>
-      {open && (
-        <div id={menuId} role="menu" className="absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-xl border border-border bg-popover py-1 shadow-lg">
-          {children(() => setOpen(false))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-const menuItem = "flex w-full items-center gap-2 px-3 py-3 text-left text-sm hover:bg-muted focus-visible:bg-muted focus-visible:outline-none";
-
 export function RoomHeader({
   room, title, presenceMembers, memberCount, isInCall, isAiPanelOpen, isMembersPanelOpen, isPinsOpen, isBookmarksOpen = false, isSearchOpen, pinCount, controls, isAiRoom = false,
   onOpenSidebar, onStartCall, callBlockedReason, onLeaveCall, onToggleAiPanel, onToggleMembersPanel, onTogglePins, onToggleBookmarks, onToggleSearch, onOpenSettings, onOpenChannelMenu, t,
 }: RoomHeaderProps) {
   const platform = usePlatform();
   const isMobile = platform === "mobile";
-  const { pref: notifPref, setPref: setNotifPref } = useRoomNotificationPref(room.id);
+  const router = useRouter();
 
   const EntityIcon = room.linkedEntityType ? ENTITY_ICONS[room.linkedEntityType] : null;
   const LeadIcon = room.type === "dm" ? MessageSquare : EntityIcon ?? (room.channelType === "announcement" ? Megaphone : Hash);
@@ -239,42 +171,32 @@ export function RoomHeader({
           )}
 
           {onOpenChannelMenu && (
-            <span className="hidden lg:contents">
+            <span className={isMobile ? "contents" : "contents lg:hidden"}>
               <button
                 type="button"
                 aria-haspopup="menu"
                 aria-label={t("channelMenu.title")}
                 title={t("channelMenu.title")}
-                onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); onOpenChannelMenu({ x: r.left, y: r.bottom, rect: { left: r.left, right: r.right, top: r.top, bottom: r.bottom } }); }}
+                onClick={(ev) => {
+                  const r = ev.currentTarget.getBoundingClientRect();
+                  onOpenChannelMenu(
+                    { x: r.left, y: r.bottom, rect: { left: r.left, right: r.right, top: r.top, bottom: r.bottom } },
+                    {
+                      members: showMembers ? { count: memberCount, run: onToggleMembersPanel } : false,
+                      pins: { count: pinCount, run: onTogglePins },
+                      bookmarks: onToggleBookmarks ? { run: onToggleBookmarks } : undefined,
+                      copilot: { run: onToggleAiPanel },
+                      transcripts: controls.showTranscripts ? { run: () => router.push(`/rooms/${room.id}/transcripts`) } : undefined,
+                      linked: entityHref ? { run: () => router.push(entityHref) } : undefined,
+                    },
+                  );
+                }}
                 className={btn}
               >
                 <MoreHorizontal className="h-4 w-4" aria-hidden />
               </button>
             </span>
           )}
-
-          <div className={isMobile ? "contents" : "contents lg:hidden"}>
-            <Overflow label={t("header.more")}>
-              {(close) => (
-                <>
-                  {showMembers && <button role="menuitem" className={`${menuItem} sm:hidden`} onClick={() => { close(); onToggleMembersPanel(); }}><Users className="h-4 w-4" aria-hidden />{memberCount !== undefined ? t("header.membersCount", { count: memberCount }) : t("header.members")}</button>}
-                  {controls.showSettings && !isAiRoom && <button role="menuitem" className={menuItem} onClick={() => { close(); onOpenSettings(); }}><Settings className="h-4 w-4" aria-hidden />{t("header.settings")}</button>}
-                  <button role="menuitem" className={menuItem} onClick={() => { close(); onTogglePins(); }}><Pin className="h-4 w-4" aria-hidden />{pinCount > 0 ? t("header.pinsCount", { count: pinCount }) : t("header.pins")}</button>
-                  {onToggleBookmarks && <button role="menuitem" className={menuItem} onClick={() => { close(); onToggleBookmarks(); }}><Bookmark className="h-4 w-4" aria-hidden />{t("header.bookmarks")}</button>}
-                  <button role="menuitem" className={menuItem} onClick={() => { close(); onToggleAiPanel(); }}><Bot className="h-4 w-4" aria-hidden />{t("header.copilot")}</button>
-                  {controls.showTranscripts && (
-                    <Link role="menuitem" href={`/rooms/${room.id}/transcripts`} className={menuItem} onClick={close}><Captions className="h-4 w-4" aria-hidden />{t("header.transcripts")}</Link>
-                  )}
-                  {entityHref && <Link role="menuitem" href={entityHref} className={menuItem} onClick={close}>{EntityIcon && <EntityIcon className="h-4 w-4" aria-hidden />}{t("header.linkedTo")}</Link>}
-                  {NOTIF_OPTIONS.map((opt) => (
-                    <button key={opt.pref} role="menuitemradio" aria-checked={notifPref === opt.pref} className={menuItem} onClick={() => { void setNotifPref(opt.pref); close(); }}>
-                      <Bell className="h-4 w-4" aria-hidden /><span className="flex-1">{t(opt.labelKey)}</span>{notifPref === opt.pref && <Check className="h-3 w-3" aria-hidden />}
-                    </button>
-                  ))}
-                </>
-              )}
-            </Overflow>
-            </div>
         </div>
       </div>
     </header>

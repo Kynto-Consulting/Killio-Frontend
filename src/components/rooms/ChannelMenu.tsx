@@ -1,9 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { ArrowLeft, AtSign, Bell, BellOff, Check, CheckCheck, ChevronRight, Link2, Settings, Trash2 } from "lucide-react";
+import { ArrowLeft, AtSign, Bell, BellOff, Bookmark, Bot, Captions, Check, CheckCheck, ChevronRight, ExternalLink, Link2, Pin, Settings, Trash2, Users } from "lucide-react";
 import { Portal } from "@/components/ui/portal";
 import { buildChannelMenu, channelUrl, stepIndex, type ChannelMenuItem, type ChannelMenuItemId, type NotifPref } from "@/lib/rooms/channel-menu";
+
+/** The header actions a small screen hides, with what each one does. Given only when the menu opens from the small header. */
+export interface ChannelMenuExtras {
+  members?: { count?: number; run: () => void } | false;
+  pins: { count: number; run: () => void };
+  bookmarks?: { run: () => void };
+  copilot: { run: () => void };
+  transcripts?: { run: () => void };
+  linked?: { run: () => void };
+}
 
 type TFn = (key: string, params?: Record<string, string | number>) => string;
 
@@ -38,17 +48,29 @@ export interface MenuAnchor {
 }
 
 const LABEL: Record<ChannelMenuItemId, string> = {
-  markRead: "markRead",
-  notifications: "notifications",
-  "notif:all": "notifAll",
-  "notif:mentions": "notifMentions",
-  "notif:none": "notifNone",
-  settings: "settings",
-  copyLink: "copyLink",
-  delete: "delete",
+  "h:members": "header.members",
+  "h:pins": "header.pins",
+  "h:bookmarks": "header.bookmarks",
+  "h:copilot": "header.copilot",
+  "h:transcripts": "header.transcripts",
+  "h:linked": "header.linkedTo",
+  markRead: "channelMenu.markRead",
+  notifications: "channelMenu.notifications",
+  "notif:all": "channelMenu.notifAll",
+  "notif:mentions": "channelMenu.notifMentions",
+  "notif:none": "channelMenu.notifNone",
+  settings: "channelMenu.settings",
+  copyLink: "channelMenu.copyLink",
+  delete: "channelMenu.delete",
 };
 
 const ICON: Partial<Record<ChannelMenuItemId, React.ComponentType<{ className?: string }>>> = {
+  "h:members": Users,
+  "h:pins": Pin,
+  "h:bookmarks": Bookmark,
+  "h:copilot": Bot,
+  "h:transcripts": Captions,
+  "h:linked": ExternalLink,
   markRead: CheckCheck,
   notifications: Bell,
   "notif:all": Bell,
@@ -141,7 +163,11 @@ function MenuView({ room, anchor, items, onClose, onRun, confirmDelete, t }: Men
     }
   };
 
-  const label = (id: ChannelMenuItemId) => t(`channelMenu.${LABEL[id]}`);
+  const label = (it: { id: ChannelMenuItemId; count?: number }) => {
+    if (it.id === "h:members") return it.count !== undefined ? t("header.membersCount", { count: it.count }) : t("header.members");
+    if (it.id === "h:pins") return (it.count ?? 0) > 0 ? t("header.pinsCount", { count: it.count ?? 0 }) : t("header.pins");
+    return t(LABEL[it.id]);
+  };
   const notif = items.flat().find((i) => i.id === "notifications");
 
   const renderItem = (it: ChannelMenuItem) => {
@@ -150,12 +176,12 @@ function MenuView({ room, anchor, items, onClose, onRun, confirmDelete, t }: Men
       return (
         <button key={it.id} type="button" role="menuitem" aria-haspopup="menu" data-submenu="1" className={rowCls} onClick={() => setView("notifications")}>
           {Icon && <Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />}
-          <span className="flex-1">{label(it.id)}</span>
+          <span className="flex-1">{label(it)}</span>
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
         </button>
       );
     }
-    const text = it.id === "delete" && confirmDelete ? t("channelMenu.deleteConfirm") : label(it.id);
+    const text = it.id === "delete" && confirmDelete ? t("channelMenu.deleteConfirm") : label(it);
     return (
       <button
         key={it.id}
@@ -173,7 +199,7 @@ function MenuView({ room, anchor, items, onClose, onRun, confirmDelete, t }: Men
 
   const body =
     view === "notifications" && notif ? (
-      <div role="group" aria-label={label("notifications")}>
+      <div role="group" aria-label={label({ id: "notifications" })}>
         <button type="button" role="menuitem" className={`${rowCls} text-muted-foreground`} onClick={() => setView("root")}>
           <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
           <span className="flex-1">{t("channelMenu.back")}</span>
@@ -185,7 +211,7 @@ function MenuView({ room, anchor, items, onClose, onRun, confirmDelete, t }: Men
             <button key={c.id} type="button" role="menuitemradio" aria-checked={Boolean(c.checked)} className={rowCls} onClick={() => onRun(c.id)}>
               {Icon && <Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />}
               <span className="flex-1">
-                {label(c.id)}
+                {label(c)}
                 {c.id === "notif:none" && <span className="block text-[11px] font-normal text-muted-foreground">{t("channelMenu.notifNoneHint")}</span>}
               </span>
               {c.checked && <Check className="h-4 w-4 shrink-0" aria-hidden />}
@@ -231,7 +257,7 @@ function MenuView({ room, anchor, items, onClose, onRun, confirmDelete, t }: Men
  * notification preference when it opens and runs the actions through the page handlers.
  */
 export function useChannelMenu(handlers: ChannelMenuHandlers | undefined, t: TFn) {
-  const [open, setOpen] = useState<{ room: ChannelMenuRoom; anchor: MenuAnchor } | null>(null);
+  const [open, setOpen] = useState<{ room: ChannelMenuRoom; anchor: MenuAnchor; extras?: ChannelMenuExtras } | null>(null);
   const [pref, setPref] = useState<NotifPref | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const opener = useRef<HTMLElement | null>(null);
@@ -246,12 +272,12 @@ export function useChannelMenu(handlers: ChannelMenuHandlers | undefined, t: TFn
     if (el && document.contains(el)) requestAnimationFrame(() => el.focus());
   }, []);
 
-  const show = useCallback((room: ChannelMenuRoom, anchor: MenuAnchor) => {
+  const show = useCallback((room: ChannelMenuRoom, anchor: MenuAnchor, extras?: ChannelMenuExtras) => {
     if (!handlersRef.current) return;
     opener.current = document.activeElement as HTMLElement | null;
     setPref(null);
     setConfirmDelete(false);
-    setOpen({ room, anchor });
+    setOpen({ room, anchor, extras });
   }, []);
 
   const roomId = open?.room.id;
@@ -266,6 +292,18 @@ export function useChannelMenu(handlers: ChannelMenuHandlers | undefined, t: TFn
     const h = handlersRef.current;
     const room = open?.room;
     if (!h || !room) return;
+    if (id.startsWith("h:")) {
+      const x = open?.extras;
+      close();
+      if (!x) return;
+      if (id === "h:members" && x.members) x.members.run();
+      else if (id === "h:pins") x.pins.run();
+      else if (id === "h:bookmarks") x.bookmarks?.run();
+      else if (id === "h:copilot") x.copilot.run();
+      else if (id === "h:transcripts") x.transcripts?.run();
+      else if (id === "h:linked") x.linked?.run();
+      return;
+    }
     if (id === "delete") {
       if (!confirmDelete) { setConfirmDelete(true); return; }
       close();
@@ -306,6 +344,9 @@ export function useChannelMenu(handlers: ChannelMenuHandlers | undefined, t: TFn
         notifPref: pref,
         canManage: handlers.canManage(open.room),
         canDelete: handlers.canDelete(open.room),
+        headerActions: open.extras
+          ? { members: open.extras.members ? { count: open.extras.members.count } : false, pins: { count: open.extras.pins.count }, bookmarks: Boolean(open.extras.bookmarks), copilot: true, transcripts: Boolean(open.extras.transcripts), linked: Boolean(open.extras.linked) }
+          : undefined,
       })}
       onClose={close}
       onRun={(id) => void run(id)}

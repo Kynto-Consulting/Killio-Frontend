@@ -1221,7 +1221,7 @@ Team Context: ${activeTeamId}.`;
                     onToggleBookmarks={handleToggleBookmarks}
                     onToggleSearch={() => setIsSearchOpen((v) => !v)}
                     onOpenSettings={() => setIsSettingsOpen(true)}
-                    onOpenChannelMenu={(a) => headerMenu.show({ id: room.id, name: roomTitle, type: room.type, linkedEntityType: room.linkedEntityType ?? null, unread: false }, a)}
+                    onOpenChannelMenu={(a, extras) => headerMenu.show({ id: room.id, name: roomTitle, type: room.type, linkedEntityType: room.linkedEntityType ?? null, unread: (decoratedRooms.find((r) => r.id === room.id)?.unreadCount ?? 0) > 0 }, a, extras)}
                     t={t}
                   />
 
