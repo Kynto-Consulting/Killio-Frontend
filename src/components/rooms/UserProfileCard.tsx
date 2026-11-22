@@ -308,7 +308,7 @@ export function UserProfileCard({ teamId, userId, roomId, anchor, known, presenc
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
         {/* Avatar + names */}
-        <div className="-mt-8 flex items-end gap-3">
+        <div className="relative z-10 -mt-8 flex items-end gap-3">
           <div className="relative shrink-0">
             {isCopilot ? (
               <span className="flex h-16 w-16 items-center justify-center rounded-full border-4 border-card bg-violet-600 text-white"><Bot className="h-8 w-8" aria-hidden /></span>
