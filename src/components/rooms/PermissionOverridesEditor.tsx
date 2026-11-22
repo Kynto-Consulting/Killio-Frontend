@@ -8,7 +8,7 @@ import { TriStateControl } from "@/components/roles/ui";
 import { roomField, roomGhostButton, roomPrimaryButton } from "./RoomModalShell";
 import type { RoomSubjects } from "@/hooks/use-room-subjects";
 import {
-  groupRoomKeys, groupRuleCounts, type KeyTextResolver, type RoomKeyInfo, type RoomPermissionCatalog,
+  groupRoomKeys, groupRuleCounts, permLabelPath, type KeyTextResolver, type RoomKeyInfo, type RoomPermissionCatalog,
 } from "@/lib/rooms/permission-catalog";
 import {
   applyAnnouncementPreset, applyBotsPreset, applyModerationPreset, applyPrivatePreset, applyReadonlyPreset, availablePresets, detectPreset,
@@ -66,7 +66,7 @@ function subjectLabel(subject: Subject, subjects: RoomSubjects, t: TFn): { label
 
 /** i18n of the editor's own text for a key: `perm.keys.room.view` (nested objects, no dots inside a segment). Empty when missing. */
 function ownText(t: TFn, ns: "keys" | "keyHints", key: string): string {
-  const path = `perm.${ns}.${key}`;
+  const path = `perm.${ns}.${permLabelPath(key)}`;
   const v = t(path);
   return v === path ? "" : v;
 }

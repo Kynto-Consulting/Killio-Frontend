@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { Check, XCircle } from "lucide-react";
 
-import { fallbackRoomCatalog, groupRoomKeys, type KeyTextResolver, type RoomKeyInfo } from "@/lib/rooms/permission-catalog";
+import { coreRoomCatalog, groupRoomKeys, permLabelPath, type KeyTextResolver, type RoomKeyInfo } from "@/lib/rooms/permission-catalog";
 import type { MemberProfile } from "@/lib/rooms/user-profile";
 
 type TFn = (key: string, params?: Record<string, string | number>) => string;
@@ -22,11 +22,11 @@ export function ChannelPermissions({ profile, t }: { profile: MemberProfile; t: 
   const perms = profile.room?.permissions;
   const groups = useMemo(() => {
     const resolve: KeyTextResolver = {
-      name: (k: RoomKeyInfo) => { const p = `perm.keys.${k.key}`; const v = t(p); return v === p ? k.key : v; },
+      name: (k: RoomKeyInfo) => { const p = `perm.keys.${permLabelPath(k.key)}`; const v = t(p); return v === p ? k.key : v; },
       desc: () => "",
       group: (id) => { const p = `perm.keyGroups.${id}`; const v = t(p); return v === p ? id : v; },
     };
-    const catalog = fallbackRoomCatalog();
+    const catalog = coreRoomCatalog();
     // Keys the server reported that the fixed list does not know still show (as allowed), never silently dropped.
     const known = new Set(catalog.universe);
     return { view: groupRoomKeys(catalog, resolve), resolve, extra: (perms?.allowed ?? []).filter((k) => !known.has(k)) };

@@ -156,6 +156,21 @@ function assemble(keys: RoomKeyInfo[], source: RoomPermissionCatalog["source"]):
   return { source, keys, index: new Map(keys.map((k) => [k.key, k])), universe, universeSet: new Set(universe) };
 }
 
+/**
+ * Where the i18n text of a permission key lives: `perm.keys.<path>` / `perm.keyHints.<path>`. Only the first dot separates the
+ * namespace (`room`); the rest become underscores because `room.call` already has a text and cannot also be an object
+ * (`room.call.start` -> `room.call_start`).
+ */
+export function permLabelPath(key: string): string {
+  const i = key.indexOf(".");
+  return i < 0 ? key : key.slice(0, i + 1) + key.slice(i + 1).replace(/\./g, "_");
+}
+
+/** Every core room key (the whole list the client knows, with its group), for views that only read permissions. */
+export function coreRoomCatalog(): RoomPermissionCatalog {
+  return assemble(Object.keys(CORE_KEY_GROUP).map((k) => info(k, undefined, undefined)), "fallback");
+}
+
 /** The fixed list of the editor before the server sent a catalog: the keys older servers know, no server texts. */
 export function fallbackRoomCatalog(): RoomPermissionCatalog {
   return assemble(ROOM_PERMISSION_KEYS.map((k) => info(k, undefined, undefined)), "fallback");

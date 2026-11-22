@@ -3,7 +3,7 @@
 /**
  * Compact, Discord-style profile card. It opens from the members panel, the author of a message, an @mention and the "X used /cmd"
  * line, anchored to what was pressed (a bottom sheet under 640px). Banner with two round buttons (moderator view for moderators,
- * "More"), avatar with a solid presence dot, name, short badges, a clamped biography, roles on one or two lines (+N) and a field to
+ * "More"), avatar with a solid presence dot, name, a clamped biography, roles on one or two lines (+N) and a field to
  * send a direct message. Mute, roles, groups and kick live in the moderator view (UserModerationView).
  * What the caller already knows paints at once; the rest (`GET /teams/:id/members/:userId/profile`) fills in behind a skeleton.
  * Rules of what to show live in lib/rooms/user-profile*.ts.
@@ -23,7 +23,7 @@ import {
   type AnchorRect, type KnownProfile, type Presence,
 } from "@/lib/rooms/user-profile";
 import {
-  badgeRoles, bannerButtons, bioPreview, canOpenModeration, moreItems, profileLink, roleOverflow, showDmField, type CompactContext, type MoreItem,
+  bannerButtons, bioPreview, canOpenModeration, moreItems, profileLink, roleOverflow, showDmField, type CompactContext, type MoreItem,
 } from "@/lib/rooms/user-profile-compact";
 import { botProfileFacts } from "@/lib/bots/locks";
 import { toast } from "@/lib/toast";
@@ -155,7 +155,6 @@ export function UserProfileCard({ teamId, userId, roomId, anchor, known, presenc
   };
 
   const bio = useMemo(() => bioPreview(profile?.bio), [profile?.bio]);
-  const badges = useMemo(() => badgeRoles(profile?.roles ?? [], 2), [profile?.roles]);
   const roleList = useMemo(() => roleOverflow(profile?.roles ?? [], 4, rolesOpen), [profile?.roles, rolesOpen]);
   const localTime = profile ? formatLocalTime(profile.timezone, new Date(now), locale) : "";
 
@@ -238,7 +237,7 @@ export function UserProfileCard({ teamId, userId, roomId, anchor, known, presenc
       </div>
 
       <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto px-4 pb-3 pt-10">
-        {/* Name, alias and short badges */}
+        {/* Name and alias (the roles are listed once, in their own section) */}
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-1.5">
             <h2 id={titleId} className="truncate text-base font-bold leading-tight" style={color ? { color } : undefined}>
@@ -253,9 +252,6 @@ export function UserProfileCard({ teamId, userId, roomId, anchor, known, presenc
             {presenceKind && <span>{presenceLabel}</span>}
             {localTime && <span>{t("profile.localTime", { time: localTime })}</span>}
           </p>
-          {badges.length > 0 && (
-            <div className="mt-1.5 flex flex-wrap gap-1">{badges.map((r) => <RoleChip key={r.id} name={r.name} color={r.color} />)}</div>
-          )}
         </div>
 
         {isCopilot && (
