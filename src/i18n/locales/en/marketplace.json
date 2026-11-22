@@ -423,7 +423,9 @@
       "allowBotTriggers": "triggered by other bots",
       "commands": "commands",
       "roomPermissions": "bot permissions in channels",
-      "graph": "script"
+      "graph": "script",
+      "lock": "bot lock",
+      "codeLock": "code lock"
     }
   }
 }

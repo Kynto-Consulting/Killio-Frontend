@@ -100,7 +100,7 @@ function ItemRow({ item, children }: { item: Pick<UpdatePlanItem, "assetType" | 
   );
 }
 
-const KNOWN_FIELDS = new Set(["color", "mentionable", "selfAssignable", "permissions", "description", "roleIds", "emoji", "channelType", "slowmodeSeconds", "categoryId", "overrides", "name", "avatarUrl", "allowBotTriggers", "commands", "roomPermissions", "graph"]);
+const KNOWN_FIELDS = new Set(["color", "mentionable", "selfAssignable", "permissions", "description", "roleIds", "emoji", "channelType", "slowmodeSeconds", "categoryId", "overrides", "name", "avatarUrl", "allowBotTriggers", "commands", "roomPermissions", "graph", "lock", "codeLock"]);
 
 function fieldList(t: ReturnType<typeof useTranslations>, fields: string[]): string {
   return fields.map((f) => (KNOWN_FIELDS.has(f) ? t(`update.fields.${f}`) : f)).join(", ");

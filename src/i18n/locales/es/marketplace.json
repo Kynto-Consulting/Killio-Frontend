@@ -423,7 +423,9 @@
       "allowBotTriggers": "activación por otros bots",
       "commands": "comandos",
       "roomPermissions": "permisos del bot en canales",
-      "graph": "script"
+      "graph": "script",
+      "lock": "bloqueo del bot",
+      "codeLock": "bloqueo del código"
     }
   }
 }
