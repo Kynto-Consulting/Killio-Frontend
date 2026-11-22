@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import { Send, Bot, Image as ImageIcon, Loader2, FileText, X, Megaphone, Lock, VolumeX, Slash, Paperclip } from "lucide-react";
 import { usePlatform } from "@/components/providers/platform-provider";
-import { ReferenceTokenInput } from "@/components/ui/reference-token-input";
+import { ReferenceTokenInput, type ReferenceTokenInputHandle } from "@/components/ui/reference-token-input";
 import { useSession } from "@/components/providers/session-provider";
 import { uploadFile } from "@/lib/api/uploads";
 import type { RoomMessage, TeamRoleLite } from "@/lib/api/rooms";
@@ -13,7 +13,9 @@ import type { ComposerMode } from "@/lib/rooms/room-controls";
 import { activeSlashQuery, buildSlashCandidates, BUILTIN_COMMANDS, type SlashCommand } from "@/lib/rooms/message-structure";
 import { EVERYONE_TOKEN, fromWireMentions, roleMentionToken, toWireMentions } from "@/lib/rooms/mentions";
 import { analyzeArgs, checkSlashInput, type ArgSuggestion } from "@/lib/bots/command-args";
-import { EmojiPickerButton, useEmojiDataset } from "@/components/emoji";
+import { EmojiPickerButton, EmojiSuggestMenu, emojiSuggestOptionId, useCustomEmojis, useEmojiDataset } from "@/components/emoji";
+import { applyInsertion, buildEmojiSuggestions, findEmojiQuery, type EmojiSuggestion } from "@/lib/emoji/suggest";
+import type { ShortcodeQuery } from "@/lib/emoji/shortcodes";
 import { replaceCompletedShortcodes } from "@/lib/emoji/shortcodes";
 
 const resolveAssetUrl = (url: string) => {
@@ -60,6 +62,8 @@ interface RoomInputProps {
   teamId?: string;
   t: TFn;
 }
+
+const BTN_ICON = "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50 motion-reduce:transition-none lg:h-8 lg:w-8";
 
 const AI_PREFIXES = ["#ai ", "#AI "];
 
@@ -129,13 +133,39 @@ export function RoomInput({
   const argActive = Math.min(argIndex, Math.max(0, argSuggestions.length - 1));
 
   const { dataset: emojiDs } = useEmojiDataset();
+  const { customEmojis } = useCustomEmojis();
+  const editorRef = useRef<ReferenceTokenInputHandle | null>(null);
+  const emojiListId = useId();
+  const [emojiQuery, setEmojiQuery] = useState<ShortcodeQuery | null>(null);
+  const [emojiIndex, setEmojiIndex] = useState(0);
+  const [emojiDismissed, setEmojiDismissed] = useState<string | null>(null);
+  const emojiItems = useMemo<EmojiSuggestion[]>(
+    () => (emojiQuery ? buildEmojiSuggestions(emojiDs, customEmojis, emojiQuery.query) : []),
+    [emojiQuery, emojiDs, customEmojis],
+  );
+  const emojiOpen = emojiItems.length > 0 && !slashOpen && !argOpen && emojiDismissed !== (emojiQuery ? `${emojiQuery.start}:${emojiQuery.query}` : null);
+  const emojiActive = Math.min(emojiIndex, Math.max(0, emojiItems.length - 1));
+
+  /** Replaces the `:query` before the caret with the chosen emoji (Unicode glyph or `:name:` of a custom one). */
+  const pickEmoji = (item: EmojiSuggestion) => {
+    if (!emojiQuery) return;
+    const ins = applyInsertion(value, emojiQuery, item.insert);
+    if (editorRef.current) editorRef.current.replaceRange(emojiQuery.start, emojiQuery.end, ins.text.slice(emojiQuery.start, ins.caret));
+    else onChange(ins.text);
+    setEmojiQuery(null);
+  };
+
   const handleChange = (v: string) => {
     setSlashDismissed(false);
     setSlashIndex(0);
     setArgDismissed(false);
     setArgIndex(0);
     setArgProblem(null);
-    onChange(emojiDs ? replaceCompletedShortcodes(v, emojiDs) : v);
+    const nv = emojiDs ? replaceCompletedShortcodes(v, emojiDs) : v;
+    onChange(nv);
+    // Same string the editor reports: its caret is valid. After a shortcode was replaced the offsets moved, so no menu then.
+    setEmojiQuery(nv === v ? findEmojiQuery(nv, Math.min(editorRef.current?.getCaret() ?? nv.length, nv.length)) : null);
+    setEmojiIndex(0);
     onTyping?.();
   };
 
@@ -306,8 +336,10 @@ export function RoomInput({
         </div>
       )}
 
+      {/* One-line field = 46px (py-2.5 + leading-6 + border): the icons share that height, so they are centered with one line and stay at the bottom edge when the field grows. */}
       <div className="relative flex items-end gap-1">
         <input type="file" accept="image/*,application/pdf,text/markdown,.md" className="sr-only" tabIndex={-1} ref={fileInputRef} onChange={handleFileChange} />
+        <div className="flex h-[46px] shrink-0 items-center gap-1">
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
@@ -322,15 +354,17 @@ export function RoomInput({
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading}
-          className="hidden shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50 motion-reduce:transition-none sm:block"
+          className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50 motion-reduce:transition-none sm:flex"
           aria-label={t("chat.attachImage")}
           title={t("chat.attachImage")}
         >
           <ImageIcon className="h-4 w-4" aria-hidden />
         </button>
 
-        <EmojiPickerButton onSelect={(v) => handleChange(`${value}${v}`)} disabled={disabled || isUploading} />
+        <EmojiPickerButton onSelect={(v) => (editorRef.current ? editorRef.current.insertAtCaret(v) : handleChange(`${value}${v}`))} disabled={disabled || isUploading} className={BTN_ICON} />
+        </div>
         <div className="relative min-w-0 flex-1">
+          {emojiOpen && <EmojiSuggestMenu id={emojiListId} items={emojiItems} activeIndex={emojiActive} onPick={pickEmoji} />}
           {slashOpen && (
             <ul
               role="listbox"
@@ -390,6 +424,8 @@ export function RoomInput({
           )}
           <ReferenceTokenInput
             key={inputKey}
+            handleRef={editorRef}
+            a11y={{ controls: emojiListId, expanded: emojiOpen, activeDescendant: emojiSuggestOptionId(emojiListId, emojiActive) }}
             value={value}
             onChange={handleChange}
             placeholder={isAiRoom ? t("chat.inputPlaceholderAi") : t("chat.inputPlaceholder", { roomName })}
@@ -402,6 +438,13 @@ export function RoomInput({
             activeCallId={activeCallId}
             onSubmit={handleSubmit}
             onKeyDown={(e) => {
+              if (emojiOpen) {
+                if (e.key === "ArrowDown") { e.preventDefault(); setEmojiIndex((emojiActive + 1) % emojiItems.length); }
+                else if (e.key === "ArrowUp") { e.preventDefault(); setEmojiIndex((emojiActive - 1 + emojiItems.length) % emojiItems.length); }
+                else if (e.key === "Tab" || e.key === "Enter") { e.preventDefault(); pickEmoji(emojiItems[emojiActive]); }
+                else if (e.key === "Escape") { e.preventDefault(); if (emojiQuery) setEmojiDismissed(`${emojiQuery.start}:${emojiQuery.query}`); }
+                return;
+              }
               if (argOpen) {
                 if (e.key === "ArrowDown") { e.preventDefault(); setArgIndex((argActive + 1) % argSuggestions.length); }
                 else if (e.key === "ArrowUp") { e.preventDefault(); setArgIndex((argActive - 1 + argSuggestions.length) % argSuggestions.length); }
@@ -420,9 +463,10 @@ export function RoomInput({
             focusSignal={inputKey > 0 ? `slash-${inputKey}` : replyTo?.id}
             disabled={disabled || isUploading}
             className="w-full"
-            inputClassName="shadow-sm"
+            inputClassName="min-h-[46px] shadow-sm"
           />
         </div>
+        <div className="flex h-[46px] shrink-0 items-center">
         <button
           type="button"
           onClick={handleSubmit}
@@ -434,6 +478,7 @@ export function RoomInput({
         >
           {isAiQuery ? <Bot className="h-4 w-4" aria-hidden /> : <Send className="h-4 w-4" aria-hidden />}
         </button>
+        </div>
       </div>
     </div>
   );

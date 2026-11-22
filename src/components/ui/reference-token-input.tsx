@@ -40,7 +40,22 @@ type KqlPart = {
 
 type RichPart = string | MentionPart | DeepPart | KqlPart;
 
+/** Imperative access to the editor's selection (markdown offsets), for composers that add their own suggestions / buttons. */
+export interface ReferenceTokenInputHandle {
+  /** Caret as an offset in the markdown value, or null when the editor has no selection. */
+  getCaret: () => number | null;
+  /** Replaces `[start, end)` of the markdown value, puts the caret after `text` and focuses the editor. */
+  replaceRange: (start: number, end: number, text: string) => void;
+  /** Inserts at the last known caret (kept even after the editor lost focus), or at the end. */
+  insertAtCaret: (text: string) => void;
+  focus: () => void;
+}
+
 interface ReferenceTokenInputProps {
+  /** Receives the imperative handle (see ReferenceTokenInputHandle). */
+  handleRef?: React.MutableRefObject<ReferenceTokenInputHandle | null>;
+  /** ARIA wiring for a listbox the parent shows next to the editor (suggestions). */
+  a11y?: { controls?: string; activeDescendant?: string; expanded?: boolean };
   value: string;
   onChange: (value: string) => void;
   onPasteImage?: (file: File) => void;
@@ -83,6 +98,8 @@ function tokenEscapeAttr(value: string): string {
 }
 
 export function ReferenceTokenInput({
+  handleRef,
+  a11y,
   value,
   onChange,
   onPasteImage,
@@ -719,6 +736,49 @@ export function ReferenceTokenInput({
     [readMarkdown, pickerRange, onChange, applyRenderedValue, closePicker]
   );
 
+  // Last caret inside the editor, so a toolbar button can insert where the person was typing even after the editor blurred.
+  const lastCaretRef = useRef<number | null>(null);
+  useEffect(() => {
+    const onSelection = () => {
+      const root = editorRef.current;
+      const sel = window.getSelection();
+      if (!root || !sel || sel.rangeCount === 0 || !root.contains(sel.anchorNode)) return;
+      lastCaretRef.current = getMarkdownCursorOffset();
+    };
+    document.addEventListener("selectionchange", onSelection);
+    return () => document.removeEventListener("selectionchange", onSelection);
+  }, [getMarkdownCursorOffset]);
+
+  useEffect(() => {
+    if (!handleRef) return;
+    const replaceRange = (start: number, end: number, text: string) => {
+      const root = editorRef.current;
+      if (!root) return;
+      const current = readMarkdown();
+      const next = `${current.slice(0, start)}${text}${current.slice(end)}`;
+      const caretMarkdown = start + text.length;
+      onChange(next);
+      applyRenderedValue(next);
+      lastCaretRef.current = caretMarkdown;
+      // Visible offset of the caret = length of the rendered text before it (chips render shorter than their markdown).
+      const probe = document.createElement("div");
+      probe.innerHTML = renderHtmlFromValue(next.slice(0, caretMarkdown));
+      root.focus();
+      setVisibleOffset(probe.textContent?.length ?? null);
+    };
+    handleRef.current = {
+      getCaret: () => getMarkdownCursorOffset(),
+      replaceRange,
+      insertAtCaret: (text) => {
+        const current = readMarkdown();
+        const at = Math.min(lastCaretRef.current ?? current.length, current.length);
+        replaceRange(at, at, text);
+      },
+      focus: () => editorRef.current?.focus(),
+    };
+    return () => { handleRef.current = null; };
+  }, [handleRef, readMarkdown, onChange, applyRenderedValue, renderHtmlFromValue, setVisibleOffset, getMarkdownCursorOffset]);
+
   const displayPlaceholder = !value;
 
   return (
@@ -726,6 +786,11 @@ export function ReferenceTokenInput({
       <div
         ref={editorRef}
         contentEditable={!disabled}
+        role={a11y ? "combobox" : undefined}
+        aria-autocomplete={a11y ? "list" : undefined}
+        aria-controls={a11y?.expanded ? a11y.controls : undefined}
+        aria-expanded={a11y ? !!a11y.expanded : undefined}
+        aria-activedescendant={a11y?.expanded ? a11y.activeDescendant : undefined}
         suppressContentEditableWarning
         style={inputStyle}
         onInput={handleInput}

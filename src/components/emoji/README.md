@@ -38,3 +38,7 @@ written `:name:` and `<EmojiText/>` renders them as images. Wire the real source
 
 - Emoji names and keywords are English; `es-keywords.ts` adds Spanish terms for ~110 common emojis only.
 - Emojis newer than Twemoji 17 fall back to the native glyph.
+
+## Composer autocomplete
+
+`EmojiSuggestMenu` + `lib/emoji/suggest.ts` power the Discord-style `:sm` menu in `RoomInput` (Unicode via the dataset plus the team custom emojis). `ReferenceTokenInput` exposes the caret through `handleRef` (`getCaret`, `replaceRange`, `insertAtCaret`), which is also what the composer emoji button uses.
