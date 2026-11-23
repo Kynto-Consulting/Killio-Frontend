@@ -25,12 +25,13 @@ export interface ClientActionOutcome {
   error?: string;
 }
 
-export type ClientActionConfirmKind = "openLink" | "openApp" | "screenshot" | "clipboardRead";
+export type ClientActionConfirmKind = "openLink" | "openApp" | "screenshot" | "clipboardRead" | "runTool";
 
 export interface ClientActionContext {
   accessToken: string;
   teamId: string;
   /** Asks the person before the device does something. Resolve false to decline. */
+  /** "runTool" is asked by the local agent (claude-agent.ts) before a tool the server marks as destructive. */
   confirm: (kind: ClientActionConfirmKind, detail: string) => boolean | Promise<boolean>;
 }
 

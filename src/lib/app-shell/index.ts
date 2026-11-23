@@ -43,6 +43,32 @@ export interface KillioAppBridge {
   listApps?(): Promise<KillioAppInstalledApp[]>;
   /** Opens one of the apps `listApps` returned; any other value is refused by the app. */
   openApp?(pkg: string): Promise<void>;
+  /** Desktop builds with the "claude" feature: the person's own Claude Code as AI provider. */
+  claude?: KillioClaudeBridge;
+}
+
+export interface KillioClaudeStatus {
+  /** False on phones. */
+  supported: boolean;
+  /** Whether Bun and Claude Code are installed on this computer. */
+  bun: boolean;
+  claude: boolean;
+  running: boolean;
+}
+
+/**
+ * The app's bridge to the person's Claude Code. Requests are Anthropic Messages API requests; the page never
+ * sees the bridge's address or key, it asks the app to send and reads the stream by polling.
+ */
+export interface KillioClaudeBridge {
+  status(): Promise<KillioClaudeStatus>;
+  start(): Promise<void>;
+  stop(): Promise<void>;
+  /** As the bridge answers GET /v1/models: `{ data: [{ id, display_name? }] }`. */
+  models(): Promise<{ data?: Array<{ id: string; display_name?: string }> }>;
+  send(request: Record<string, unknown>): Promise<number>;
+  poll(id: number): Promise<{ events: unknown[]; done: boolean }>;
+  cancel(id: number): Promise<void>;
 }
 
 export interface KillioAppInstalledApp {

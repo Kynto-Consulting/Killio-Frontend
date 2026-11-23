@@ -142,7 +142,8 @@
     "confirmClipboardRead": "El asistente quiere leer lo que tienes copiado en el portapapeles. ¿Permitir?",
     "confirmOpenApp": "El asistente quiere abrir esta aplicación:\n\n{{app}}",
     "confirmScreenshot": "El asistente quiere tomar una captura de tu pantalla y subirla a Killio. ¿Permitir?",
-    "confirmScreenshotReason": "El asistente quiere tomar una captura de tu pantalla y subirla a Killio.\n\nMotivo: {{reason}}\n\n¿Permitir?"
+    "confirmScreenshotReason": "El asistente quiere tomar una captura de tu pantalla y subirla a Killio.\n\nMotivo: {{reason}}\n\n¿Permitir?",
+    "confirmRunTool": "El asistente quiere ejecutar \"{{tool}}\", que cambia o borra información. ¿Permitir?"
   },
   "accountMenu": {
     "account": "Cuenta",

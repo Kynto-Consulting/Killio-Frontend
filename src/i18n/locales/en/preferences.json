@@ -22,7 +22,10 @@
   },
   "aiProvider": {
     "label": "AI provider",
-    "modes": { "host": "Host (this workspace's)" },
+    "modes": {
+      "host": "Host (this workspace's)",
+      "claude": "Claude (your Claude Code, this computer only)"
+    },
     "hostDesc": "Uses the included AI. Spends your plan's credits.",
     "ownDesc": "Uses your own account. Spends no credits: usage is billed by your provider.",
     "url": "URL (optional)",
@@ -30,7 +33,11 @@
     "keyStored": "Stored (ends in {{hint}}). Type another to replace it.",
     "model": "Model",
     "save": "Save provider",
-    "saved": "Saved"
+    "saved": "Saved",
+    "claudeDesc": "Uses the Claude Code installed on this computer, with your own Claude account. Spends no credits. The assistant works from this computer and these conversations are not saved to the history.",
+    "claudeMissingClaude": "Claude Code was not found on this computer. Install it and sign in to it to use this mode.",
+    "claudeMissingBun": "Bun is not installed on this computer (bun.sh). Install it to use this mode.",
+    "claudeTerms": "You use your Claude account at your own responsibility: check that the terms of your Anthropic plan allow this use."
   },
   "personalIntegrations": {
     "label": "Personal integrations",

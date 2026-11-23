@@ -3,7 +3,10 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
-import { appClientActions, primeAppClientActions, runAppClientAction } from "@/lib/app-shell/client-actions";
+import { appClientActions, primeAppClientActions, runAppClientAction, type ClientActionConfirmKind } from "@/lib/app-shell/client-actions";
+import { killioApp } from "@/lib/app-shell";
+import { runClaudeTurn, type ClaudeMessage } from "@/lib/app-shell/claude-agent";
+import { readLocalAiProvider } from "@/lib/app-shell/local-provider";
 import { useUiMode } from "@/components/providers/ui-mode-provider";
 import { streamAgentChat, AgentEntityScope, AgentStreamEvent, AgentConversationMode, AgentPageContext, getAgentMessages } from "@/lib/api/agent";
 import { buildAiMessageWithReferenceContext } from "@/lib/reference-ai-context";
@@ -463,6 +466,30 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext, wo
     [],
   );
 
+  /** Asks the person before the device (or the local agent) does something. */
+  const confirmDeviceAction = (kind: ClientActionConfirmKind, detail: string): boolean => {
+    const ctx = deviceCtxRef.current;
+    return window.confirm(
+      kind === "runTool"
+        ? ctx.tDashboard("appShell.confirmRunTool", { tool: detail })
+        : kind === "openLink"
+          ? ctx.tDashboard("appShell.confirmOpenLink", { url: detail })
+          : kind === "clipboardRead"
+            ? ctx.tDashboard("appShell.confirmClipboardRead")
+            : kind === "openApp"
+              ? ctx.tDashboard("appShell.confirmOpenApp", { app: detail })
+              : detail
+                ? ctx.tDashboard("appShell.confirmScreenshotReason", { reason: detail })
+                : ctx.tDashboard("appShell.confirmScreenshot"),
+    );
+  };
+
+  // ── Killio App: the "Claude" provider ─────────────────────────────────────
+  // When this device's provider is the person's own Claude Code, the turn runs here (claude-agent.ts)
+  // instead of on the server. It reports with the same events, so the rest of this hook is unchanged.
+  const claudeHistoryRef = useRef<ClaudeMessage[]>([]);
+  const claudeToolsRef = useRef(new Map<string, { name: string; description?: string; input_schema: Record<string, unknown> }>());
+
   resumeAfterClientActionRef.current = (pending, pendingMessageId, assistantId, toolEvts, accTextRef) => {
     const ctx = deviceCtxRef.current;
     if (!ctx.accessToken) return;
@@ -470,18 +497,7 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext, wo
     void runAppClientAction(pending.tool, pending.input, {
       accessToken: token,
       teamId: ctx.teamId,
-      confirm: (kind, detail) =>
-        window.confirm(
-          kind === "openLink"
-            ? ctx.tDashboard("appShell.confirmOpenLink", { url: detail })
-            : kind === "clipboardRead"
-              ? ctx.tDashboard("appShell.confirmClipboardRead")
-            : kind === "openApp"
-              ? ctx.tDashboard("appShell.confirmOpenApp", { app: detail })
-            : detail
-              ? ctx.tDashboard("appShell.confirmScreenshotReason", { reason: detail })
-              : ctx.tDashboard("appShell.confirmScreenshot"),
-        ),
+      confirm: confirmDeviceAction,
     }).then((outcome) => {
       // The backend replaces this message with the tool's real result, so its text is not used.
       cancelRef.current = streamAgentChat(
@@ -535,6 +551,37 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext, wo
 
       const accTextRef = { current: "" };
       const toolEvts: ToolEvent[] = [];
+
+      const claude = killioApp()?.claude;
+      const local = claude ? readLocalAiProvider(window.localStorage) : null;
+      if (claude && local) {
+        const control: { cancelled: boolean; requestId?: number } = { cancelled: false };
+        cancelRef.current = () => {
+          control.cancelled = true;
+          if (control.requestId !== undefined) void claude.cancel(control.requestId).catch(() => {});
+        };
+        const serverConversation = conversationIdRef.current;
+        const handler = makeStreamHandler(assistantId, toolEvts, accTextRef);
+        void runClaudeTurn({
+          bridge: claude,
+          model: local.model,
+          history: claudeHistoryRef.current,
+          tools: claudeToolsRef.current,
+          userText: message,
+          accessToken: accessToken!,
+          teamId,
+          entityType,
+          entityId,
+          confirm: confirmDeviceAction,
+          emit: handler,
+          control,
+        }).then((history) => {
+          claudeHistoryRef.current = history;
+          // A local turn has no server conversation: leave the server's id as it was.
+          conversationIdRef.current = serverConversation;
+        });
+        return;
+      }
 
       const cancel = streamAgentChat(
         {
