@@ -511,15 +511,17 @@ export function RoomMessageItem({
             </div>
           )
         ) : (
-          <div className={`${isMobile ? "w-6" : "w-7"} flex shrink-0 flex-col items-end pt-1 text-[9px] leading-5 text-muted-foreground/70`}>
+          <div className={`${isMobile ? "w-6" : "w-7"} relative shrink-0 text-[9px] text-muted-foreground/70`}>
             <time
-              className="opacity-0 transition-opacity group-hover:opacity-100 motion-reduce:transition-none"
+              className="absolute right-0 top-1.5 whitespace-nowrap leading-none opacity-0 transition-opacity group-hover:opacity-100 motion-reduce:transition-none"
               dateTime={message.createdAt}
+              title={new Date(message.createdAt).toLocaleString()}
             >
-              {new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              {/* 24-hour and no "a.m./p.m.": the only form that fits the gutter on one line. */}
+              {new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hourCycle: "h23" })}
             </time>
             {isOwn && showReadReceipts && (
-              <span className="inline-flex items-center leading-none" data-testid="read-receipt">
+              <span className="absolute right-0 top-1.5 inline-flex items-center leading-none transition-opacity group-hover:opacity-0 motion-reduce:transition-none" data-testid="read-receipt">
                 <MessageStatusIcon status={message.status} />
               </span>
             )}
@@ -1053,8 +1055,8 @@ export function RoomMessageItem({
                 );
               })}
 
-              {/* Persistent Thinking Indicator while streaming or if empty content */}
-              {(message.status === "sending" || (isAi && markupBlocks.length === 0)) && (
+              {/* Thinking line: only on the assistant's own message, while it streams or has nothing to show yet. */}
+              {isAi && (message.status === "sending" || markupBlocks.length === 0) && (
                 <div className="flex items-center gap-1.5 py-1 text-muted-foreground animate-pulse">
                   <Bot className="w-3.5 h-3.5" />
                   <span className="text-[10px] font-medium italic">

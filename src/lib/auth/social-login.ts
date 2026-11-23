@@ -6,6 +6,8 @@
  * callback link opened in ANOTHER browser (login CSRF) cannot be redeemed. Tokens never travel in a URL.
  */
 
+import { killioApp } from "../app-shell/index.ts";
+
 export type SocialProvider = "google" | "microsoft" | "bloomx";
 
 export type SocialAvailability = { google: boolean; microsoft: boolean; bloomx: boolean; bloomxMode?: string };
@@ -70,7 +72,23 @@ export async function startSocialLogin(provider: SocialProvider, opts: { returnT
   url.searchParams.set("challenge", challenge);
   url.searchParams.set("returnTo", safeReturnPath(opts.returnTo));
   if (opts.bloomx) url.searchParams.set("bloomx", opts.bloomx);
+  // Killio App: the provider opens in the person's own browser, where they are already signed in to Google,
+  // Microsoft or their Bloomx. The secret stays here; the browser hands the one-time code back to the app
+  // (see appHandoffUrl) and this window finishes the exchange on /login/social.
+  const app = killioApp();
+  if (app) {
+    await app.openExternal(url.toString());
+    return;
+  }
   window.location.assign(url.toString());
+}
+
+/**
+ * The link that hands a sign-in started in Killio App back to it. Only the one-time code travels: it is worth
+ * nothing without the secret the app kept, so another program answering this link gains nothing.
+ */
+export function appHandoffUrl(code: string, origin: string): string {
+  return `killio://auth/social?code=${encodeURIComponent(code)}&server=${encodeURIComponent(origin)}`;
 }
 
 /** Bloomx step 1: the person typed an instance URL or an email; the API validates it and answers with the instance. */
