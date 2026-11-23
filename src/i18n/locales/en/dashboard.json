@@ -166,10 +166,10 @@
       "whatChanged": "What changed",
       "install": "Update now",
       "download": "Download installer",
-      "installing": "Downloading…",
+      "installing": "Updating…",
       "later": "Later",
       "close": "Close",
-      "installHint": "The app will close and the installer will open.",
+      "installHint": "The app closes for a moment, updates and opens again by itself.",
       "downloadHint": "The installer opens in your browser; install it to finish."
     },
     "server": {
