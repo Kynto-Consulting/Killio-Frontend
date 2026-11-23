@@ -445,8 +445,8 @@
       "pro": {
         "label": "Pro",
         "headline": "Para equipos en crecimiento que necesitan mas poder.",
-        "price": "S/ 20",
-        "priceYearly": "S/ 16",
+        "price": "S/ 44.90",
+        "priceYearly": "S/ 35.92",
         "priceSub": "por espacio / mes",
         "badge": "Mas popular",
         "f1": "500 ejecuciones de script / mes",
@@ -461,8 +461,8 @@
       "max": {
         "label": "Max",
         "headline": "Para usuarios avanzados que necesitan escala ilimitada.",
-        "price": "S/ 40",
-        "priceYearly": "S/ 32",
+        "price": "S/ 89.90",
+        "priceYearly": "S/ 71.92",
         "priceSub": "por espacio / mes",
         "badge": "Mejor valor",
         "f1": "2000 ejecuciones de script / mes",
@@ -508,7 +508,7 @@
       "eyebrow": "Empieza hoy",
       "title1": "Deja de gestionar el caos.",
       "title2": "Empieza a entregar resultados.",
-      "sub": "Unete a miles de equipos que ya usan Killio para moverse mas rapido, pensar con mas claridad y construir mejor.",
+      "sub": "Empieza gratis, suma a tu equipo y mira como se siente manejar tableros, documentos y automatizaciones en un solo lugar.",
       "primary": "Crear cuenta gratis",
       "secondary": "Ver planes"
     },

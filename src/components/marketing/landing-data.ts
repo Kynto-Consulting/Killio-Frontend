@@ -41,7 +41,6 @@ export const LANDING_NAV_LINKS: { key: string; href: string; hash: boolean }[] =
 ];
 
 /** Hero stats: `kl.hero.stats.<key>Value` / `<key>Label`. */
-export const LANDING_STATS = ["teams", "actions", "uptime"] as const;
 
 /** Pills under the Mesh Board feature: `kl.features.mesh.<pill>`. */
 export const MESH_PILLS = ["pill1", "pill2", "pill3", "pill4", "pill5"] as const;

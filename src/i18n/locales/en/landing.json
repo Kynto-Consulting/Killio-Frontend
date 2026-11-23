@@ -445,8 +445,8 @@
       "pro": {
         "label": "Pro",
         "headline": "For growing teams that need more power.",
-        "price": "S/ 20",
-        "priceYearly": "S/ 16",
+        "price": "S/ 44.90",
+        "priceYearly": "S/ 35.92",
         "priceSub": "per workspace / month",
         "badge": "Most popular",
         "f1": "500 script runs / month",
@@ -461,8 +461,8 @@
       "max": {
         "label": "Max",
         "headline": "For power users who need unlimited scale.",
-        "price": "S/ 40",
-        "priceYearly": "S/ 32",
+        "price": "S/ 89.90",
+        "priceYearly": "S/ 71.92",
         "priceSub": "per workspace / month",
         "badge": "Best value",
         "f1": "2000 script runs / month",
@@ -508,7 +508,7 @@
       "eyebrow": "Get started today",
       "title1": "Stop managing chaos.",
       "title2": "Start shipping results.",
-      "sub": "Join thousands of teams already using Killio to move faster, think clearer, and build better.",
+      "sub": "Start free, bring your team along, and see how it feels to run boards, docs and automations in one place.",
       "primary": "Create free account",
       "secondary": "View plans"
     },

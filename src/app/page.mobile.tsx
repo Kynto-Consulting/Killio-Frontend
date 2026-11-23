@@ -31,7 +31,6 @@ import {
   LANDING_INTEGRATIONS,
   LANDING_NAV_LINKS,
   LANDING_PLANS,
-  LANDING_STATS,
   MESH_NODES,
   MESH_PILLS,
   SALES_MAILTO,
@@ -238,15 +237,6 @@ function Hero({ t }: { t: T }) {
         <Check className={`h-3.5 w-3.5 shrink-0 ${ACCENT_TEXT}`} strokeWidth={2.5} />
         {t("kl.hero.noCard")}
       </p>
-
-      <dl className={`mt-8 grid grid-cols-3 divide-x divide-border/70 overflow-hidden rounded-2xl ${CARD}`}>
-        {LANDING_STATS.map((stat) => (
-          <div key={stat} className="flex flex-col-reverse justify-end px-2 py-4">
-            <dt className="mt-1 text-[11px] leading-tight text-muted-foreground">{t(`kl.hero.stats.${stat}Label`)}</dt>
-            <dd className="text-xl font-extrabold tracking-tight">{t(`kl.hero.stats.${stat}Value`)}</dd>
-          </div>
-        ))}
-      </dl>
     </section>
   );
 }

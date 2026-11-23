@@ -17,7 +17,6 @@ import {
   LANDING_INTEGRATIONS,
   LANDING_NAV_LINKS,
   LANDING_PLANS,
-  LANDING_STATS,
   MESH_NODES,
   MESH_PILLS,
   SCRIPT_STEPS,
@@ -100,11 +99,6 @@ function Hero({ t }: { t: T }) {
             <Check className="h-3.5 w-3.5 text-primary" strokeWidth={2.5} />
             {t("kl.hero.noCard")}
           </span>
-        </div>
-        <div className="stats-row">
-          {LANDING_STATS.map((stat) => (
-            <div className="stat-item" key={stat}><div className="stat-val">{t(`kl.hero.stats.${stat}Value`)}</div><div className="stat-label">{t(`kl.hero.stats.${stat}Label`)}</div></div>
-          ))}
         </div>
       </div>
     </section>
