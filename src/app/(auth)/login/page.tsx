@@ -12,6 +12,7 @@ import { requestOtp, verifyOtp } from "@/lib/api/contracts";
 import { postLoginDestination } from "@/lib/auth/password-change";
 import { BloomxLogo } from "@/components/brand/bloomx-logo";
 import { fetchSocialProviders, SocialAvailability, startSocialLogin } from "@/lib/auth/social-login";
+import { isKillioApp } from "@/lib/app-shell";
 
 const API = (
   process.env.NEXT_PUBLIC_API_BASE_URL ??
@@ -32,6 +33,13 @@ function LoginPageContent() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  // Killio App is the person's own device: the session is always kept, so the choice is not offered there.
+  const [inApp, setInApp] = useState(false);
+  useEffect(() => {
+    if (!isKillioApp()) return;
+    setInApp(true);
+    setRememberMe(true);
+  }, []);
 
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -311,7 +319,7 @@ function LoginPageContent() {
           </div>
           </>)}
 
-          <div className="flex items-center space-x-2">
+          {!inApp && <div className="flex items-center space-x-2">
             <input
               id="rememberMe"
               type="checkbox"
@@ -322,7 +330,7 @@ function LoginPageContent() {
             <label htmlFor="rememberMe" className="text-sm select-none cursor-pointer">
               {t("login.rememberMe")}
             </label>
-          </div>
+          </div>}
 
           {method === "password" && (
           <div className="rounded-lg border border-border/70 bg-background/50 p-3 text-xs text-muted-foreground space-y-1.5">

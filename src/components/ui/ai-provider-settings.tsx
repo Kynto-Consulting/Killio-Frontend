@@ -89,8 +89,8 @@ export function AiProviderSettings() {
       <p className="text-xs text-muted-foreground">{own ? t("aiProvider.ownDesc") : t("aiProvider.hostDesc")}</p>
 
       {own ? (
-        <div className="space-y-2">
-          <label className="block space-y-1 text-xs text-muted-foreground">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block space-y-1 text-xs text-muted-foreground sm:col-span-2">
             {t("aiProvider.url")}
             <input className={INPUT} value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder={defaultUrl} disabled={saving} inputMode="url" autoComplete="off" spellCheck={false} />
           </label>
