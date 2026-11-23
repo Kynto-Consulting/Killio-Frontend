@@ -45,7 +45,7 @@
     },
     "android": {
       "desc": "APK to install directly on your phone or tablet.",
-      "note": "Unsigned preview build: it is not on an app store, and Android may warn about or block the install."
+      "note": "Preview build, not signed for release: it is not on an app store, and Android may warn about or block the install."
     },
     "formats": {
       "windows": "Installer .exe",
@@ -59,7 +59,7 @@
   },
   "signing": {
     "title": "Before you install",
-    "body": "Killio App is new. The Windows and macOS builds are not code-signed yet, so the system shows a warning the first time you open them, and the Android build is an unsigned preview. Download it only from this page."
+    "body": "Killio App is new. The Windows and macOS builds are not code-signed yet, so the system shows a warning the first time you open them, and the Android build is a preview that is not signed for release. Download it only from this page."
   },
   "features": {
     "eyebrow": "What the app adds",

@@ -44,7 +44,12 @@ function githubToken(): string | null {
   );
 }
 
-async function fetchRelease(repo: string, token: string, tag: string | null): Promise<AppRelease | null> {
+/** With a token for a private repository; without one GitHub answers only if the repository is public. */
+function auth(token: string | null): Record<string, string> {
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function fetchRelease(repo: string, token: string | null, tag: string | null): Promise<AppRelease | null> {
   const path = tag ? `releases/tags/${encodeURIComponent(tag)}` : "releases/latest";
   try {
     const res = await fetch(`https://api.github.com/repos/${repo}/${path}`, {
@@ -52,7 +57,7 @@ async function fetchRelease(repo: string, token: string, tag: string | null): Pr
         Accept: "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
         "User-Agent": USER_AGENT,
-        Authorization: `Bearer ${token}`,
+        ...auth(token),
       },
       cache: "no-store",
     });
@@ -63,7 +68,7 @@ async function fetchRelease(repo: string, token: string, tag: string | null): Pr
   }
 }
 
-async function latestRelease(token: string): Promise<AppRelease | null> {
+async function latestRelease(token: string | null): Promise<AppRelease | null> {
   const repo = safeRepo(process.env.KILLIO_APP_GITHUB_REPO || DEFAULT_REPO);
   if (!repo) return null;
   const tag = process.env.KILLIO_APP_RELEASE_TAG || DEFAULT_RELEASE_TAG;
@@ -71,11 +76,11 @@ async function latestRelease(token: string): Promise<AppRelease | null> {
 }
 
 /** The asset's short-lived signed URL, or null. */
-async function signedUrl(asset: AppReleaseAsset, token: string): Promise<string | null> {
+async function signedUrl(asset: AppReleaseAsset, token: string | null): Promise<string | null> {
   try {
     const res = await fetch(asset.url, {
       headers: {
-        Authorization: `Bearer ${token}`,
+        ...auth(token),
         Accept: "application/octet-stream",
         "X-GitHub-Api-Version": "2022-11-28",
         "User-Agent": USER_AGENT,
@@ -110,8 +115,8 @@ export async function GET(request: NextRequest): Promise<Response> {
     return plain("Unknown platform.", 400);
   }
 
+  // No token is fine for a public repository; for a private one GitHub answers 404 and this is "unavailable".
   const token = githubToken();
-  if (!token) return plain(UNAVAILABLE, 503);
 
   const release = await latestRelease(token);
   if (!release) return plain(UNAVAILABLE, 503);

@@ -45,7 +45,7 @@
     },
     "android": {
       "desc": "APK para instalar directamente en tu teléfono o tablet.",
-      "note": "Versión preliminar sin firmar: no está en una tienda de apps, y Android puede advertir o bloquear la instalación."
+      "note": "Versión preliminar, sin firma de publicación: no está en una tienda de apps, y Android puede advertir o bloquear la instalación."
     },
     "formats": {
       "windows": "Instalador .exe",
@@ -59,7 +59,7 @@
   },
   "signing": {
     "title": "Antes de instalar",
-    "body": "Killio App es nueva. Las versiones de Windows y macOS aún no tienen firma de código, así que el sistema muestra una advertencia la primera vez que las abres, y la versión de Android es una versión preliminar sin firmar. Descárgala solo desde esta página."
+    "body": "Killio App es nueva. Las versiones de Windows y macOS aún no tienen firma de código, así que el sistema muestra una advertencia la primera vez que las abres, y la versión de Android es una versión preliminar sin firma de publicación. Descárgala solo desde esta página."
   },
   "features": {
     "eyebrow": "Lo que suma la app",

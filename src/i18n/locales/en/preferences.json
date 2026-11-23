@@ -46,5 +46,20 @@
     "title": "Personal integrations",
     "subtitle": "Your own connected apps, reused across every workspace and private chat.",
     "noPersonalTeam": "No personal workspace found for your account yet."
+  },
+  "memory": {
+    "label": "Assistant memory",
+    "desc": "What the assistant remembers about you between conversations. It saves these itself as it works; here you can see them, add one, or make it forget one.",
+    "none": "It remembers nothing yet",
+    "count": "{{count}} memories",
+    "show": "Show",
+    "hide": "Hide",
+    "addPlaceholder": "Something you want it to remember…",
+    "add": "Add",
+    "forgetThis": "Forget this memory",
+    "forget": "Forget",
+    "keep": "Keep",
+    "thisWorkspace": "only in this workspace",
+    "everywhere": "in all your workspaces"
   }
 }

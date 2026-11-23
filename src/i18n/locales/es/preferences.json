@@ -46,5 +46,20 @@
     "title": "Integraciones personales",
     "subtitle": "Tus propias apps conectadas, reutilizadas en cada workspace y chat privado.",
     "noPersonalTeam": "Aún no se encontró un espacio personal para tu cuenta."
+  },
+  "memory": {
+    "label": "Memoria del asistente",
+    "desc": "Lo que el asistente recuerda de ti entre conversaciones. Lo guarda él mismo mientras trabaja; aquí puedes verlo, agregar algo o hacer que lo olvide.",
+    "none": "Todavía no recuerda nada",
+    "count": "{{count}} recuerdos",
+    "show": "Ver",
+    "hide": "Ocultar",
+    "addPlaceholder": "Algo que quieras que recuerde…",
+    "add": "Agregar",
+    "forgetThis": "Olvidar este recuerdo",
+    "forget": "Olvidar",
+    "keep": "Conservar",
+    "thisWorkspace": "solo en este espacio",
+    "everywhere": "en todos tus espacios"
   }
 }
