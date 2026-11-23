@@ -4,12 +4,12 @@
     "titlePrefix": "Killio, en",
     "titleAccent": "su propia ventana",
     "sub": "Killio App es la app nativa para Windows, macOS, Linux y Android: abre el Killio del servidor que elijas y suma lo que una pestaña del navegador no puede hacer.",
-    "downloadFor": "Descargar para {system}",
+    "downloadFor": "Descargar para {{system}}",
     "seeDownloads": "Ver descargas",
     "allPlatforms": "Todas las plataformas",
     "ios": "Killio App todavía no está disponible para iPhone ni iPad. Mientras tanto, Killio funciona en tu navegador.",
-    "version": "Versión {version}",
-    "updated": "Actualizada el {date}",
+    "version": "Versión {{version}}",
+    "updated": "Actualizada el {{date}}",
     "noInfo": "No pudimos consultar la última versión en este momento. Si una descarga no empieza, inténtalo de nuevo en unos minutos."
   },
   "mock": {

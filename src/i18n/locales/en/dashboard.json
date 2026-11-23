@@ -149,7 +149,7 @@
       "on": "Listening",
       "starting": "Turning the microphone on…",
       "stopped": "Listening stopped",
-      "saved": "{{count}} phrases saved to your diary",
+      "saved": "Phrases saved to your diary: {{count}}",
       "stop": "Stop listening",
       "dismiss": "Close"
     }

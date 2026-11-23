@@ -51,7 +51,7 @@
     "label": "Memoria del asistente",
     "desc": "Lo que el asistente recuerda de ti entre conversaciones. Lo guarda él mismo mientras trabaja; aquí puedes verlo, agregar algo o hacer que lo olvide.",
     "none": "Todavía no recuerda nada",
-    "count": "{{count}} recuerdos",
+    "count": "Recuerdos guardados: {{count}}",
     "show": "Ver",
     "hide": "Ocultar",
     "addPlaceholder": "Algo que quieras que recuerde…",
