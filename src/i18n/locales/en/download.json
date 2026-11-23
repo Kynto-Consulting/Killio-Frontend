@@ -4,12 +4,12 @@
     "titlePrefix": "Killio, in",
     "titleAccent": "its own window",
     "sub": "Killio App is the native app for Windows, macOS, Linux and Android: it opens the Killio of the server you choose and adds what a browser tab cannot do.",
-    "downloadFor": "Download for {system}",
+    "downloadFor": "Download for {{system}}",
     "seeDownloads": "See downloads",
     "allPlatforms": "All platforms",
     "ios": "Killio App is not available for iPhone or iPad yet. Meanwhile, Killio works in your browser.",
-    "version": "Version {version}",
-    "updated": "Updated {date}",
+    "version": "Version {{version}}",
+    "updated": "Updated {{date}}",
     "noInfo": "We could not check the latest build right now. If a download does not start, try again in a few minutes."
   },
   "mock": {

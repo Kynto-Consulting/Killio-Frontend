@@ -149,7 +149,7 @@
       "on": "Escuchando",
       "starting": "Encendiendo el micrófono…",
       "stopped": "La escucha se detuvo",
-      "saved": "{{count}} frases guardadas en tu diario",
+      "saved": "Frases guardadas en tu diario: {{count}}",
       "stop": "Detener la escucha",
       "dismiss": "Cerrar"
     }
