@@ -49,6 +49,8 @@ export interface KillioAppBridge {
    * "listApps" → { apps: [{ label, package }] }, "openApp" { packageName }.
    */
   device?(action: string, payload?: Record<string, unknown>): Promise<Record<string, unknown>>;
+  /** Builds with the "notifications" feature: shows a system notification. */
+  notify?(notification: { title: string; body?: string }): Promise<void>;
   /** Desktop builds with the "claude" feature: the person's own Claude Code as AI provider. */
   claude?: KillioClaudeBridge;
 }
