@@ -7,36 +7,22 @@ import {
   Kanban,
   FileText,
   Orbit,
-  Zap,
-  BrainCircuit,
-  Database,
   Sparkles,
   Slash,
-  Webhook,
-  Mail,
-  History,
-  BarChart3,
-  Monitor,
-  Globe,
-  Folder,
-  Users,
-  Download,
-  Mic,
-  Phone,
-  Smartphone,
 } from "lucide-react";
-import {
-  SiGithub,
-  SiNotion,
-  SiGoogledrive,
-  SiSlack,
-  SiTrello,
-  SiWhatsapp,
-  SiZapier,
-} from "react-icons/si";
-import { TbBrandOnedrive } from "react-icons/tb";
-import Link from "next/link";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import {
+  AI_FEATURES,
+  KANBAN_COLUMNS,
+  LANDING_INTEGRATIONS,
+  LANDING_NAV_LINKS,
+  LANDING_PLANS,
+  LANDING_STATS,
+  MESH_NODES,
+  MESH_PILLS,
+  SCRIPT_STEPS,
+  STRIP_ITEMS,
+} from "@/components/marketing/landing-data";
 import "@/app/landing.css";
 
 type T = (key: string, params?: Record<string, string | number>) => string;
@@ -68,12 +54,9 @@ export function Nav({ t, base = "" }: { t: T; base?: string }) {
           <span>Killio</span>
         </a>
         <div className="nav-links">
-          <a href={`${base}#features`}>{t("kl.nav.features")}</a>
-          <a href={`${base}#ai`}>{t("kl.nav.ai")}</a>
-          <a href={`${base}#integrations`}>{t("kl.nav.integrations")}</a>
-          <a href="/marketplace">{t("kl.nav.marketplace")}</a>
-          <a href={`${base}#pricing`}>{t("kl.nav.pricing")}</a>
-          <a href="/download">{t("kl.nav.download")}</a>
+          {LANDING_NAV_LINKS.map((link) => (
+            <a key={link.key} href={link.hash ? `${base}${link.href}` : link.href}>{t(`kl.nav.${link.key}`)}</a>
+          ))}
         </div>
         <div className="nav-actions">
           <a href="/login" className="btn-ghost">{t("kl.nav.signIn")}</a>
@@ -119,9 +102,9 @@ function Hero({ t }: { t: T }) {
           </span>
         </div>
         <div className="stats-row">
-          <div className="stat-item"><div className="stat-val">{t("kl.hero.stats.teamsValue")}</div><div className="stat-label">{t("kl.hero.stats.teamsLabel")}</div></div>
-          <div className="stat-item"><div className="stat-val">{t("kl.hero.stats.actionsValue")}</div><div className="stat-label">{t("kl.hero.stats.actionsLabel")}</div></div>
-          <div className="stat-item"><div className="stat-val">{t("kl.hero.stats.uptimeValue")}</div><div className="stat-label">{t("kl.hero.stats.uptimeLabel")}</div></div>
+          {LANDING_STATS.map((stat) => (
+            <div className="stat-item" key={stat}><div className="stat-val">{t(`kl.hero.stats.${stat}Value`)}</div><div className="stat-label">{t(`kl.hero.stats.${stat}Label`)}</div></div>
+          ))}
         </div>
       </div>
     </section>
@@ -130,28 +113,9 @@ function Hero({ t }: { t: T }) {
 
 // â”€â”€â”€ Kanban Preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function KanbanPreview() {
-  const cols = [
-    {
-      name: "To Do", count: 3, cards: [
-        { title: "Design new onboarding", tag: "design", tc: "blue", av: "A", ac: "#6366f1" },
-        { title: "Refactor auth module", tag: "urgent", tc: "red", av: "B", ac: "#ef4444" },
-      ]
-    },
-    {
-      name: "In Progress", count: 2, cards: [
-        { title: "Build API rate limiter", tag: "backend", tc: "green", av: "C", ac: "#10b981" },
-        { title: "Write release notes", tag: "docs", tc: "blue", av: "A", ac: "#6366f1" },
-      ]
-    },
-    {
-      name: "Done", count: 2, cards: [
-        { title: "Setup CI/CD pipeline", tag: "devops", tc: "green", av: "D", ac: "#f59e0b" },
-      ]
-    },
-  ];
   return (
     <div className="kanban-preview">
-      {cols.map((col) => (
+      {KANBAN_COLUMNS.map((col) => (
         <div className="kp-col" key={col.name}>
           <div className="kp-col-header"><span>{col.name}</span><span className="kp-count">{col.count}</span></div>
           {col.cards.map((c, i) => (
@@ -213,13 +177,7 @@ function DocPreview() {
 
 // â”€â”€â”€ Mesh Preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function MeshPreview() {
-  const nodes = [
-    { id: "a", x: 20, y: 28, w: 130, h: 38, label: "Project Kick-off", bg: "rgba(216,255,114,0.1)", border: "rgba(216,255,114,0.4)", color: "#d8ff72" },
-    { id: "b", x: 200, y: 10, w: 130, h: 38, label: "Scope Review", bg: "rgba(99,102,241,0.1)", border: "rgba(99,102,241,0.4)", color: "#a5b4fc" },
-    { id: "c", x: 200, y: 90, w: 130, h: 38, label: "Tech Planning", bg: "rgba(34,211,238,0.08)", border: "rgba(34,211,238,0.35)", color: "#67e8f9" },
-    { id: "d", x: 380, y: 50, w: 130, h: 38, label: "Sprint Start", bg: "rgba(251,191,36,0.08)", border: "rgba(251,191,36,0.35)", color: "#fcd34d" },
-    { id: "e", x: 110, y: 160, w: 150, h: 38, label: "Decision Gate", bg: "rgba(248,113,113,0.08)", border: "rgba(248,113,113,0.3)", color: "#fca5a5" },
-  ];
+  const nodes = MESH_NODES;
   const right = (id: string) => { const n = nodes.find((x) => x.id === id)!; return { x: n.x + n.w, y: n.y + n.h / 2 }; };
   const left = (id: string) => { const n = nodes.find((x) => x.id === id)!; return { x: n.x, y: n.y + n.h / 2 }; };
   const nc = nodes.find((n) => n.id === "c")!;
@@ -286,7 +244,7 @@ function FeaturesSection({ t }: { t: T }) {
                 <h3 className="bento-title">{t("kl.features.mesh.title")}</h3>
                 <p className="bento-desc">{t("kl.features.mesh.desc")}</p>
                 <div style={{ marginTop: 20, display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {(["pill1", "pill2", "pill3", "pill4", "pill5"] as const).map((pk) => (
+                  {MESH_PILLS.map((pk) => (
                     <span key={pk} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 999, background: "rgba(34,211,238,0.07)", border: "1px solid rgba(34,211,238,0.2)", color: "#67e8f9" }}>{t(`kl.features.mesh.${pk}`)}</span>
                   ))}
                 </div>
@@ -328,11 +286,9 @@ function ScriptCanvas({ t }: { t: T }) {
           />
         ))}
       </svg>
-      <div className="sn trigger"><div className="sn-dot" style={{ background: "#d8ff72" }} />Card Created</div>
-      <div className="sn condition"><div className="sn-dot" style={{ background: "#fcd34d" }} />Urgency = High?</div>
-      <div className="sn action1"><div className="sn-dot" style={{ background: "#a5b4fc" }} />Notify Slack</div>
-      <div className="sn action2"><div className="sn-dot" style={{ background: "#67e8f9" }} />Send WhatsApp</div>
-      <div className="sn end"><div className="sn-dot" style={{ background: "#fca5a5" }} />Log & Done</div>
+      {SCRIPT_STEPS.map((step) => (
+        <div className={`sn ${step.cls}`} key={step.cls}><div className="sn-dot" style={{ background: step.dot }} />{step.label}</div>
+      ))}
       <div style={{ position: "absolute", bottom: 16, right: 16, display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 999, background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)", fontSize: 11, fontWeight: 600, color: "#a5b4fc" }}>
         <Sparkles className="h-3.5 w-3.5" /> {t("kl.ai.scriptBadge")}
       </div>
@@ -343,11 +299,6 @@ function ScriptCanvas({ t }: { t: T }) {
 // â”€â”€â”€ AI Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function AISection({ t }: { t: T }) {
   const ref = useFadeRef();
-  const featureKeys = [
-    { icon: <Zap className="h-4 w-4" />, cls: "lime", key: "builder" },
-    { icon: <BrainCircuit className="h-4 w-4" />, cls: "indigo", key: "chat" },
-    { icon: <Database className="h-4 w-4" />, cls: "cyan", key: "rag" },
-  ];
   return (
     <section className="ai-section" id="ai" style={{ position: "relative" }}>
       <div className="glow-indigo" style={{ left: "-200px", top: "50%", transform: "translateY(-50%)" }} />
@@ -358,9 +309,9 @@ function AISection({ t }: { t: T }) {
             <h2 className="section-title" style={{ textAlign: "left", marginBottom: 16 }}>{t("kl.ai.title1")}<br />{t("kl.ai.title2")}</h2>
             <p className="section-sub" style={{ textAlign: "left", margin: "0 0 40px" }}>{t("kl.ai.sub")}</p>
             <div className="ai-features-list">
-              {featureKeys.map((f) => (
+              {AI_FEATURES.map((f) => (
                 <div className="ai-feature-item" key={f.key}>
-                  <div className={`ai-icon ${f.cls}`}>{f.icon}</div>
+                  <div className={`ai-icon ${f.cls}`}><f.Icon className="h-4 w-4" /></div>
                   <div>
                     <div className="ai-feature-title">{t(`kl.ai.${f.key}.title`)}</div>
                     <div className="ai-feature-desc">{t(`kl.ai.${f.key}.desc`)}</div>
@@ -379,18 +330,6 @@ function AISection({ t }: { t: T }) {
 // â”€â”€â”€ Integrations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function IntegrationsSection({ t }: { t: T }) {
   const ref = useFadeRef();
-  const integrations = [
-    { icon: <SiGithub className="h-4 w-4" />, key: "github" },
-    { icon: <SiNotion className="h-4 w-4" />, key: "notion" },
-    { icon: <SiGoogledrive className="h-4 w-4" />, key: "googledrive" },
-    { icon: <TbBrandOnedrive className="h-4 w-4" />, key: "onedrive" },
-    { icon: <SiSlack className="h-4 w-4" />, key: "slack" },
-    { icon: <SiTrello className="h-4 w-4" />, key: "trello" },
-    { icon: <SiWhatsapp className="h-4 w-4" />, key: "whatsapp" },
-    { icon: <Webhook className="h-4 w-4" />, key: "webhooks" },
-    { icon: <Mail className="h-4 w-4" />, key: "email" },
-    { icon: <SiZapier className="h-4 w-4" />, key: "zapier" },
-  ];
   return (
     <section className="integrations-section" id="integrations">
       <div className="container">
@@ -400,9 +339,9 @@ function IntegrationsSection({ t }: { t: T }) {
           <p className="section-sub">{t("kl.integrations.sub")}</p>
         </div>
         <div className="integrations-grid">
-          {integrations.map((int) => (
+          {LANDING_INTEGRATIONS.map((int) => (
             <div className="int-pill" key={int.key}>
-              <div className="int-icon">{int.icon}</div>
+              <div className="int-icon"><int.Icon className="h-4 w-4" /></div>
               <span>{t(`kl.integrations.${int.key}`)}</span>
             </div>
           ))}
@@ -416,23 +355,12 @@ function IntegrationsSection({ t }: { t: T }) {
 function PricingSection({ t }: { t: T }) {
   const [cycle, setCycle] = useState("monthly");
   const ref = useFadeRef();
-  const plans = [
-    {
-      key: "free", variant: "free", ctaV: "free",
-      monthly: t("kl.pricing.free.price"), yearly: t("kl.pricing.free.price"),
-      features: ["f1", "f2", "f3", "f4", "f5", "f6"].map((fk) => ({ text: t(`kl.pricing.free.${fk}`), chk: "lime" })),
-    },
-    {
-      key: "pro", variant: "pro", ctaV: "pro",
-      monthly: t("kl.pricing.pro.price"), yearly: t("kl.pricing.pro.priceYearly"),
-      features: ["f1", "f2", "f3", "f4", "f5", "f6", "f7"].map((fk) => ({ text: t(`kl.pricing.pro.${fk}`), chk: "indigo" })),
-    },
-    {
-      key: "max", variant: "max", ctaV: "max",
-      monthly: t("kl.pricing.max.price"), yearly: t("kl.pricing.max.priceYearly"),
-      features: ["f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8"].map((fk) => ({ text: t(`kl.pricing.max.${fk}`), chk: "cyan" })),
-    },
-  ];
+  const plans = LANDING_PLANS.map((plan) => ({
+    key: plan.key, variant: plan.key, ctaV: plan.key,
+    monthly: t(`kl.pricing.${plan.key}.price`),
+    yearly: t(plan.paid ? `kl.pricing.${plan.key}.priceYearly` : `kl.pricing.${plan.key}.price`),
+    features: plan.features.map((fk) => ({ text: t(`kl.pricing.${plan.key}.${fk}`), chk: plan.accent })),
+  }));
   return (
     <section className="pricing-section" id="pricing" style={{ position: "relative" }}>
       <div className="glow-cyan" style={{ right: "-200px", top: "20%" }} />
@@ -492,14 +420,6 @@ function PricingSection({ t }: { t: T }) {
 // â”€â”€â”€ Features Strip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function FeaturesStrip({ t }: { t: T }) {
   const ref = useFadeRef();
-  const items = [
-    { icon: <History className="h-5 w-5" />, key: "history" },
-    { icon: <BarChart3 className="h-5 w-5" />, key: "metrics" },
-    { icon: <Users className="h-5 w-5" />, key: "roles" },
-    { icon: <Monitor className="h-5 w-5" />, key: "mobile" },
-    { icon: <Globe className="h-5 w-5" />, key: "sharing" },
-    { icon: <Folder className="h-5 w-5" />, key: "folders" },
-  ];
   return (
     <section className="features-strip">
       <div className="container">
@@ -508,9 +428,9 @@ function FeaturesStrip({ t }: { t: T }) {
           <h2 className="section-title">{t("kl.strip.title")}</h2>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 16 }}>
-          {items.map((item) => (
+          {STRIP_ITEMS.map((item) => (
             <div key={item.key} className="bento-card" style={{ padding: 24, display: "flex", flexDirection: "column", gap: 12 }}>
-              <div style={{ color: "var(--lime)", opacity: 0.85 }}>{item.icon}</div>
+              <div style={{ color: "var(--lime)", opacity: 0.85 }}><item.Icon className="h-5 w-5" /></div>
               <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{t(`kl.strip.${item.key}.title`)}</div>
               <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.6 }}>{t(`kl.strip.${item.key}.desc`)}</div>
             </div>

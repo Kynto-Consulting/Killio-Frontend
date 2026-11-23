@@ -201,6 +201,13 @@
     "description": "Create a workspace, accept the terms once, and give your team a sharper operating system from day one."
   },
   "mobile": {
+    "nav": {
+      "cta": "Start free"
+    },
+    "menu": {
+      "open": "Open menu",
+      "close": "Close menu"
+    },
     "badge": "Public beta",
     "hero": {
       "titleLine1": "One mobile workspace.",
@@ -415,7 +422,7 @@
       "yearly": "Yearly",
       "save": "Save 20%",
       "billedAnnually": "billed annually",
-      "vsMonthly": "vs {price}/mo billed monthly",
+      "vsMonthly": "vs {{price}}/mo billed monthly",
       "included": "What's included",
       "enterprise": {
         "title": "Need Enterprise?",
