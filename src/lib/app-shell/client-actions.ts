@@ -15,6 +15,8 @@
 import { uploadFile } from "@/lib/api/uploads";
 import { captureScreenshotFile, killioApp } from "./index";
 import { deviceToolsFor, searchApps } from "./device-tools.ts";
+import { createCronJob, deleteCronJob, listCronJobs, type CronJob } from "./cron.ts";
+import { pickFile } from "./pick-file.ts";
 import { LINK_TOOLS, text, type Input } from "./link-tools.ts";
 
 export { LINK_TOOLS };
@@ -25,7 +27,7 @@ export interface ClientActionOutcome {
   error?: string;
 }
 
-export type ClientActionConfirmKind = "openLink" | "openApp" | "screenshot" | "clipboardRead" | "runTool" | "alarm" | "timer" | "contacts" | "calendarRead" | "calendarEvent";
+export type ClientActionConfirmKind = "openLink" | "openApp" | "screenshot" | "clipboardRead" | "runTool" | "alarm" | "timer" | "contacts" | "calendarRead" | "calendarEvent" | "cron";
 
 export interface ClientActionContext {
   accessToken: string;
@@ -33,6 +35,22 @@ export interface ClientActionContext {
   /** Asks the person before the device does something. Resolve false to decline. */
   /** "runTool" is asked by the local agent (claude-agent.ts) before a tool the server marks as destructive. */
   confirm: (kind: ClientActionConfirmKind, detail: string) => boolean | Promise<boolean>;
+  /** Words for what the page itself shows (the file card). English when missing. */
+  labels?: { pickFileTitle: string; pickFileChoose: string; cancel: string };
+}
+
+/** A job as the assistant sees it. */
+function describeJob(job: CronJob): Record<string, unknown> {
+  return {
+    id: job.id,
+    schedule: job.schedule,
+    prompt: job.prompt,
+    label: job.label,
+    active: job.active,
+    runs: job.runs,
+    maxRuns: job.maxRuns,
+    nextRun: job.nextRunAt === null ? null : new Date(job.nextRunAt).toString(),
+  };
 }
 
 type DeviceApp = { label: string; package: string };
@@ -187,6 +205,30 @@ export async function runAppClientAction(tool: string, input: Input, ctx: Client
         const minutes = Math.floor(seconds / 60);
         if (!(await ctx.confirm("timer", `${minutes}:${twoDigits(seconds % 60)}`))) return { success: false, error: "The user declined." };
         return { success: true, output: await bridge.device("setTimer", { seconds, label: text(input.label) || undefined }) };
+      }
+      case "pick_file": {
+        // The card's own button is both the click a file dialog needs and the person's consent.
+        const picked = await pickFile(text(input.type), {
+          title: ctx.labels?.pickFileTitle ?? "The assistant asks you for a file.",
+          choose: ctx.labels?.pickFileChoose ?? "Choose file",
+          cancel: ctx.labels?.cancel ?? "Cancel",
+        });
+        if (!picked) return { success: false, error: "The user did not choose a file." };
+        return { success: true, output: { ...picked } };
+      }
+      case "cron_create": {
+        const schedule = text(input.schedule);
+        const prompt = text(input.prompt);
+        // It will send messages by itself later: the person sees exactly what and when before it is saved.
+        if (!(await ctx.confirm("cron", `${schedule}\n\n${prompt}`))) return { success: false, error: "The user declined." };
+        const job = createCronJob({ schedule, prompt, label: text(input.label), maxRuns: Number(input.maxRuns) });
+        return { success: true, output: { ...describeJob(job), note: "Saved on this device. It only runs while Killio App is open here; each run starts a new conversation." } };
+      }
+      case "cron_list":
+        return { success: true, output: { jobs: listCronJobs().map(describeJob) } };
+      case "cron_delete": {
+        const id = text(input.id);
+        return deleteCronJob(id) ? { success: true, output: { deleted: id } } : { success: false, error: "There is no job with that id on this device." };
       }
       case "contacts_search": {
         if (!bridge.device) return { success: false, error: "This device cannot search contacts." };

@@ -8,6 +8,8 @@ import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import { killioApp } from "@/lib/app-shell";
 import { activeListening, type ListeningState } from "@/lib/app-shell/active-listening";
 import { isWakePhraseEnabled, wakeCommand } from "@/lib/app-shell/wake-phrase";
+import { assistantOrders } from "@/lib/app-shell/assistant-orders";
+import { takeDueCronJobs } from "@/lib/app-shell/cron";
 
 // Only loaded when an order is spoken: the assistant's panel is large and this host is on every page.
 const AgentChatPanel = dynamic(() => import("@/components/agent/AgentChatPanel").then((m) => m.AgentChatPanel), { ssr: false });
@@ -89,6 +91,18 @@ export function ActiveListeningHost() {
       const command = wakeCommand(text);
       if (command) setOrder((previous) => ({ id: (previous?.id ?? 0) + 1, text: command }));
     });
+  }, [available]);
+
+  // Orders from elsewhere in the app, and the recurring prompts kept on this device: once a minute the
+  // ones whose time has come are handed to the assistant, one at a time.
+  useEffect(() => {
+    if (!available) return;
+    const show = (text: string) => setOrder((previous) => ({ id: (previous?.id ?? 0) + 1, text }));
+    const unsubscribe = assistantOrders.subscribe(show);
+    const tick = () => { const due = takeDueCronJobs(); if (due.length > 0) show(due[0].prompt); };
+    tick();
+    const timer = window.setInterval(tick, 30_000);
+    return () => { unsubscribe(); window.clearInterval(timer); };
   }, [available]);
 
   // Leaving the page ends the capture; say so to the app right away instead of on its next poll.
