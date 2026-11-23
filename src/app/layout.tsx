@@ -41,6 +41,7 @@ import { OfflineIndicator } from '@/components/ui/offline-indicator';
 import { SwUpdater } from '@/components/ui/sw-updater';
 import { ActiveListeningHost } from '@/components/app-shell/active-listening-host';
 import { AppNotificationsHost } from '@/components/app-shell/app-notifications-host';
+import { AppUpdateHost } from '@/components/app-shell/app-update-host';
 import { PlatformProvider } from '@/components/providers/platform-provider';
 import { CallProvider } from '@/components/providers/call-provider';
 import { RealtimeProvider } from '@/components/providers/realtime-provider';
@@ -78,6 +79,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                   <SwUpdater />
                   <ActiveListeningHost />
                   <AppNotificationsHost />
+                  <AppUpdateHost />
                   <PoweredByBadge />
                 </I18nProvider>
               </RealtimeProvider>

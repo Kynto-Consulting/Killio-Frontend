@@ -18,6 +18,22 @@ export interface KillioAppInfo {
   tenant: string | null;
 }
 
+/** What the app knows about its own updates (builds with the "update" feature). */
+export interface KillioAppUpdate {
+  /** Number of the build that is running; 0 for a build made outside the release pipeline. */
+  current: number;
+  /** Number of the newest published build. */
+  latest: number;
+  available: boolean;
+  commit: string;
+  /** ISO date the newest build was published. */
+  date: string;
+  /** One line per change since the build before it. */
+  notes: string[];
+  /** "install": the app replaces itself and restarts; "download": the installer opens in the browser. */
+  mode: "install" | "download";
+}
+
 export interface KillioAppScreenshot {
   mime: "image/png";
   width: number;
@@ -49,6 +65,10 @@ export interface KillioAppBridge {
    * "listApps" → { apps: [{ label, package }] }, "openApp" { packageName }.
    */
   device?(action: string, payload?: Record<string, unknown>): Promise<Record<string, unknown>>;
+  /** Builds with the "update" feature: asks whether a newer build of the app is published. */
+  checkUpdate?(): Promise<KillioAppUpdate>;
+  /** Installs the newest build (the app closes), or opens its installer in the browser. */
+  installUpdate?(): Promise<void>;
   /** Builds with the "notifications" feature: shows a system notification. */
   notify?(notification: { title: string; body?: string }): Promise<void>;
   /** Desktop builds with the "claude" feature: the person's own Claude Code as AI provider. */

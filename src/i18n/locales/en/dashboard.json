@@ -155,7 +155,23 @@
       "dismiss": "Close"
     },
     "confirmAlarm": "The assistant wants to set an alarm for {{time}} on this phone. Allow?",
-    "confirmTimer": "The assistant wants to start a {{duration}} timer (minutes:seconds) on this phone. Allow?"
+    "confirmTimer": "The assistant wants to start a {{duration}} timer (minutes:seconds) on this phone. Allow?",
+    "update": {
+      "title": "Killio App update",
+      "checking": "Checking for updates…",
+      "available": "A new version of Killio App is available",
+      "upToDate": "Killio App is up to date",
+      "versions": "You have build {{current}}; the latest is {{latest}}",
+      "version": "Build {{current}}",
+      "whatChanged": "What changed",
+      "install": "Update now",
+      "download": "Download installer",
+      "installing": "Downloading…",
+      "later": "Later",
+      "close": "Close",
+      "installHint": "The app will close and the installer will open.",
+      "downloadHint": "The installer opens in your browser; install it to finish."
+    }
   },
   "accountMenu": {
     "account": "Account",
@@ -165,7 +181,8 @@
     "switchAccount": "Switch Account",
     "switchServer": "Switch server",
     "signOut": "Sign Out",
-    "activeListening": "Active listening"
+    "activeListening": "Active listening",
+    "checkUpdates": "Check for updates"
   },
   "search": {
     "placeholder": "Search or type a command..."
