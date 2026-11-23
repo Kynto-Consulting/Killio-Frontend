@@ -320,7 +320,11 @@
     "addAnother": "Add another list",
     "add": "Add list",
     "cancel": "Cancel",
-    "placeholder": "Enter list title..."
+    "placeholder": "Enter list title...",
+    "emptyBoardMobile": "This board has no lists yet",
+    "namePlaceholderMobile": "List name",
+    "createFirst": "Create",
+    "createError": "The list could not be created"
   },
   "card": {
     "editCard": "Edit Card...",
