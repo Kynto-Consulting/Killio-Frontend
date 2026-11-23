@@ -19,7 +19,8 @@
     "noDocumentsYet": "Aun no hay documentos",
     "nomeshsYet": "Aun no hay Meshs",
     "rooms": "Salas",
-    "noRoomsYet": "Aún no hay salas"
+    "noRoomsYet": "Aún no hay salas",
+    "vault": "Vault"
   },
   "metrics": {
     "title": "Metricas del espacio",
@@ -195,5 +196,51 @@
     "body": "Estás en un workspace online. Abre o crea uno local para seguir trabajando.",
     "createLocal": "Crear workspace local",
     "close": "Cerrar"
+  },
+  "vault": {
+    "title": "Vault",
+    "subtitle": "Lo que Killio escucha y recuerda por ti: tu diario, la escucha activa y la memoria del asistente.",
+    "tabs": {
+      "diary": "Diario",
+      "listening": "Escucha activa",
+      "memory": "Memoria",
+      "models": "Modelos"
+    },
+    "diary": {
+      "day": "Día",
+      "search": "Buscar en ese día",
+      "searchPlaceholder": "Palabras dichas…",
+      "find": "Buscar",
+      "loading": "Cargando el diario…",
+      "empty": "No hay nada en el diario de este día",
+      "emptyHint": "El diario se escribe solo mientras la escucha activa está encendida.",
+      "open": "Abrir"
+    },
+    "listening": {
+      "off": "La escucha está apagada",
+      "start": "Activar",
+      "what": "Con la escucha activa el micrófono queda encendido y lo que se dice cerca se escribe en tu diario, frase por frase.",
+      "needsApp": "La escucha activa funciona dentro de Killio App.",
+      "getApp": "Descargar Killio App",
+      "plan": "Plan de este espacio",
+      "cloudMinutes": "Transcripción en la nube",
+      "notIncluded": "No incluida en este plan",
+      "minutesPerMonth": "Minutos al mes: {{count}}",
+      "transcription": "Dónde se transcribe",
+      "transcriptionCloud": "En el servidor",
+      "audio": "El audio",
+      "audioNotKept": "No se guarda; solo el texto",
+      "limits": "La transcripción consume créditos del plan. Sin conexión las frases no se guardan. En escritorio, si cierras la ventana con la escucha encendida, Killio App sigue en la bandeja del sistema."
+    },
+    "models": {
+      "intro": "Los modelos de voz que usa Vault y dónde corren.",
+      "transcription": "Transcripción de voz",
+      "cloud": "En el servidor",
+      "onDevice": "Transcripción en el dispositivo",
+      "speakers": "Quién habla (diarización e identificación de voz)",
+      "wakeWord": "Palabra de activación",
+      "notYet": "Aún no disponible en Killio App",
+      "appNote": "Los modelos en el dispositivo solo existirán dentro de Killio App."
+    }
   }
 }

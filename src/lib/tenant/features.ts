@@ -6,7 +6,7 @@ type Features = PublicTenantConfig["features"];
 export function featureForPath(pathname: string): FeatureKey | null {
   const is = (prefix: string) => pathname === prefix || pathname.startsWith(`${prefix}/`);
   if (is("/marketplace")) return "marketplace";
-  if (is("/rooms/vault")) return "vault";
+  if (is("/rooms/vault") || is("/vault")) return "vault";
   if (is("/rooms")) return "rooms";
   if (pathname === "/scripts" || is("/integrations/table") || is("/integrations/env")) return "scripts";
   if (is("/integrations")) return "integrations";

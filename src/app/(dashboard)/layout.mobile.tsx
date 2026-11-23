@@ -5,7 +5,7 @@ import { BrandLogo, BrandName } from "@/components/marketing/brand-logo";
 import Image from "next/image";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTenant } from "@/components/providers/tenant-provider";
-import { LayoutDashboard, Layout, Settings, UserCircle, History, Search, Plus, Loader2, Check, ChevronsUpDown, Users, LogOut, ArrowRightLeft, FileText, Zap, BarChart3, ChevronRight, GitBranch, Sparkles, MessageSquare, Workflow } from "lucide-react";
+import { LayoutDashboard, Layout, Settings, UserCircle, History, Search, Plus, Loader2, Check, ChevronsUpDown, Users, LogOut, ArrowRightLeft, FileText, Zap, BarChart3, ChevronRight, GitBranch, Sparkles, MessageSquare, Workflow, Mic } from "lucide-react";
 import { MobileNavSheet } from "@/components/ui/mobile-nav-sheet";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { CreateWorkspaceModal } from "@/components/ui/create-workspace-modal";
@@ -56,6 +56,7 @@ function LayoutMobileInner({ children }: { children: React.ReactNode }) {
     { name: tDashboard("nav.teams"), href: "/teams", icon: Users },
     { name: tDashboard("nav.activityHistory"), href: "/history", icon: History },
     { name: tDashboard("nav.rooms"), href: "/rooms", icon: MessageSquare },
+    { name: tDashboard("nav.vault"), href: "/vault", icon: Mic },
   ];
 
   const { user, activeTeamId, setActiveTeamId, accessToken, logout } = useSession();

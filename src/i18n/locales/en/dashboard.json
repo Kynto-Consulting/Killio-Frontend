@@ -19,7 +19,8 @@
     "noDocumentsYet": "No documents yet",
     "nomeshsYet": "No Meshs yet",
     "rooms": "Rooms",
-    "noRoomsYet": "No rooms yet"
+    "noRoomsYet": "No rooms yet",
+    "vault": "Vault"
   },
   "metrics": {
     "title": "Workspace Metrics",
@@ -195,5 +196,51 @@
     "body": "You're in an online workspace. Open or create a local one to keep working.",
     "createLocal": "Create local workspace",
     "close": "Close"
+  },
+  "vault": {
+    "title": "Vault",
+    "subtitle": "What Killio hears and remembers for you: your diary, active listening and the assistant's memory.",
+    "tabs": {
+      "diary": "Diary",
+      "listening": "Active listening",
+      "memory": "Memory",
+      "models": "Models"
+    },
+    "diary": {
+      "day": "Day",
+      "search": "Search that day",
+      "searchPlaceholder": "Words that were said…",
+      "find": "Search",
+      "loading": "Loading the diary…",
+      "empty": "Nothing in the diary for this day",
+      "emptyHint": "The diary writes itself while active listening is on.",
+      "open": "Open"
+    },
+    "listening": {
+      "off": "Listening is off",
+      "start": "Turn on",
+      "what": "With active listening the microphone stays on and what is said nearby is written to your diary, phrase by phrase.",
+      "needsApp": "Active listening works inside Killio App.",
+      "getApp": "Download Killio App",
+      "plan": "This workspace's plan",
+      "cloudMinutes": "Cloud transcription",
+      "notIncluded": "Not included in this plan",
+      "minutesPerMonth": "Minutes per month: {{count}}",
+      "transcription": "Where it is transcribed",
+      "transcriptionCloud": "On the server",
+      "audio": "The audio",
+      "audioNotKept": "Not kept; only the text",
+      "limits": "Transcription spends the plan's credits. Without a connection phrases are not saved. On desktop, closing the window while listening keeps Killio App in the system tray."
+    },
+    "models": {
+      "intro": "The speech models Vault uses and where they run.",
+      "transcription": "Speech transcription",
+      "cloud": "On the server",
+      "onDevice": "On-device transcription",
+      "speakers": "Who is speaking (diarization and voice identification)",
+      "wakeWord": "Wake word",
+      "notYet": "Not available in Killio App yet",
+      "appNote": "On-device models will only exist inside Killio App."
+    }
   }
 }
