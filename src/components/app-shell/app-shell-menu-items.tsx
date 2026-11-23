@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Server } from "lucide-react";
+import { Mic, Server } from "lucide-react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { killioApp } from "@/lib/app-shell";
 
@@ -17,14 +17,26 @@ export function AppShellMenuItems({ onDone }: { onDone?: () => void }) {
   if (!inApp) return null;
 
   return (
-    <button
-      onClick={() => {
-        onDone?.();
-        void killioApp()?.switchTenant();
-      }}
-      className="w-full text-left px-2 py-2 text-sm hover:bg-accent/10 rounded-md transition-colors flex items-center"
-    >
-      <Server className="mr-2 h-4 w-4" /> {tDashboard("accountMenu.switchServer")}
-    </button>
+    <>
+      <button
+        onClick={() => {
+          onDone?.();
+          void killioApp()?.switchTenant();
+        }}
+        className="w-full text-left px-2 py-2 text-sm hover:bg-accent/10 rounded-md transition-colors flex items-center"
+      >
+        <Server className="mr-2 h-4 w-4" /> {tDashboard("accountMenu.switchServer")}
+      </button>
+      <button
+        onClick={() => {
+          onDone?.();
+          // Owned by ActiveListeningHost, which asks for consent and shows the card while it is on.
+          window.__killioListening?.toggle();
+        }}
+        className="w-full text-left px-2 py-2 text-sm hover:bg-accent/10 rounded-md transition-colors flex items-center"
+      >
+        <Mic className="mr-2 h-4 w-4" /> {tDashboard("accountMenu.activeListening")}
+      </button>
+    </>
   );
 }
