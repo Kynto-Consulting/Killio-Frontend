@@ -171,6 +171,10 @@
       "close": "Close",
       "installHint": "The app will close and the installer will open.",
       "downloadHint": "The installer opens in your browser; install it to finish."
+    },
+    "server": {
+      "title": "Server",
+      "hint": "Killio App can connect to killio.dev or to your organisation's own server. Your sessions on each are kept."
     }
   },
   "accountMenu": {
