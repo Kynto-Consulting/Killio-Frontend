@@ -1,11 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import dynamic from "next/dynamic";
 import { Mic, Square, X } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import { killioApp } from "@/lib/app-shell";
 import { activeListening, type ListeningState } from "@/lib/app-shell/active-listening";
+import { isWakePhraseEnabled, wakeCommand } from "@/lib/app-shell/wake-phrase";
+
+// Only loaded when an order is spoken: the assistant's panel is large and this host is on every page.
+const AgentChatPanel = dynamic(() => import("@/components/agent/AgentChatPanel").then((m) => m.AgentChatPanel), { ssr: false });
 
 const OFF: ListeningState = { status: "off", speaking: false, phrases: 0, lastText: "", error: null };
 const CONSENT_KEY = "killio_listening_consent";
@@ -74,13 +79,40 @@ export function ActiveListeningHost() {
     if (available) window.__killioListeningState = state.status === "listening" || state.status === "starting";
   }, [available, state.status]);
 
+  // The wake phrase: a saved phrase that calls Killio by name is handed to the assistant as an order.
+  const [order, setOrder] = useState<{ id: number; text: string } | null>(null);
+  useEffect(() => {
+    if (!available) return;
+    return activeListening.onPhrase((text) => {
+      if (!isWakePhraseEnabled()) return;
+      const command = wakeCommand(text);
+      if (command) setOrder((previous) => ({ id: (previous?.id ?? 0) + 1, text: command }));
+    });
+  }, [available]);
+
   // Leaving the page ends the capture; say so to the app right away instead of on its next poll.
   useEffect(() => () => { if (activeListening.isOn) activeListening.stop(); }, []);
 
-  if (!available || state.status === "off") return null;
+  const assistant = available && order && activeTeamId ? (
+    <div className="fixed bottom-0 right-0 top-0 z-[94] flex w-[min(26rem,100vw)] shadow-2xl">
+      <AgentChatPanel
+        key={order.id}
+        teamId={activeTeamId}
+        initialMessage={order.text}
+        autoSendInitial
+        showCloseButton
+        onClose={() => setOrder(null)}
+        className="flex-1 border-l border-border"
+      />
+    </div>
+  ) : null;
+
+  if (!available || state.status === "off") return assistant;
 
   const failed = state.status === "error";
   return (
+    <>
+    {assistant}
     <div
       role="status"
       aria-live="polite"
@@ -113,5 +145,6 @@ export function ActiveListeningHost() {
         {failed ? <X className="h-4 w-4" /> : <Square className="h-4 w-4" />}
       </button>
     </div>
+    </>
   );
 }

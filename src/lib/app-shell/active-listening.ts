@@ -70,7 +70,15 @@ class ActiveListening {
   private working = false;
   private deps: ListeningDeps | null = null;
 
+  private readonly phraseListeners = new Set<(text: string) => void>();
+
   getState = (): ListeningState => this.state;
+
+  /** Called with each phrase once it is in the diary (the wake phrase reads these). */
+  onPhrase = (listener: (text: string) => void): (() => void) => {
+    this.phraseListeners.add(listener);
+    return () => { this.phraseListeners.delete(listener); };
+  };
 
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);
@@ -212,6 +220,7 @@ class ActiveListening {
         return "skipped";
       }
       this.set({ phrases: this.state.phrases + 1, lastText: text, error: null });
+      this.phraseListeners.forEach((listener) => listener(text));
       return "ok";
     } catch {
       // No connection: the phrase cannot be transcribed later either (the audio is not kept), so it is dropped.

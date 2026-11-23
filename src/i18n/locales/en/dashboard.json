@@ -247,7 +247,9 @@
       "transcriptionCloud": "On the server",
       "audio": "The audio",
       "audioNotKept": "Not kept; only the text",
-      "limits": "Transcription spends the plan's credits. Without a connection phrases are not saved. On desktop, closing the window while listening keeps Killio App in the system tray."
+      "limits": "Transcription spends the plan's credits. Without a connection phrases are not saved. On desktop, closing the window while listening keeps Killio App in the system tray.",
+      "wake": "Wake phrase: \"Killio, …\"",
+      "wakeHint": "While listening is on, a phrase that starts by calling Killio (\"Hey Killio, create a card for…\") is handed to the assistant as an order. Anyone nearby can say it."
     },
     "models": {
       "intro": "The speech models Vault uses and where they run.",
@@ -255,9 +257,10 @@
       "cloud": "On the server",
       "onDevice": "On-device transcription",
       "speakers": "Who is speaking (diarization and voice identification)",
-      "wakeWord": "Wake word",
+      "wakeWord": "Wake phrase",
       "notYet": "Not available in Killio App yet",
-      "appNote": "On-device models will only exist inside Killio App."
+      "appNote": "On-device models will only exist inside Killio App.",
+      "fromTranscript": "From the transcript"
     }
   }
 }

@@ -9,6 +9,7 @@ import { AssistantMemorySettings } from "@/components/ui/assistant-memory-settin
 import { getVaultEntitlements, searchDiary, type DiaryEntry, type VaultEntitlements } from "@/lib/api/vault";
 import { killioApp } from "@/lib/app-shell";
 import { activeListening, type ListeningState } from "@/lib/app-shell/active-listening";
+import { isWakePhraseEnabled, setWakePhraseEnabled } from "@/lib/app-shell/wake-phrase";
 
 type Tab = "diary" | "listening" | "memory" | "models";
 const OFF: ListeningState = { status: "off", speaking: false, phrases: 0, lastText: "", error: null };
@@ -151,6 +152,9 @@ function Listening({ accessToken, teamId, inApp }: { accessToken: string; teamId
     return () => { cancelled = true; };
   }, [accessToken, teamId]);
 
+  const [wake, setWake] = useState(false);
+  useEffect(() => { setWake(isWakePhraseEnabled()); }, []);
+
   const on = state.status === "listening" || state.status === "starting";
   const minutes = plan?.policy.cloudSttMinutesMonthly ?? null;
 
@@ -184,6 +188,21 @@ function Listening({ accessToken, teamId, inApp }: { accessToken: string; teamId
         ) : null}
       </div>
 
+      {inApp ? (
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border p-4">
+          <input
+            type="checkbox"
+            checked={wake}
+            onChange={(e) => { setWakePhraseEnabled(e.target.checked); setWake(e.target.checked); }}
+            className="mt-1 h-4 w-4 shrink-0 accent-[hsl(var(--primary))]"
+          />
+          <span className="min-w-0">
+            <span className="block text-sm font-medium">{t("vault.listening.wake")}</span>
+            <span className="mt-0.5 block text-sm text-muted-foreground">{t("vault.listening.wakeHint")}</span>
+          </span>
+        </label>
+      ) : null}
+
       <dl className="grid gap-px overflow-hidden rounded-xl border border-border bg-border text-sm sm:grid-cols-2">
         <Fact label={t("vault.listening.plan")} value={plan ? plan.tier : "…"} />
         <Fact
@@ -214,7 +233,7 @@ function Models({ inApp }: { inApp: boolean }) {
     { name: t("vault.models.transcription"), where: t("vault.models.cloud"), ready: true },
     { name: t("vault.models.onDevice"), where: t("vault.models.notYet"), ready: false },
     { name: t("vault.models.speakers"), where: t("vault.models.notYet"), ready: false },
-    { name: t("vault.models.wakeWord"), where: t("vault.models.notYet"), ready: false },
+    { name: t("vault.models.wakeWord"), where: t("vault.models.fromTranscript"), ready: true },
   ];
   return (
     <section className="space-y-3">
