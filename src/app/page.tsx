@@ -12,6 +12,7 @@ import { KillioLanding } from "@/components/marketing/killio-landing";
 import { TenantLanding } from "@/components/marketing/tenant-landing";
 import { useTenant } from "@/components/providers/tenant-provider";
 import { useRouter } from "next/navigation";
+import { isKillioApp } from "@/lib/app-shell";
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function LandingPage() {
   const { accessToken, isLoading: isSessionLoading } = useSession();
@@ -20,7 +21,8 @@ export default function LandingPage() {
   const router = useRouter();
 
   // White-label "login" landing: skip the marketing page and go straight to sign-in.
-  const skipToLogin = tenant.mode === "tenant" && tenant.landing.mode === "login";
+  // Killio App never shows a landing either: it is sign-in or the workspace.
+  const skipToLogin = isKillioApp() || (tenant.mode === "tenant" && tenant.landing.mode === "login");
   useEffect(() => {
     if (skipToLogin && !isSessionLoading && !accessToken) router.replace("/login");
   }, [skipToLogin, isSessionLoading, accessToken, router]);

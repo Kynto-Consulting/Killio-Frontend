@@ -137,12 +137,20 @@
       "label": "Sistema"
     }
   },
+  "appShell": {
+    "confirmOpenLink": "El asistente quiere abrir este enlace en tu navegador:\n\n{{url}}",
+    "confirmClipboardRead": "El asistente quiere leer lo que tienes copiado en el portapapeles. ¿Permitir?",
+    "confirmOpenApp": "El asistente quiere abrir esta aplicación:\n\n{{app}}",
+    "confirmScreenshot": "El asistente quiere tomar una captura de tu pantalla y subirla a Killio. ¿Permitir?",
+    "confirmScreenshotReason": "El asistente quiere tomar una captura de tu pantalla y subirla a Killio.\n\nMotivo: {{reason}}\n\n¿Permitir?"
+  },
   "accountMenu": {
     "account": "Cuenta",
     "plan": "Plan",
     "profileSettings": "Configuracion de perfil",
     "appPreferences": "Preferencias de la app",
     "switchAccount": "Cambiar cuenta",
+    "switchServer": "Cambiar de servidor",
     "signOut": "Cerrar sesion"
   },
   "search": {

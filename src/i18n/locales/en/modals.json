@@ -64,7 +64,8 @@
     "active": "Active",
     "addAnother": "Add another account",
     "switch": "Switch Account",
-    "switching": "Switching..."
+    "switching": "Switching...",
+    "otherServer": "Account on another server"
   },
   "confirmDelete": {
     "cancel": "Cancel",

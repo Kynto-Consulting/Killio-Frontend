@@ -10,6 +10,7 @@ import { useExperimentalEditorMode } from "@/hooks/use-experimental-editor-mode"
 import { PersonalIntegrationsModal } from "@/components/integrations/personal-integrations-modal";
 import { ModeSettings } from "@/components/onboarding/mode-settings";
 import { useUiMode } from "@/components/providers/ui-mode-provider";
+import { AiProviderSettings } from "@/components/ui/ai-provider-settings";
 
 interface AppPreferencesModalProps {
   isOpen: boolean;
@@ -137,7 +138,9 @@ export function AppPreferencesModal({ isOpen, onClose }: AppPreferencesModalProp
                 </div>
                 <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
               </button>
-            </div></> : null}
+            </div>
+
+            <AiProviderSettings /></> : null}
 
           </div>
 

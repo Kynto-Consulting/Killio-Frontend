@@ -19,6 +19,7 @@ import { LocalWorkspaceProvider } from "@/components/providers/local-workspace-p
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useTeamPermissions } from "@/hooks/use-team-permissions";
 import { HelpMenuItems, OnboardingHost } from "@/components/onboarding/onboarding-host";
+import { AppShellMenuItems } from "@/components/app-shell/app-shell-menu-items";
 import { UiModeProvider } from "@/components/providers/ui-mode-provider";
 import { useEffect, useState } from "react";
 import { listTeams, listTeamBoards, createTeam, createInvite, BoardSummary, TeamView, TeamRole } from "@/lib/api/contracts";
@@ -467,6 +468,8 @@ function LayoutMobileInner({ children }: { children: React.ReactNode }) {
               >
                 <ArrowRightLeft className="mr-2 h-4 w-4" /> {tDashboard("accountMenu.switchAccount")}
               </button>
+
+              <AppShellMenuItems onDone={() => setIsSettingsOpen(false)} />
 
               <button
                 onClick={logout}

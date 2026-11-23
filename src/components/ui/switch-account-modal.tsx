@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { X, ArrowRightLeft, Loader2, UserPlus, CheckCircle2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { X, ArrowRightLeft, Loader2, UserPlus, CheckCircle2, Server } from "lucide-react";
+import { killioApp, listOtherServerAccounts, type KillioAppAccount } from "@/lib/app-shell";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { getUserAvatarUrl } from "@/lib/gravatar";
@@ -23,6 +24,17 @@ export function SwitchAccountModal({ isOpen, onClose }: SwitchAccountModalProps)
     // Wait a moment for redirect/reload to happen gracefully
     await new Promise(r => setTimeout(r, 500));
   });
+
+  // Killio App: accounts on other servers, read each time the modal opens. Always empty on the web.
+  const [inApp, setInApp] = useState(false);
+  const [otherServerAccounts, setOtherServerAccounts] = useState<KillioAppAccount[]>([]);
+  useEffect(() => {
+    if (!isOpen) return;
+    setInApp(killioApp() !== null);
+    let cancelled = false;
+    void listOtherServerAccounts().then((list) => { if (!cancelled) setOtherServerAccounts(list); });
+    return () => { cancelled = true; };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -93,6 +105,26 @@ export function SwitchAccountModal({ isOpen, onClose }: SwitchAccountModalProps)
             )
           })}
           
+          {/* Killio App only: accounts signed in on other servers. Picking one moves the app to that server. */}
+          {otherServerAccounts.map((acc) => (
+            <button
+              key={`${acc.tenant}|${acc.id}`}
+              onClick={() => { void killioApp()?.openAccount?.(acc.tenant, acc.id); }}
+              className="w-full flex items-center justify-between p-3 rounded-xl border border-border hover:border-border/80 hover:bg-accent/5 transition-all"
+            >
+              <div className="flex items-center gap-3 overflow-hidden">
+                <div className="h-10 w-10 shrink-0 rounded-full overflow-hidden border border-border shadow-sm bg-accent/10">
+                  <img src={getUserAvatarUrl(acc.avatarUrl ?? undefined, acc.email, 40)} alt={acc.name || "User"} className="h-full w-full object-cover" />
+                </div>
+                <div className="flex flex-col items-start overflow-hidden">
+                  <span className="text-sm font-semibold truncate w-full content-start">{acc.name || tCommon("account.fallbackUser")}</span>
+                  <span className="text-xs text-muted-foreground truncate w-full content-start">{acc.email}</span>
+                </div>
+              </div>
+              <span className="ml-2 shrink-0 rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">{acc.tenantName}</span>
+            </button>
+          ))}
+
           {/* Add Account fake option */}
           <button 
             onClick={() => {
@@ -106,6 +138,18 @@ export function SwitchAccountModal({ isOpen, onClose }: SwitchAccountModalProps)
             </div>
             <span className="text-sm font-medium">{t("switchAccount.addAnother")}</span>
           </button>
+
+          {inApp ? (
+            <button
+              onClick={() => { onClose(); void killioApp()?.switchTenant(); }}
+              className="w-full flex items-center gap-3 p-3 rounded-xl border border-dashed border-border/60 hover:border-accent hover:bg-accent/5 transition-all text-muted-foreground hover:text-foreground"
+            >
+              <div className="h-10 w-10 shrink-0 rounded-full bg-accent/10 flex items-center justify-center text-accent">
+                <Server className="h-5 w-5" />
+              </div>
+              <span className="text-sm font-medium">{t("switchAccount.otherServer")}</span>
+            </button>
+          ) : null}
         </div>
 
         <div className="flex justify-end gap-3 pt-4 border-t border-border/50">

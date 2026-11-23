@@ -30,6 +30,7 @@ import { useTeamPermissions } from "@/hooks/use-team-permissions";
 import { UiModeProvider, useUiMode } from "@/components/providers/ui-mode-provider";
 import { isPathVisibleInMode } from "@/lib/ui-mode/ui-mode";
 import { HelpMenuItems, OnboardingHost } from "@/components/onboarding/onboarding-host";
+import { AppShellMenuItems } from "@/components/app-shell/app-shell-menu-items";
 import { useVersionCheck } from "@/hooks/use-version-check";
 import { useEffect, useState } from "react";
 import { RefreshCw, HardDrive, CloudUpload, Trash2 } from "lucide-react";
@@ -943,6 +944,8 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
               >
                 <ArrowRightLeft className="mr-2 h-4 w-4" /> {tDashboard("accountMenu.switchAccount")}
               </button>
+
+              <AppShellMenuItems onDone={() => setIsSettingsOpen(false)} />
 
               <button
                 onClick={logout}

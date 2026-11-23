@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useSession } from "@/components/providers/session-provider";
+import { useTranslations } from "@/components/providers/i18n-provider";
+import { appClientActions, primeAppClientActions, runAppClientAction } from "@/lib/app-shell/client-actions";
 import { useUiMode } from "@/components/providers/ui-mode-provider";
 import { streamAgentChat, AgentEntityScope, AgentStreamEvent, AgentConversationMode, AgentPageContext, getAgentMessages } from "@/lib/api/agent";
 import { buildAiMessageWithReferenceContext } from "@/lib/reference-ai-context";
@@ -297,6 +299,21 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext, wo
   extrasRef.current = { mode, source, pageContext, onStreamEvent, uiMode };
   const cancelRef = useRef<(() => void) | null>(null);
   const lastUserTextRef = useRef<string>("");
+
+  // ── Killio App: device tools ("client actions") ──────────────────────────
+  // Inside the app the backend may pause a turn so this device runs a tool (open a link, share a
+  // screenshot); the turn resumes with the result. On the web none of this is active.
+  const tDashboard = useTranslations("dashboard");
+  useEffect(() => {
+    void primeAppClientActions();
+  }, []);
+  const deviceCtxRef = useRef({ accessToken, teamId, entityType, entityId, workspaceSlug, tDashboard });
+  deviceCtxRef.current = { accessToken, teamId, entityType, entityId, workspaceSlug, tDashboard };
+  /** The device tool the current turn is paused on, until its `done` event arrives. */
+  const pendingClientActionRef = useRef<{ assistantId: string; id?: string; tool: string; input: Record<string, unknown> } | null>(null);
+  const resumeAfterClientActionRef = useRef<
+    (pending: { id?: string; tool: string; input: Record<string, unknown> }, pendingMessageId: string | undefined, assistantId: string, toolEvts: ToolEvent[], accTextRef: { current: string }) => void
+  >(() => {});
   // Preferred model for the next message. Threaded into /agent/chat/stream as
   // `model`; the backend validates, clamps to the plan, and enforces the
   // once-only change per conversation. A ref keeps it stable inside callbacks.
@@ -380,8 +397,25 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext, wo
             );
             break;
 
+          case "client_action":
+            pendingClientActionRef.current = { assistantId, id: event.id, tool: event.tool, input: event.input ?? {} };
+            toolEvts.push({ id: event.id, tool: event.tool, input: event.input, phase: "start" });
+            setActiveToolEvents([...toolEvts]);
+            setMessages((prev) =>
+              prev.map((m) => m.id === assistantId ? { ...m, toolEvents: [...toolEvts] } : m),
+            );
+            break;
+
           case "done": {
             conversationIdRef.current = event.conversationId;
+            // Paused on a device tool: this `done` only closes the first half of the turn. Keep the
+            // bubble streaming, run the tool here and resume; the resumed stream ends the turn.
+            const pendingAction = pendingClientActionRef.current;
+            if (pendingAction && pendingAction.assistantId === assistantId) {
+              pendingClientActionRef.current = null;
+              resumeAfterClientActionRef.current(pendingAction, event.messageId, assistantId, toolEvts, accTextRef);
+              break;
+            }
             const realAssistantId = event.messageId ?? assistantId;
             setMessages((prev) =>
               prev.map((m) =>
@@ -429,6 +463,45 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext, wo
     [],
   );
 
+  resumeAfterClientActionRef.current = (pending, pendingMessageId, assistantId, toolEvts, accTextRef) => {
+    const ctx = deviceCtxRef.current;
+    if (!ctx.accessToken) return;
+    const token = ctx.accessToken;
+    void runAppClientAction(pending.tool, pending.input, {
+      accessToken: token,
+      teamId: ctx.teamId,
+      confirm: (kind, detail) =>
+        window.confirm(
+          kind === "openLink"
+            ? ctx.tDashboard("appShell.confirmOpenLink", { url: detail })
+            : kind === "clipboardRead"
+              ? ctx.tDashboard("appShell.confirmClipboardRead")
+            : kind === "openApp"
+              ? ctx.tDashboard("appShell.confirmOpenApp", { app: detail })
+            : detail
+              ? ctx.tDashboard("appShell.confirmScreenshotReason", { reason: detail })
+              : ctx.tDashboard("appShell.confirmScreenshot"),
+        ),
+    }).then((outcome) => {
+      // The backend replaces this message with the tool's real result, so its text is not used.
+      cancelRef.current = streamAgentChat(
+        {
+          conversationId: conversationIdRef.current,
+          teamId: ctx.teamId,
+          entityType: ctx.entityType,
+          entityId: ctx.entityId,
+          message: lastUserTextRef.current || pending.tool,
+          workspaceSlug: ctx.workspaceSlug,
+          clientActions: appClientActions(),
+          clientActionResult: { id: pending.id, tool: pending.tool, success: outcome.success, output: outcome.output, error: outcome.error, pendingMessageId },
+          ...paletteBodyExtras(extrasRef.current),
+        },
+        token,
+        makeStreamHandler(assistantId, toolEvts, accTextRef),
+      );
+    });
+  };
+
   const sendMessage = useCallback(
     async (text?: string) => {
       const rawMessage = (text ?? inputValue).trim();
@@ -464,7 +537,12 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext, wo
       const toolEvts: ToolEvent[] = [];
 
       const cancel = streamAgentChat(
-        { conversationId: conversationIdRef.current, teamId, entityType, entityId, message, workspaceSlug, model: selectedModelRef.current, ...paletteBodyExtras(extrasRef.current) },
+        {
+          conversationId: conversationIdRef.current, teamId, entityType, entityId, message, workspaceSlug, model: selectedModelRef.current,
+          // Only inside Killio App, and only once it has said what it can run; the web sends nothing.
+          ...(appClientActions().length > 0 ? { clientActions: appClientActions() } : {}),
+          ...paletteBodyExtras(extrasRef.current),
+        },
         accessToken!,
         makeStreamHandler(assistantId, toolEvts, accTextRef),
       );

@@ -20,6 +20,18 @@
       "desc": "Edit text bricks directly on the rendered text — disables the markdown round-trip. May be unstable."
     }
   },
+  "aiProvider": {
+    "label": "AI provider",
+    "modes": { "host": "Host (this workspace's)" },
+    "hostDesc": "Uses the included AI. Spends your plan's credits.",
+    "ownDesc": "Uses your own account. Spends no credits: usage is billed by your provider.",
+    "url": "URL (optional)",
+    "apiKey": "API key",
+    "keyStored": "Stored (ends in {{hint}}). Type another to replace it.",
+    "model": "Model",
+    "save": "Save provider",
+    "saved": "Saved"
+  },
   "personalIntegrations": {
     "label": "Personal integrations",
     "manage": "Manage your connected apps",
