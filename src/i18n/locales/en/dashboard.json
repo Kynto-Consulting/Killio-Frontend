@@ -251,13 +251,15 @@
       "transcriptionCloud": "On the server",
       "audio": "The audio",
       "audioNotKept": "Not kept; only the text",
-      "limits": "Transcription spends the plan's credits. Without a connection phrases are not saved. On desktop, closing the window while listening keeps Killio App in the system tray.",
+      "limits": "Transcribing on the server spends the plan's credits. Without a connection phrases are not saved. On desktop, closing the window while listening keeps Killio App in the system tray.",
       "wake": "Wake phrase: \"Killio, …\"",
-      "wakeHint": "While listening is on, a phrase that starts by calling Killio (\"Hey Killio, create a card for…\") is handed to the assistant as an order. Anyone nearby can say it."
+      "wakeHint": "While listening is on, a phrase that starts by calling Killio (\"Hey Killio, create a card for…\") is handed to the assistant as an order. Anyone nearby can say it.",
+      "onDevice": "Transcribe on this device",
+      "onDeviceHint": "The audio never leaves the device and no credits are spent, but it is less accurate than the server (in tests, about one word in sixteen wrong in English and one in seven in Spanish) and takes a few seconds per phrase; longer on a phone. The first time it downloads a model of about 65 MB. Saving to the diary still needs a connection."
     },
     "models": {
-      "intro": "The speech models Vault uses and where they run. Telling who is speaking happens on your device; transcription, on the server.",
-      "transcription": "Speech transcription",
+      "intro": "The speech models Vault uses and where they run. Telling who is speaking happens on your device; transcription, on the server or, if you choose, on your device too.",
+      "transcription": "Speech transcription (server)",
       "cloud": "On the server",
       "onDevice": "On-device transcription",
       "speakers": "Who is speaking (voice print)",
@@ -265,7 +267,8 @@
       "notYet": "Not available in Killio App yet",
       "appNote": "On-device models will only exist inside Killio App.",
       "fromTranscript": "From the transcript",
-      "onThisDevice": "On this device"
+      "onThisDevice": "On this device",
+      "optional": "Optional, on this device"
     },
     "speakers": {
       "title": "Tell who is speaking",

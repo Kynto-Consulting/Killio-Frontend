@@ -11,6 +11,7 @@ import { getVaultEntitlements, searchDiary, type DiaryEntry, type VaultEntitleme
 import { killioApp } from "@/lib/app-shell";
 import { activeListening, type ListeningState } from "@/lib/app-shell/active-listening";
 import { isWakePhraseEnabled, setWakePhraseEnabled } from "@/lib/app-shell/wake-phrase";
+import { localStt } from "@/lib/app-shell/stt/local-stt";
 
 type Tab = "diary" | "listening" | "memory" | "models";
 const OFF: ListeningState = { status: "off", speaking: false, phrases: 0, lastText: "", error: null };
@@ -157,7 +158,8 @@ function Listening({ accessToken, teamId, inApp }: { accessToken: string; teamId
   }, [accessToken, teamId]);
 
   const [wake, setWake] = useState(false);
-  useEffect(() => { setWake(isWakePhraseEnabled()); }, []);
+  const [onDevice, setOnDevice] = useState(false);
+  useEffect(() => { setWake(isWakePhraseEnabled()); setOnDevice(localStt.enabled); }, []);
 
   const on = state.status === "listening" || state.status === "starting";
   const minutes = plan?.policy.cloudSttMinutesMonthly ?? null;
@@ -207,6 +209,21 @@ function Listening({ accessToken, teamId, inApp }: { accessToken: string; teamId
         </label>
       ) : null}
 
+      {inApp ? (
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border p-4">
+          <input
+            type="checkbox"
+            checked={onDevice}
+            onChange={(e) => { localStt.setEnabled(e.target.checked); setOnDevice(e.target.checked); }}
+            className="mt-1 h-4 w-4 shrink-0 accent-[hsl(var(--primary))]"
+          />
+          <span className="min-w-0">
+            <span className="block text-sm font-medium">{t("vault.listening.onDevice")}</span>
+            <span className="mt-0.5 block text-sm text-muted-foreground">{t("vault.listening.onDeviceHint")}</span>
+          </span>
+        </label>
+      ) : null}
+
       {inApp ? <SpeakersSettings /> : null}
 
       <dl className="grid gap-px overflow-hidden rounded-xl border border-border bg-border text-sm sm:grid-cols-2">
@@ -215,7 +232,7 @@ function Listening({ accessToken, teamId, inApp }: { accessToken: string; teamId
           label={t("vault.listening.cloudMinutes")}
           value={minutes === null ? "…" : !plan?.policy.enabled || minutes === 0 ? t("vault.listening.notIncluded") : t("vault.listening.minutesPerMonth", { count: minutes })}
         />
-        <Fact label={t("vault.listening.transcription")} value={t("vault.listening.transcriptionCloud")} />
+        <Fact label={t("vault.listening.transcription")} value={onDevice ? t("vault.models.onThisDevice") : t("vault.listening.transcriptionCloud")} />
         <Fact label={t("vault.listening.audio")} value={t("vault.listening.audioNotKept")} />
       </dl>
       <p className="text-xs text-muted-foreground">{t("vault.listening.limits")}</p>
@@ -237,7 +254,7 @@ function Models({ inApp }: { inApp: boolean }) {
   const t = useTranslations("dashboard");
   const rows: Array<{ name: string; where: string; ready: boolean }> = [
     { name: t("vault.models.transcription"), where: t("vault.models.cloud"), ready: true },
-    { name: t("vault.models.onDevice"), where: t("vault.models.notYet"), ready: false },
+    { name: t("vault.models.onDevice"), where: t("vault.models.optional"), ready: true },
     { name: t("vault.models.speakers"), where: t("vault.models.onThisDevice"), ready: true },
     { name: t("vault.models.wakeWord"), where: t("vault.models.fromTranscript"), ready: true },
   ];

@@ -1,0 +1,14 @@
+Third-party files in this folder
+
+encoder_model.onnx, decoder_model_merged_quantized.onnx, vocab.json, added_tokens.json, config.json,
+generation_config.json
+  Whisper tiny (multilingual), (c) OpenAI, in the ONNX export published as onnx-community/whisper-tiny
+  on Hugging Face. Unmodified.
+  SHA-256: encoder 6642befb640f950d4a8cbbd17834d59e7e75f575b81ccf213e06b050623ab1dd,
+           decoder 25e807a962b6349356d0ea5d0dfe530b7e5bf0e2a484aeca0359d03143faddd3.
+  License: openai/whisper is MIT (GitHub) and the openai/whisper-tiny model card states Apache-2.0;
+  the ONNX repository itself states no license.
+  https://github.com/openai/whisper  https://huggingface.co/onnx-community/whisper-tiny
+
+stt-worker.mjs is built from src/lib/app-shell/stt/ (this project). It loads ONNX Runtime Web from
+../voice/ (see the NOTICE there).
