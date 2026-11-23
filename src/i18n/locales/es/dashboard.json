@@ -155,7 +155,23 @@
       "dismiss": "Cerrar"
     },
     "confirmAlarm": "El asistente quiere poner una alarma a las {{time}} en este teléfono. ¿Permitir?",
-    "confirmTimer": "El asistente quiere iniciar un temporizador de {{duration}} (minutos:segundos) en este teléfono. ¿Permitir?"
+    "confirmTimer": "El asistente quiere iniciar un temporizador de {{duration}} (minutos:segundos) en este teléfono. ¿Permitir?",
+    "update": {
+      "title": "Actualización de Killio App",
+      "checking": "Buscando actualizaciones…",
+      "available": "Hay una versión nueva de Killio App",
+      "upToDate": "Killio App está al día",
+      "versions": "Tienes la compilación {{current}}; la más reciente es la {{latest}}",
+      "version": "Compilación {{current}}",
+      "whatChanged": "Qué cambió",
+      "install": "Actualizar ahora",
+      "download": "Descargar instalador",
+      "installing": "Descargando…",
+      "later": "Más tarde",
+      "close": "Cerrar",
+      "installHint": "La app se cerrará y se abrirá el instalador.",
+      "downloadHint": "El instalador se abre en tu navegador; instálalo para terminar."
+    }
   },
   "accountMenu": {
     "account": "Cuenta",
@@ -165,7 +181,8 @@
     "switchAccount": "Cambiar cuenta",
     "switchServer": "Cambiar de servidor",
     "signOut": "Cerrar sesion",
-    "activeListening": "Escucha activa"
+    "activeListening": "Escucha activa",
+    "checkUpdates": "Buscar actualizaciones"
   },
   "search": {
     "placeholder": "Buscar o escribir un comando..."
