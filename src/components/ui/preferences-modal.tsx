@@ -11,6 +11,7 @@ import { PersonalIntegrationsModal } from "@/components/integrations/personal-in
 import { ModeSettings } from "@/components/onboarding/mode-settings";
 import { useUiMode } from "@/components/providers/ui-mode-provider";
 import { AiProviderSettings } from "@/components/ui/ai-provider-settings";
+import { AssistantMemorySettings } from "@/components/ui/assistant-memory-settings";
 
 interface AppPreferencesModalProps {
   isOpen: boolean;
@@ -89,6 +90,8 @@ export function AppPreferencesModal({ isOpen, onClose }: AppPreferencesModalProp
             <ModeSettings />
 
             {uiMode.mode === "full" ? <><AiProviderSettings />
+
+            <AssistantMemorySettings />
 
             <div className="h-px w-full bg-border/50" />
 
