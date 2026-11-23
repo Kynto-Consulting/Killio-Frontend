@@ -25,7 +25,7 @@ export interface ClientActionOutcome {
   error?: string;
 }
 
-export type ClientActionConfirmKind = "openLink" | "openApp" | "screenshot" | "clipboardRead" | "runTool";
+export type ClientActionConfirmKind = "openLink" | "openApp" | "screenshot" | "clipboardRead" | "runTool" | "alarm" | "timer";
 
 export interface ClientActionContext {
   accessToken: string;
@@ -34,6 +34,30 @@ export interface ClientActionContext {
   /** "runTool" is asked by the local agent (claude-agent.ts) before a tool the server marks as destructive. */
   confirm: (kind: ClientActionConfirmKind, detail: string) => boolean | Promise<boolean>;
 }
+
+type DeviceApp = { label: string; package: string };
+type Bridge = NonNullable<ReturnType<typeof killioApp>>;
+
+/** Installed apps, wherever this device keeps them: a computer's own list, or a phone's through its device tools. */
+async function installedApps(bridge: Bridge): Promise<DeviceApp[] | null> {
+  if (bridge.listApps) return bridge.listApps();
+  if (bridge.device) {
+    const answer = await bridge.device("listApps");
+    return Array.isArray(answer.apps) ? (answer.apps as DeviceApp[]) : [];
+  }
+  return null;
+}
+
+async function openInstalledApp(bridge: Bridge, app: DeviceApp): Promise<void> {
+  if (bridge.openApp) return bridge.openApp(app.package);
+  if (bridge.device) {
+    await bridge.device("openApp", { packageName: app.package });
+    return;
+  }
+  throw new Error("This device cannot open apps.");
+}
+
+const twoDigits = (n: number) => String(n).padStart(2, "0");
 
 let supported: string[] = [];
 let primed: Promise<string[]> | null = null;
@@ -123,28 +147,51 @@ export async function runAppClientAction(tool: string, input: Input, ctx: Client
         return { success: true, output: { shared: false, copied: true, note: "This device has no share sheet; the text was copied to the clipboard." } };
       }
       case "list_installed_apps": {
-        if (!bridge.listApps) return { success: false, error: "This device cannot list its apps." };
-        const apps = await bridge.listApps();
+        const apps = await installedApps(bridge);
+        if (!apps) return { success: false, error: "This device cannot list its apps." };
         return { success: true, output: { count: apps.length, apps } };
       }
       case "search_app": {
-        if (!bridge.listApps || !bridge.openApp) return { success: false, error: "This device cannot search its apps." };
-        const matches = searchApps(await bridge.listApps(), text(input.query)).slice(0, 8);
+        const apps = await installedApps(bridge);
+        if (!apps) return { success: false, error: "This device cannot search its apps." };
+        const matches = searchApps(apps, text(input.query)).slice(0, 8);
         if (input.open === true && matches[0]) {
           if (!(await ctx.confirm("openApp", matches[0].label))) return { success: false, error: "The user declined." };
-          await bridge.openApp(matches[0].package);
+          await openInstalledApp(bridge, matches[0]);
           return { success: true, output: { opened: matches[0], matches } };
         }
         return { success: true, output: { count: matches.length, matches } };
       }
       case "open_installed_app": {
-        if (!bridge.listApps || !bridge.openApp) return { success: false, error: "This device cannot open apps." };
+        const apps = await installedApps(bridge);
+        if (!apps) return { success: false, error: "This device cannot open apps." };
         const pkg = text(input.package);
-        const app = (await bridge.listApps()).find((candidate) => candidate.package === pkg);
+        const app = apps.find((candidate) => candidate.package === pkg);
         if (!app) return { success: false, error: "That app is not installed. Use search_app to find it." };
         if (!(await ctx.confirm("openApp", app.label))) return { success: false, error: "The user declined." };
-        await bridge.openApp(app.package);
+        await openInstalledApp(bridge, app);
         return { success: true, output: { opened: app } };
+      }
+      case "set_alarm": {
+        if (!bridge.device) return { success: false, error: "This device cannot set alarms." };
+        const hour = Number(input.hour);
+        const minute = Number(input.minute);
+        if (!Number.isInteger(hour) || hour < 0 || hour > 23 || !Number.isInteger(minute) || minute < 0 || minute > 59) return { success: false, error: "The time is not valid." };
+        if (!(await ctx.confirm("alarm", `${twoDigits(hour)}:${twoDigits(minute)}`))) return { success: false, error: "The user declined." };
+        return { success: true, output: await bridge.device("setAlarm", { hour, minute, label: text(input.label) || undefined }) };
+      }
+      case "set_timer": {
+        if (!bridge.device) return { success: false, error: "This device cannot start timers." };
+        const seconds = Math.round(Number(input.seconds));
+        if (!(seconds >= 1 && seconds <= 86_400)) return { success: false, error: "The timer must be between 1 second and 24 hours." };
+        const minutes = Math.floor(seconds / 60);
+        if (!(await ctx.confirm("timer", `${minutes}:${twoDigits(seconds % 60)}`))) return { success: false, error: "The user declined." };
+        return { success: true, output: await bridge.device("setTimer", { seconds, label: text(input.label) || undefined }) };
+      }
+      case "flashlight": {
+        if (!bridge.device) return { success: false, error: "This device has no torch." };
+        // No question first: it is instant, visible and undone with the same tool.
+        return { success: true, output: await bridge.device("flashlight", { on: input.on !== false }) };
       }
       case "vibrate": {
         if (typeof navigator.vibrate !== "function") return { success: false, error: "This device cannot vibrate." };

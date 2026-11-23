@@ -65,3 +65,13 @@ test("app search ignores case and accents and puts the closest name first", () =
   assert.deepEqual(searchApps(apps, "  "), []);
   assert.deepEqual(searchApps(apps, "zzz"), []);
 });
+
+test("phone hardware tools need a phone and an app build that has them", () => {
+  const android = deviceToolsFor("android", ["deviceTools"]);
+  for (const tool of ["set_alarm", "set_timer", "flashlight", "list_installed_apps", "open_installed_app"]) assert.ok(android.includes(tool), tool);
+  assert.ok(!deviceToolsFor("android", []).includes("set_alarm"));
+  assert.ok(!deviceToolsFor("windows", ["deviceTools", "apps"]).includes("set_alarm"));
+  // A desktop keeps its own app tools, listed once.
+  const windows = deviceToolsFor("windows", ["deviceTools", "apps"]);
+  assert.equal(windows.filter((t) => t === "open_installed_app").length, 1);
+});

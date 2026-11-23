@@ -152,7 +152,9 @@
       "saved": "Frases guardadas en tu diario: {{count}}",
       "stop": "Detener la escucha",
       "dismiss": "Cerrar"
-    }
+    },
+    "confirmAlarm": "El asistente quiere poner una alarma a las {{time}} en este teléfono. ¿Permitir?",
+    "confirmTimer": "El asistente quiere iniciar un temporizador de {{duration}} (minutos:segundos) en este teléfono. ¿Permitir?"
   },
   "accountMenu": {
     "account": "Cuenta",

@@ -478,6 +478,10 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext, wo
             ? ctx.tDashboard("appShell.confirmClipboardRead")
             : kind === "openApp"
               ? ctx.tDashboard("appShell.confirmOpenApp", { app: detail })
+            : kind === "alarm"
+              ? ctx.tDashboard("appShell.confirmAlarm", { time: detail })
+            : kind === "timer"
+              ? ctx.tDashboard("appShell.confirmTimer", { duration: detail })
               : detail
                 ? ctx.tDashboard("appShell.confirmScreenshotReason", { reason: detail })
                 : ctx.tDashboard("appShell.confirmScreenshot"),

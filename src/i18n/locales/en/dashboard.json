@@ -152,7 +152,9 @@
       "saved": "Phrases saved to your diary: {{count}}",
       "stop": "Stop listening",
       "dismiss": "Close"
-    }
+    },
+    "confirmAlarm": "The assistant wants to set an alarm for {{time}} on this phone. Allow?",
+    "confirmTimer": "The assistant wants to start a {{duration}} timer (minutes:seconds) on this phone. Allow?"
   },
   "accountMenu": {
     "account": "Account",
