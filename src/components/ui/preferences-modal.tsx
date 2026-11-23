@@ -12,6 +12,7 @@ import { ModeSettings } from "@/components/onboarding/mode-settings";
 import { useUiMode } from "@/components/providers/ui-mode-provider";
 import { AiProviderSettings } from "@/components/ui/ai-provider-settings";
 import { AssistantMemorySettings } from "@/components/ui/assistant-memory-settings";
+import { ServerSettings } from "@/components/app-shell/server-settings";
 
 interface AppPreferencesModalProps {
   isOpen: boolean;
@@ -86,6 +87,8 @@ export function AppPreferencesModal({ isOpen, onClose }: AppPreferencesModalProp
             </div>
 
             <div className="h-px w-full bg-border/50" />
+
+            <ServerSettings onDone={onClose} />
 
             <ModeSettings />
 
