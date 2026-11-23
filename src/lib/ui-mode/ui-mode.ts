@@ -25,6 +25,7 @@ export function resolveUiMode(userMode: UiMode | null | undefined, teamDefault: 
  * rooms, activity history. Each entry is a path prefix.
  */
 export const REDUCED_HIDDEN_PREFIXES: readonly string[] = [
+  "/vault",
   "/metrics",
   "/estadisticas",
   "/marketplace",

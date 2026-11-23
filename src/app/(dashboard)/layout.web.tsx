@@ -33,7 +33,7 @@ import { HelpMenuItems, OnboardingHost } from "@/components/onboarding/onboardin
 import { AppShellMenuItems } from "@/components/app-shell/app-shell-menu-items";
 import { useVersionCheck } from "@/hooks/use-version-check";
 import { useEffect, useState } from "react";
-import { RefreshCw, HardDrive, CloudUpload, Trash2 } from "lucide-react";
+import { RefreshCw, HardDrive, CloudUpload, Trash2, Mic } from "lucide-react";
 import { useOnline } from "@/hooks/use-online";
 import { warmCache, warmImages, warmEntities } from "@/lib/warm-cache";
 import { PublishWorkspaceModal } from "@/components/ui/publish-workspace-modal";
@@ -100,6 +100,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
     { name: tDashboard("nav.graph"), href: "/graph", icon: Workflow },
     { name: tDashboard("nav.rooms"), href: "/rooms", icon: MessageSquare },
     { name: tDashboard("nav.activityHistory"), href: "/history", icon: History },
+    { name: tDashboard("nav.vault"), href: "/vault", icon: Mic },
   ];
 
   const { user, activeTeamId, setActiveTeamId, accessToken, logout, accounts } = useSession();
