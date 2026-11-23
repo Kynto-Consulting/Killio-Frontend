@@ -50,7 +50,7 @@ export function AppPreferencesModal({ isOpen, onClose }: AppPreferencesModalProp
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative max-h-[calc(100dvh-2rem)] w-full max-w-2xl overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-2xl animate-in zoom-in-95 duration-200 sm:p-8">
+      <div className="relative flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl animate-in zoom-in-95 duration-200">
         <button
           onClick={onClose}
           className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
@@ -59,7 +59,7 @@ export function AppPreferencesModal({ isOpen, onClose }: AppPreferencesModalProp
           <span className="sr-only">{tCommon("actions.close")}</span>
         </button>
 
-        <div className="mb-6 flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-3 border-b border-border/50 px-6 py-5 sm:px-8">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <Settings className="h-5 w-5" />
           </div>
@@ -69,8 +69,9 @@ export function AppPreferencesModal({ isOpen, onClose }: AppPreferencesModalProp
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-6">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          {/* The only part that scrolls: the buttons below are always within reach. */}
+          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain px-6 py-6 sm:px-8">
 
             {/* Language */}
             <div className="space-y-3">
@@ -150,7 +151,7 @@ export function AppPreferencesModal({ isOpen, onClose }: AppPreferencesModalProp
 
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-border/50">
+          <div className="flex shrink-0 justify-end gap-3 border-t border-border/50 px-6 py-4 sm:px-8">
             <button
               type="button"
               onClick={onClose}
