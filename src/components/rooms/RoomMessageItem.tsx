@@ -1055,8 +1055,9 @@ export function RoomMessageItem({
                 );
               })}
 
-              {/* Thinking line: only on the assistant's own message, while it streams or has nothing to show yet. */}
-              {isAi && (message.status === "sending" || markupBlocks.length === 0) && (
+              {/* Thinking line: only on the assistant's own message, while it streams or has nothing to show yet.
+                  A message that is minutes old and still empty is not thinking: it failed, and says nothing. */}
+              {isAi && (message.status === "sending" || (markupBlocks.length === 0 && Date.now() - new Date(message.createdAt).getTime() < 3 * 60 * 1000)) && (
                 <div className="flex items-center gap-1.5 py-1 text-muted-foreground animate-pulse">
                   <Bot className="w-3.5 h-3.5" />
                   <span className="text-[10px] font-medium italic">

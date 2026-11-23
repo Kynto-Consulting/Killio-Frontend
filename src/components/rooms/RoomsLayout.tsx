@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Menu } from "lucide-react";
+import { PanelLeft } from "lucide-react";
 
 interface RoomsLayoutProps {
   sidebar: (onClose: () => void) => React.ReactNode;
@@ -62,7 +62,7 @@ export function RoomsLayout({ sidebar, children, drawerLabel = "Channels" }: Roo
                 aria-label={drawerLabel}
                 className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none"
               >
-                <Menu className="h-4 w-4" aria-hidden />
+                <PanelLeft className="h-4 w-4" aria-hidden />
               </button>
             </div>
             {children}

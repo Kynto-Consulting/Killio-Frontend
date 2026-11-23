@@ -61,7 +61,7 @@ import { MuteMemberModal } from "@/components/rooms/MuteMemberModal";
 import { UserProfileProvider, type UserProfileProviderProps } from "@/components/rooms/user-profile-context";
 import { ChannelSettingsModal } from "@/components/rooms/ChannelSettingsModal";
 import { CategorySettingsModal } from "@/components/rooms/CategorySettingsModal";
-import { Loader2, Menu, Phone, ShieldOff, X } from "lucide-react";
+import { Loader2, PanelLeft, Phone, ShieldOff, X } from "lucide-react";
 import { useTeamGroups } from "@/hooks/use-team-groups";
 import { useChannelMenu, type ChannelMenuHandlers } from "@/components/rooms/ChannelMenu";
 import { DraftStore } from "@/lib/rooms/room-cache";
@@ -1170,7 +1170,7 @@ Team Context: ${activeTeamId}.`;
   const slimBar = (openSidebar: () => void) => (
     <div className="flex shrink-0 items-center gap-2 border-b border-border/50 px-3 py-2 md:hidden">
       <button type="button" onClick={openSidebar} aria-label={t("sidebar.open")} className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
-        <Menu className="h-4 w-4" aria-hidden />
+        <PanelLeft className="h-4 w-4" aria-hidden />
       </button>
     </div>
   );

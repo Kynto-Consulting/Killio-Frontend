@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Bot, Captions, FileText, GitBranch, Hash, Layout, Megaphone, Menu, MessageSquare, MoreHorizontal, Phone, PhoneOff,
   Pin, Search, Users, List, StickyNote, Bookmark,
+  PanelLeft,
 } from "lucide-react";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import type { Room } from "@/lib/api/rooms";
@@ -108,7 +109,7 @@ export function RoomHeader({
         <div className="flex min-w-0 flex-1 items-center gap-2">
           {onOpenSidebar && (
             <button type="button" onClick={onOpenSidebar} aria-label={t("sidebar.open")} className={`${btn} lg:hidden`}>
-              <Menu className="h-4 w-4" aria-hidden />
+              <PanelLeft className="h-4 w-4" aria-hidden />
             </button>
           )}
           <LeadIcon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />

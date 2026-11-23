@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, ChevronLeft, ChevronRight, Plus, Check, X, Archive, ArchiveRestore, MoveRight, ChevronDown, Filter } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
-import { getBoard, getArchivedLists, archiveList, updateCard, ArchivedListSummary } from "@/lib/api/contracts";
+import { getBoard, getArchivedLists, archiveList, updateCard, createList, ArchivedListSummary } from "@/lib/api/contracts";
 import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { apiCache, CACHE_TTL, cacheKey } from "@/lib/api-cache";
@@ -93,6 +93,10 @@ export default function BoardMobilePage() {
   const swipeRef = useRef<SwipeState | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // The first list of an empty board: the phone view could only add cards to lists that already existed.
+  const [firstListName, setFirstListName] = useState("");
+  const [isCreatingList, setIsCreatingList] = useState(false);
 
   const loadBoard = useCallback(() => {
     if (!accessToken || !boardId) return;
@@ -397,8 +401,41 @@ export default function BoardMobilePage() {
         </div>
       ) : lists.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-          <p className="text-sm font-medium text-muted-foreground">{t("list.noArchivedLists")}</p>
-          <Link href={`/b/${boardId}`} className="mt-3 text-xs text-accent">{t("list.addAnother")}</Link>
+          <p className="text-sm font-medium text-muted-foreground">{t("list.emptyBoardMobile")}</p>
+          <form
+            className="mt-4 flex w-full max-w-xs gap-2"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              const name = firstListName.trim();
+              if (!name || !accessToken || isCreatingList) return;
+              setIsCreatingList(true);
+              try {
+                await createList(boardId, { name }, accessToken);
+                setFirstListName("");
+                loadBoard();
+              } catch {
+                toast(t("list.createError"), "error");
+              } finally {
+                setIsCreatingList(false);
+              }
+            }}
+          >
+            <input
+              value={firstListName}
+              onChange={(event) => setFirstListName(event.target.value)}
+              maxLength={120}
+              placeholder={t("list.namePlaceholderMobile")}
+              aria-label={t("list.namePlaceholderMobile")}
+              className="h-11 min-w-0 flex-1 rounded-lg border border-border bg-card px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            <button
+              type="submit"
+              disabled={!firstListName.trim() || isCreatingList}
+              className="h-11 shrink-0 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-opacity disabled:opacity-50"
+            >
+              {t("list.createFirst")}
+            </button>
+          </form>
         </div>
       ) : (
         <>

@@ -320,7 +320,11 @@
     "addAnother": "Agregar otra lista",
     "add": "Agregar lista",
     "cancel": "Cancelar",
-    "placeholder": "Ingresa título de la lista..."
+    "placeholder": "Ingresa título de la lista...",
+    "emptyBoardMobile": "Este tablero aún no tiene listas",
+    "namePlaceholderMobile": "Nombre de la lista",
+    "createFirst": "Crear",
+    "createError": "No se pudo crear la lista"
   },
   "card": {
     "editCard": "Editar tarjeta...",
