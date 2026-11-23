@@ -173,8 +173,9 @@
       "downloadHint": "The installer opens in your browser; install it to finish."
     },
     "server": {
-      "title": "Server",
-      "hint": "Killio App can connect to killio.dev or to your organisation's own server. Your sessions on each are kept."
+      "title": "Killio App",
+      "hint": "Killio App can connect to killio.dev or to your organisation's own server. Your sessions on each are kept.",
+      "updateHint": "The app also checks for a new version by itself."
     }
   },
   "accountMenu": {
@@ -185,7 +186,6 @@
     "switchAccount": "Switch Account",
     "switchServer": "Switch server",
     "signOut": "Sign Out",
-    "activeListening": "Active listening",
     "checkUpdates": "Check for updates"
   },
   "search": {
