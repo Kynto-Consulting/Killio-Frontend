@@ -143,7 +143,16 @@
     "confirmOpenApp": "The assistant wants to open this app:\n\n{{app}}",
     "confirmScreenshot": "The assistant wants to capture your screen and upload it to Killio. Allow?",
     "confirmScreenshotReason": "The assistant wants to capture your screen and upload it to Killio.\n\nReason: {{reason}}\n\nAllow?",
-    "confirmRunTool": "The assistant wants to run \"{{tool}}\", which changes or deletes information. Allow?"
+    "confirmRunTool": "The assistant wants to run \"{{tool}}\", which changes or deletes information. Allow?",
+    "listening": {
+      "consent": "Active listening keeps the microphone on and writes what is said near this device to your diary, including what other people say. Let them know first.\n\nTranscription happens on the server and spends your plan's credits. The audio is not kept.\n\nTurn it on?",
+      "on": "Listening",
+      "starting": "Turning the microphone on…",
+      "stopped": "Listening stopped",
+      "saved": "{{count}} phrases saved to your diary",
+      "stop": "Stop listening",
+      "dismiss": "Close"
+    }
   },
   "accountMenu": {
     "account": "Account",
@@ -152,7 +161,8 @@
     "appPreferences": "App Preferences",
     "switchAccount": "Switch Account",
     "switchServer": "Switch server",
-    "signOut": "Sign Out"
+    "signOut": "Sign Out",
+    "activeListening": "Active listening"
   },
   "search": {
     "placeholder": "Search or type a command..."

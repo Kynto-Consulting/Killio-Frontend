@@ -143,7 +143,16 @@
     "confirmOpenApp": "El asistente quiere abrir esta aplicación:\n\n{{app}}",
     "confirmScreenshot": "El asistente quiere tomar una captura de tu pantalla y subirla a Killio. ¿Permitir?",
     "confirmScreenshotReason": "El asistente quiere tomar una captura de tu pantalla y subirla a Killio.\n\nMotivo: {{reason}}\n\n¿Permitir?",
-    "confirmRunTool": "El asistente quiere ejecutar \"{{tool}}\", que cambia o borra información. ¿Permitir?"
+    "confirmRunTool": "El asistente quiere ejecutar \"{{tool}}\", que cambia o borra información. ¿Permitir?",
+    "listening": {
+      "consent": "La escucha activa deja el micrófono encendido y escribe en tu diario lo que se dice cerca de este dispositivo, también lo que digan otras personas. Avísales antes.\n\nLa transcripción se hace en el servidor y consume créditos de tu plan. El audio no se guarda.\n\n¿Activar?",
+      "on": "Escuchando",
+      "starting": "Encendiendo el micrófono…",
+      "stopped": "La escucha se detuvo",
+      "saved": "{{count}} frases guardadas en tu diario",
+      "stop": "Detener la escucha",
+      "dismiss": "Cerrar"
+    }
   },
   "accountMenu": {
     "account": "Cuenta",
@@ -152,7 +161,8 @@
     "appPreferences": "Preferencias de la app",
     "switchAccount": "Cambiar cuenta",
     "switchServer": "Cambiar de servidor",
-    "signOut": "Cerrar sesion"
+    "signOut": "Cerrar sesion",
+    "activeListening": "Escucha activa"
   },
   "search": {
     "placeholder": "Buscar o escribir un comando..."

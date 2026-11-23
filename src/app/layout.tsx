@@ -39,6 +39,7 @@ import { I18nProvider } from '@/components/providers/i18n-provider';
 import { Toaster } from '@/components/ui/toaster';
 import { OfflineIndicator } from '@/components/ui/offline-indicator';
 import { SwUpdater } from '@/components/ui/sw-updater';
+import { ActiveListeningHost } from '@/components/app-shell/active-listening-host';
 import { PlatformProvider } from '@/components/providers/platform-provider';
 import { CallProvider } from '@/components/providers/call-provider';
 import { RealtimeProvider } from '@/components/providers/realtime-provider';
@@ -74,6 +75,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                   <Toaster />
                   <OfflineIndicator />
                   <SwUpdater />
+                  <ActiveListeningHost />
                   <PoweredByBadge />
                 </I18nProvider>
               </RealtimeProvider>
