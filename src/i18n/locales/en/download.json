@@ -1,0 +1,110 @@
+{
+  "hero": {
+    "badge": "Killio App",
+    "titlePrefix": "Killio, in",
+    "titleAccent": "its own window",
+    "sub": "Killio App is the native app for Windows, macOS, Linux and Android: it opens the Killio of the server you choose and adds what a browser tab cannot do.",
+    "downloadFor": "Download for {system}",
+    "seeDownloads": "See downloads",
+    "allPlatforms": "All platforms",
+    "ios": "Killio App is not available for iPhone or iPad yet. Meanwhile, Killio works in your browser.",
+    "version": "Version {version}",
+    "updated": "Updated {date}",
+    "noInfo": "We could not check the latest build right now. If a download does not start, try again in a few minutes."
+  },
+  "mock": {
+    "choose": "Choose a server",
+    "cloud": "Killio cloud",
+    "own": "Your organization's server",
+    "ownAddress": "killio.your-company.com",
+    "add": "Add another account"
+  },
+  "systems": {
+    "windows": "Windows",
+    "macos": "macOS",
+    "linux": "Linux",
+    "android": "Android"
+  },
+  "platforms": {
+    "eyebrow": "Downloads",
+    "title": "One app, four systems",
+    "sub": "Every link below always serves the latest build.",
+    "yourSystem": "Your system",
+    "missing": "Not in this build yet",
+    "windows": {
+      "desc": "Installer (.exe). An .msi package is also available.",
+      "note": "Not code-signed yet: Windows will warn the first time you open it."
+    },
+    "macos": {
+      "desc": "One universal .dmg for Apple silicon and Intel Macs.",
+      "note": "Not code-signed yet: macOS will warn the first time you open it."
+    },
+    "linux": {
+      "desc": "AppImage for any distribution, or a .deb / .rpm package.",
+      "note": "Pick the format your distribution uses."
+    },
+    "android": {
+      "desc": "APK to install directly on your phone or tablet.",
+      "note": "Unsigned preview build: it is not on an app store, and Android may warn about or block the install."
+    },
+    "formats": {
+      "windows": "Installer .exe",
+      "windows-msi": ".msi",
+      "macos": "Universal .dmg",
+      "linux-appimage": ".AppImage",
+      "linux-deb": ".deb",
+      "linux-rpm": ".rpm",
+      "android": ".apk"
+    }
+  },
+  "signing": {
+    "title": "Before you install",
+    "body": "Killio App is new. The Windows and macOS builds are not code-signed yet, so the system shows a warning the first time you open them, and the Android build is an unsigned preview. Download it only from this page."
+  },
+  "features": {
+    "eyebrow": "What the app adds",
+    "title": "More than a browser tab",
+    "servers": {
+      "title": "Server picker",
+      "desc": "Open killio.dev or your organization's own Killio server."
+    },
+    "accounts": {
+      "title": "Several accounts at once",
+      "desc": "Keep accounts from different servers signed in and switch between them."
+    },
+    "window": {
+      "title": "Its own window",
+      "desc": "A frameless window with its own title bar, with no browser around it."
+    },
+    "screenshots": {
+      "title": "Screenshots",
+      "desc": "Take a screenshot from the app and use it where you would attach an image."
+    },
+    "signin": {
+      "title": "Sign in with your provider",
+      "desc": "Google, Microsoft or Bloomx sign-in opens in your system browser."
+    },
+    "tools": {
+      "title": "Tools on each device",
+      "desc": "The agent can open installed apps, system settings and links, set up per device."
+    },
+    "offline": {
+      "title": "Works offline",
+      "desc": "Without a connection it keeps working with what was already loaded."
+    }
+  },
+  "connect": {
+    "eyebrow": "How it connects",
+    "title": "You choose the server",
+    "body": "Killio App is a window onto a Killio server: it opens the Killio of the server you pick, and you can keep accounts from several servers.",
+    "cloudTitle": "killio.dev",
+    "cloudDesc": "The Killio cloud. Sign in with the account you already use on the web.",
+    "ownTitle": "Your organization's server",
+    "ownDesc": "If your organization runs its own Killio, enter the address it gave you."
+  },
+  "mobile": {
+    "title": "Killio App",
+    "description": "The native app for Android, Windows, macOS and Linux. Open killio.dev or your organization's server in its own window.",
+    "cta": "Download Killio App"
+  }
+}

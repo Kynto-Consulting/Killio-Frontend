@@ -22,6 +22,7 @@ const highlights = [
 
 export default function LandingPageMobile() {
   const t = useTranslations("landing");
+  const tDownload = useTranslations("download");
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -122,6 +123,18 @@ export default function LandingPageMobile() {
 
           <Link href="/signup" className="mt-5 inline-flex h-10 w-full items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
             {t("mobile.launch.cta")}
+          </Link>
+        </section>
+
+        <section className="mt-5 rounded-3xl border border-border/70 bg-card/60 p-5">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Smartphone className="h-4 w-4 text-[hsl(var(--accent-ink))]" />
+            {tDownload("mobile.title")}
+          </div>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">{tDownload("mobile.description")}</p>
+          <Link href="/download" className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full border border-border text-sm font-medium">
+            <Download className="h-4 w-4" />
+            {tDownload("mobile.cta")}
           </Link>
         </section>
 
