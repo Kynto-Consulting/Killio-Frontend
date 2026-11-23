@@ -43,6 +43,12 @@ export interface KillioAppBridge {
   listApps?(): Promise<KillioAppInstalledApp[]>;
   /** Opens one of the apps `listApps` returned; any other value is refused by the app. */
   openApp?(pkg: string): Promise<void>;
+  /**
+   * Android builds with the "deviceTools" feature: the phone's own hardware and system apps.
+   * Actions: "setAlarm" { hour, minute, label? }, "setTimer" { seconds, label? }, "flashlight" { on },
+   * "listApps" → { apps: [{ label, package }] }, "openApp" { packageName }.
+   */
+  device?(action: string, payload?: Record<string, unknown>): Promise<Record<string, unknown>>;
   /** Desktop builds with the "claude" feature: the person's own Claude Code as AI provider. */
   claude?: KillioClaudeBridge;
 }

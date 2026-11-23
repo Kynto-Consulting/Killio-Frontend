@@ -42,6 +42,8 @@ const FEATURE_TOOLS: Record<string, { tools: string[]; kinds: DeviceKind[] }> = 
   screenshot: { tools: ["vault_upload_screenshot"], kinds: ["desktop"] },
   // Start Menu on Windows, Applications on macOS, .desktop entries on Linux.
   apps: { tools: ["list_installed_apps", "search_app", "open_installed_app"], kinds: ["desktop"] },
+  // Android: the clock app, the torch and the phone's own app list.
+  deviceTools: { tools: ["set_alarm", "set_timer", "flashlight", "list_installed_apps", "search_app", "open_installed_app"], kinds: ["mobile"] },
 };
 
 /** The device tools to offer on `platform` ("windows" | "macos" | "linux" | "android" | "ios"). */
