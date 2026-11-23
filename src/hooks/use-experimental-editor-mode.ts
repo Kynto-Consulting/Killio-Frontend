@@ -4,14 +4,15 @@ import { useCallback, useEffect, useState } from "react";
 
 // Local-only, per-device flag. When ON, text bricks stop round-tripping the
 // live DOM through markdown source on focus/format and edit DIRECTLY on the
-// rendered HTML. Experimental — opt-in from App Preferences.
+// rendered HTML. On by default; a device can turn it off from App Preferences.
 const KEY = "killio_experimental_editor_mode";
 const EVT = "killio:experimental-editor-mode";
 
 export function getExperimentalEditorMode(): boolean {
   if (typeof window === "undefined") return false;
   try {
-    return window.localStorage.getItem(KEY) === "1";
+    // On unless this device turned it off.
+    return window.localStorage.getItem(KEY) !== "0";
   } catch {
     return false;
   }

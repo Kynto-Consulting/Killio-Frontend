@@ -97,29 +97,32 @@ export function ModeRouteGuard({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Help entries for the account menu: welcome assistant, first-steps tour and (only when a demo exists) delete the demo. */
-export function HelpMenuItems({ onDone }: { onDone: () => void }) {
+/** Help, in Preferences: welcome assistant, first-steps tour and (only when a demo exists) delete the demo. */
+export function HelpSettings({ onDone }: { onDone: () => void }) {
   const t = useTranslations("onboarding");
   const ui = useUiMode();
   const { activeTeamId } = useSession();
   const del = useDeleteDemo();
-  const item = "w-full text-left px-2 py-2 text-sm hover:bg-muted/10 rounded-md transition-colors flex items-center";
+  const item = "inline-flex h-9 items-center rounded-md border border-border px-3 text-sm font-medium transition-colors hover:bg-accent/10";
   return (
-    <>
-      <div className="px-2 pt-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("help.title")}</div>
-      <button type="button" className={item} onClick={() => { onDone(); ui.setWizardOpen(true); }}>
-        <Sparkles className="mr-2 h-4 w-4" aria-hidden="true" /> {t("help.wizard")}
-      </button>
-      <button type="button" className={item} onClick={() => { onDone(); ui.setTourOpen(true); }}>
-        <Compass className="mr-2 h-4 w-4" aria-hidden="true" /> {t("help.tour")}
-      </button>
-      {hasDemo(ui.onboarding, activeTeamId) ? (
-        <button type="button" className={`${item} text-destructive`} onClick={() => { onDone(); void del.run(); }}>
-          <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" /> {t("help.demoDelete")}
+    <div className="space-y-3">
+      <label className="flex items-center text-sm font-medium leading-none">
+        <Compass className="mr-2 h-4 w-4 text-muted-foreground" aria-hidden="true" /> {t("help.title")}
+      </label>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className={item} onClick={() => { onDone(); ui.setWizardOpen(true); }}>
+          <Sparkles className="mr-2 h-4 w-4" aria-hidden="true" /> {t("help.wizard")}
         </button>
-      ) : null}
+        <button type="button" className={item} onClick={() => { onDone(); ui.setTourOpen(true); }}>
+          <Compass className="mr-2 h-4 w-4" aria-hidden="true" /> {t("help.tour")}
+        </button>
+        {hasDemo(ui.onboarding, activeTeamId) ? (
+          <button type="button" className={`${item} text-destructive`} onClick={() => void del.run()}>
+            <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" /> {t("help.demoDelete")}
+          </button>
+        ) : null}
+      </div>
       <del.ConfirmDialog />
-      <div className="my-1 h-px bg-border/50" />
-    </>
+    </div>
   );
 }

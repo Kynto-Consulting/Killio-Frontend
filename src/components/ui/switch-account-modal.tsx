@@ -110,9 +110,9 @@ export function SwitchAccountModal({ isOpen, onClose }: SwitchAccountModalProps)
             <button
               key={`${acc.tenant}|${acc.id}`}
               onClick={() => { void killioApp()?.openAccount?.(acc.tenant, acc.id); }}
-              className="w-full flex items-center justify-between p-3 rounded-xl border border-border hover:border-border/80 hover:bg-accent/5 transition-all"
+              className="w-full flex items-center justify-between p-3 rounded-xl border border-border text-left hover:border-border/80 hover:bg-accent/5 transition-all"
             >
-              <div className="flex items-center gap-3 overflow-hidden">
+              <div className="flex min-w-0 items-center gap-3 overflow-hidden">
                 <div className="h-10 w-10 shrink-0 rounded-full overflow-hidden border border-border shadow-sm bg-accent/10">
                   <img src={getUserAvatarUrl(acc.avatarUrl ?? undefined, acc.email, 40)} alt={acc.name || "User"} className="h-full w-full object-cover" />
                 </div>
