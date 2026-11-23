@@ -11,7 +11,7 @@ Rules for any change in this repo:
 - **App-only behaviour goes through `src/lib/app-shell`.** Use `isKillioApp()` / `killioApp()`. Never
   sniff the user agent, and never call `window.__TAURI_INTERNALS__` directly.
 - **App-only UI must render nothing on the web.** Decide after mount (see
-  `src/components/app-shell/app-shell-menu-items.tsx`); the server never knows it is the app, so
+  `src/components/app-shell/server-settings.tsx`); the server never knows it is the app, so
   deciding during render causes a hydration mismatch.
 - **No marketing inside the app.** The app shows sign-in / sign-up or the workspace, never a landing.
   A new public page that a signed-out user can reach from inside the app needs the same

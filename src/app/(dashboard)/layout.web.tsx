@@ -30,7 +30,6 @@ import { useTeamPermissions } from "@/hooks/use-team-permissions";
 import { UiModeProvider, useUiMode } from "@/components/providers/ui-mode-provider";
 import { isPathVisibleInMode } from "@/lib/ui-mode/ui-mode";
 import { HelpMenuItems, OnboardingHost } from "@/components/onboarding/onboarding-host";
-import { AppShellMenuItems } from "@/components/app-shell/app-shell-menu-items";
 import { useVersionCheck } from "@/hooks/use-version-check";
 import { useEffect, useState } from "react";
 import { RefreshCw, HardDrive, CloudUpload, Trash2, Mic } from "lucide-react";
@@ -89,18 +88,20 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
   const isScriptsRouteActive = isPathActive("/integrations") || pathname === "/scripts";
 
   const navigation = [
+    // By kind: where the work is; the work itself; talking and listening; automation and insight;
+    // then people and extras.
     { name: tDashboard("nav.workspaces"), href: "/", icon: LayoutDashboard },
-    { name: tDashboard("nav.teams"), href: "/teams", icon: Users },
-    { name: tDashboard("nav.statistics"), href: "/metrics", icon: BarChart3 },
-    { name: tDashboard("nav.marketplace"), href: "/marketplace", icon: Sparkles },
-    { name: tDashboard("nav.scripts"), href: "/integrations", icon: Zap },
     { name: tDashboard("nav.boards"), href: "/b", icon: Layout },
-    { name: tDashboard("nav.meshs"), href: "/m", icon: GitBranch },
     { name: tDashboard("nav.documents"), href: "/d", icon: FileText },
+    { name: tDashboard("nav.meshs"), href: "/m", icon: GitBranch },
     { name: tDashboard("nav.graph"), href: "/graph", icon: Workflow },
     { name: tDashboard("nav.rooms"), href: "/rooms", icon: MessageSquare },
-    { name: tDashboard("nav.activityHistory"), href: "/history", icon: History },
     { name: tDashboard("nav.vault"), href: "/vault", icon: Mic },
+    { name: tDashboard("nav.scripts"), href: "/integrations", icon: Zap },
+    { name: tDashboard("nav.statistics"), href: "/metrics", icon: BarChart3 },
+    { name: tDashboard("nav.activityHistory"), href: "/history", icon: History },
+    { name: tDashboard("nav.teams"), href: "/teams", icon: Users },
+    { name: tDashboard("nav.marketplace"), href: "/marketplace", icon: Sparkles },
   ];
 
   const { user, activeTeamId, setActiveTeamId, accessToken, logout, accounts } = useSession();
@@ -946,7 +947,6 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
                 <ArrowRightLeft className="mr-2 h-4 w-4" /> {tDashboard("accountMenu.switchAccount")}
               </button>
 
-              <AppShellMenuItems onDone={() => setIsSettingsOpen(false)} />
 
               <button
                 onClick={logout}

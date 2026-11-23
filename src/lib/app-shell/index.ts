@@ -10,6 +10,8 @@
 
 export interface KillioAppInfo {
   version: string;
+  /** Number of the published build that is running; 0 for one made outside the release pipeline. Missing in older builds. */
+  build?: number;
   /** "windows" | "macos" | "linux" | "android" | "ios" */
   platform: string;
   /** Native features this build of the app has, e.g. "screenshot". */
