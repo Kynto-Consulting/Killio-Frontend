@@ -396,15 +396,15 @@ function DocumentsPageContent() {
           </h1>
           <p className="text-muted-foreground">{t("subtitle")}</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="relative">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-[10rem] flex-1 sm:flex-none">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input 
               type="text"
               placeholder={t("searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-9 w-64 rounded-md border border-input bg-card px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+              className="pl-9 h-9 w-full sm:w-64 rounded-md border border-input bg-card px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
             />
           </div>
           <button
@@ -573,7 +573,7 @@ function DocumentsPageContent() {
                               secondLine = "." + doc.title.slice(22);
                             }
                             return (
-                              <h3 className="text-lg font-semibold group-hover:text-accent transition-colors break-words leading-tight max-w-[180px]">
+                              <h3 className="text-lg font-semibold group-hover:text-accent transition-colors break-words leading-tight max-w-full sm:max-w-[180px]">
                                 {firstLine}
                                 {secondLine && <><br />{secondLine}</>}
                               </h3>

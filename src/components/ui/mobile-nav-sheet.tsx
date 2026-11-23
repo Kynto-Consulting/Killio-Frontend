@@ -30,6 +30,8 @@ export function MobileNavSheet({
   logout,
   onCreateWorkspace,
   onOpenSettings,
+  onOpenPreferences,
+  onSwitchAccount,
   boardName,
   documentName
 }: {
@@ -45,6 +47,8 @@ export function MobileNavSheet({
   logout: () => void;
   onCreateWorkspace?: () => void;
   onOpenSettings?: () => void;
+  onOpenPreferences?: () => void;
+  onSwitchAccount?: () => void;
   boardName?: string;
   documentName?: string;
 }) {
@@ -195,15 +199,18 @@ export function MobileNavSheet({
     <>
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center space-x-2 px-2 py-1.5 -ml-2 rounded-md hover:bg-accent/10 transition-colors max-w-[200px] sm:max-w-xs"
+        aria-label={tDashboard("nav.menu")}
+        aria-expanded={isOpen}
+        className="flex min-h-11 items-center space-x-2 px-2 py-1.5 -ml-2 rounded-md hover:bg-accent/10 transition-colors max-w-[240px] sm:max-w-xs"
       >
+        <Menu className="h-5 w-5 shrink-0" aria-hidden="true" />
         <div className="flex items-center justify-center h-5 w-5 rounded bg-primary/20 text-[10px] font-bold text-primary shrink-0">
           {activeTeam?.icon || activeTeam?.name.charAt(0).toUpperCase() || "W"}
         </div>
-        <span className="text-sm font-semibold truncate shrink-0 max-w-[80px]">
+        <span className="hidden text-sm font-semibold truncate shrink-0 max-w-[80px] min-[420px]:inline">
           {activeTeam?.name || tDashboard("teamSwitcher.selectWorkspace")}
         </span>
-        <span className="text-muted-foreground/50 text-sm">/</span>
+        <span className="hidden text-muted-foreground/50 text-sm min-[420px]:inline">/</span>
         <span className="text-sm font-medium truncate">
           {pageLabel}
         </span>
@@ -440,8 +447,32 @@ export function MobileNavSheet({
                       <span className="text-sm font-medium w-full text-left truncate leading-tight">{user?.displayName || "Account"}</span>
                     </div>
                   </div>
-                  <Settings className="h-4 w-4 text-muted-foreground" />
+                  <UserCircle className="h-4 w-4 text-muted-foreground" />
                 </button>
+                {/* What the desktop account menu offers: on a phone this sheet is the only way to them. */}
+                <div className="mt-1 grid grid-cols-3 gap-1">
+                  <button
+                    className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-[11px] font-medium text-foreground/80 transition-colors hover:bg-accent/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={() => { setIsOpen(false); onOpenPreferences?.(); }}
+                  >
+                    <Settings className="h-4 w-4" />
+                    <span className="w-full truncate text-center">{tDashboard("accountMenu.appPreferences")}</span>
+                  </button>
+                  <button
+                    className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-[11px] font-medium text-foreground/80 transition-colors hover:bg-accent/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={() => { setIsOpen(false); onSwitchAccount?.(); }}
+                  >
+                    <ArrowRightLeft className="h-4 w-4" />
+                    <span className="w-full truncate text-center">{tDashboard("accountMenu.switchAccount")}</span>
+                  </button>
+                  <button
+                    className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={() => { setIsOpen(false); logout(); }}
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span className="w-full truncate text-center">{tDashboard("accountMenu.signOut")}</span>
+                  </button>
+                </div>
             </div>
             </div>
           </div>
