@@ -4,12 +4,15 @@
  *
  * Only speech leaves the device (speech-segmenter.ts drops silence), and only while the person has it
  * turned on: it never starts by itself, and it stops when the page is closed. Transcription is the
- * server's cloud speech-to-text (`/vault/stt`), which is metered in credits; the phrases go to the diary
- * through `/vault/diary/ingest`. Without a connection nothing can be transcribed, so phrases are dropped.
+ * server's cloud speech-to-text (`/vault/stt`), which is metered in credits, unless the person chose
+ * to transcribe on the device (stt/local-stt.ts): then the audio stays here and only the text travels.
+ * Either way the phrases go to the diary through `/vault/diary/ingest`, so without a connection they
+ * are dropped.
  */
 import { API_BASE_URL } from "@/lib/api/client";
 import { SpeechSegmenter, downsample, encodeWav, type SpeechSegment } from "./speech-segmenter.ts";
 import { speakerId } from "./voice/speaker-id.ts";
+import { localStt } from "./stt/local-stt.ts";
 
 export interface ListeningState {
   status: "off" | "starting" | "listening" | "error";
@@ -187,23 +190,35 @@ class ActiveListening {
     try {
       // Who is speaking is worked out on the device while the server transcribes (voice/speaker-id.ts).
       const who = speakerId.identify(phrase.samples);
-      const form = new FormData();
-      const wav = encodeWav(phrase.samples, RATE);
-      form.append("file", new Blob([wav.buffer as ArrayBuffer], { type: "audio/wav" }), "phrase.wav");
-      const query = new URLSearchParams({ teamId, language: this.deps?.language() ?? "" });
-      const stt = await fetch(`${API_BASE_URL}/vault/stt?${query.toString()}`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
-      if (!stt.ok) {
-        const message = await serverMessage(stt, `Transcription failed (${stt.status}).`);
-        // The plan does not include it, the credits ran out, or the session ended: listening on would only
-        // keep recording phrases that cannot be saved.
-        if ([401, 402, 403, 404].includes(stt.status)) {
-          this.fail(message);
-          return "stop";
+      let text: string;
+      if (localStt.enabled) {
+        // The person chose to keep the audio on the device: a failure here loses the phrase, it never
+        // falls back to sending the audio to the server.
+        try {
+          text = await localStt.transcribe(phrase.samples, this.deps?.language() ?? "es");
+        } catch (error) {
+          this.set({ error: error instanceof Error ? error.message : String(error) });
+          return "skipped";
         }
-        this.set({ error: message });
-        return "skipped";
+      } else {
+        const form = new FormData();
+        const wav = encodeWav(phrase.samples, RATE);
+        form.append("file", new Blob([wav.buffer as ArrayBuffer], { type: "audio/wav" }), "phrase.wav");
+        const query = new URLSearchParams({ teamId, language: this.deps?.language() ?? "" });
+        const stt = await fetch(`${API_BASE_URL}/vault/stt?${query.toString()}`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
+        if (!stt.ok) {
+          const message = await serverMessage(stt, `Transcription failed (${stt.status}).`);
+          // The plan does not include it, the credits ran out, or the session ended: listening on would only
+          // keep recording phrases that cannot be saved.
+          if ([401, 402, 403, 404].includes(stt.status)) {
+            this.fail(message);
+            return "stop";
+          }
+          this.set({ error: message });
+          return "skipped";
+        }
+        text = String((await stt.json())?.text ?? "").trim();
       }
-      const text = String((await stt.json())?.text ?? "").trim();
       if (!text) return "skipped";
       const voice = await who;
       const speaker = voice ? voice.name ?? this.deps?.unnamedSpeaker?.(voice.number ?? 0) ?? `Speaker ${voice.number ?? ""}`.trim() : undefined;
