@@ -44,6 +44,8 @@ const FEATURE_TOOLS: Record<string, { tools: string[]; kinds: DeviceKind[] }> = 
   apps: { tools: ["list_installed_apps", "search_app", "open_installed_app"], kinds: ["desktop"] },
   // Android: the clock app, the torch and the phone's own app list.
   deviceTools: { tools: ["set_alarm", "set_timer", "flashlight", "list_installed_apps", "search_app", "open_installed_app"], kinds: ["mobile"] },
+  // Android: the phone's contacts and calendar, this app's screen brightness and the media keys.
+  phoneData: { tools: ["contacts_search", "calendar_list_events", "calendar_create_event", "set_brightness", "spotify_pause", "spotify_next", "spotify_previous"], kinds: ["mobile"] },
 };
 
 /** The device tools to offer on `platform` ("windows" | "macos" | "linux" | "android" | "ios"). */

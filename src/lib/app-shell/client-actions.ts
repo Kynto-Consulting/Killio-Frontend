@@ -25,7 +25,7 @@ export interface ClientActionOutcome {
   error?: string;
 }
 
-export type ClientActionConfirmKind = "openLink" | "openApp" | "screenshot" | "clipboardRead" | "runTool" | "alarm" | "timer";
+export type ClientActionConfirmKind = "openLink" | "openApp" | "screenshot" | "clipboardRead" | "runTool" | "alarm" | "timer" | "contacts" | "calendarRead" | "calendarEvent";
 
 export interface ClientActionContext {
   accessToken: string;
@@ -187,6 +187,44 @@ export async function runAppClientAction(tool: string, input: Input, ctx: Client
         const minutes = Math.floor(seconds / 60);
         if (!(await ctx.confirm("timer", `${minutes}:${twoDigits(seconds % 60)}`))) return { success: false, error: "The user declined." };
         return { success: true, output: await bridge.device("setTimer", { seconds, label: text(input.label) || undefined }) };
+      }
+      case "contacts_search": {
+        if (!bridge.device) return { success: false, error: "This device cannot search contacts." };
+        const query = text(input.query);
+        if (query.length < 2) return { success: false, error: "Give at least two letters of the name." };
+        // Names and numbers of other people leave the phone: asked every time, with what is searched.
+        if (!(await ctx.confirm("contacts", query))) return { success: false, error: "The user declined." };
+        return { success: true, output: await bridge.device("contactsSearch", { query }) };
+      }
+      case "calendar_list_events": {
+        if (!bridge.device) return { success: false, error: "This device cannot read the calendar." };
+        if (!(await ctx.confirm("calendarRead", ""))) return { success: false, error: "The user declined." };
+        const startMs = Number(input.startMs);
+        const endMs = Number(input.endMs);
+        return { success: true, output: await bridge.device("calendarList", { startMs: Number.isFinite(startMs) ? startMs : 0, endMs: Number.isFinite(endMs) ? endMs : 0 }) };
+      }
+      case "calendar_create_event": {
+        if (!bridge.device) return { success: false, error: "This device cannot create calendar events." };
+        const title = text(input.title);
+        const start = Number(input.start);
+        const end = Number(input.end);
+        if (!title || !Number.isFinite(start) || !Number.isFinite(end) || end < start) return { success: false, error: "The event needs a title, a start and an end that is not before the start." };
+        if (!(await ctx.confirm("calendarEvent", title))) return { success: false, error: "The user declined." };
+        return { success: true, output: await bridge.device("calendarCreate", { title, start, end, location: text(input.location) || undefined, notes: text(input.notes) || undefined }) };
+      }
+      case "set_brightness": {
+        if (!bridge.device) return { success: false, error: "This device cannot change the brightness." };
+        // No question first: it only affects this app's screen and the same tool undoes it.
+        if (input.restore === true) return { success: true, output: await bridge.device("setBrightness", { restore: true }) };
+        const level = Number(input.level);
+        if (!(level >= 0 && level <= 1)) return { success: false, error: "The brightness must be between 0 and 1." };
+        return { success: true, output: await bridge.device("setBrightness", { level }) };
+      }
+      case "spotify_pause":
+      case "spotify_next":
+      case "spotify_previous": {
+        if (!bridge.device) return { success: false, error: "This device has no media keys." };
+        return { success: true, output: await bridge.device("mediaKey", { key: tool.slice("spotify_".length) }) };
       }
       case "flashlight": {
         if (!bridge.device) return { success: false, error: "This device has no torch." };

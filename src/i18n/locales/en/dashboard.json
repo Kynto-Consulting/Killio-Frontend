@@ -176,7 +176,10 @@
       "title": "Killio App",
       "hint": "Killio App can connect to killio.dev or to your organisation's own server. Your sessions on each are kept.",
       "updateHint": "The app also checks for a new version by itself."
-    }
+    },
+    "confirmContacts": "The assistant wants to search this phone's contacts for \"{{query}}\". The names and numbers it finds will be sent to the assistant. Allow?",
+    "confirmCalendarRead": "The assistant wants to read this phone's calendar events. Allow?",
+    "confirmCalendarEvent": "The assistant wants to open the calendar with a new event: \"{{title}}\". You save it there. Allow?"
   },
   "accountMenu": {
     "account": "Account",

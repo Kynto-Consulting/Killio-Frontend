@@ -176,7 +176,10 @@
       "title": "Killio App",
       "hint": "Killio App puede conectarse a killio.dev o al servidor de tu organización. Tus sesiones en cada uno se conservan.",
       "updateHint": "La app también revisa sola si hay una versión nueva."
-    }
+    },
+    "confirmContacts": "El asistente quiere buscar «{{query}}» en los contactos de este teléfono. Los nombres y números que encuentre se enviarán al asistente. ¿Permitir?",
+    "confirmCalendarRead": "El asistente quiere leer los eventos del calendario de este teléfono. ¿Permitir?",
+    "confirmCalendarEvent": "El asistente quiere abrir el calendario con un evento nuevo: «{{title}}». Tú lo guardas ahí. ¿Permitir?"
   },
   "accountMenu": {
     "account": "Cuenta",

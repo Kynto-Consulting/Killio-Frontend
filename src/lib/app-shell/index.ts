@@ -65,6 +65,9 @@ export interface KillioAppBridge {
    * Android builds with the "deviceTools" feature: the phone's own hardware and system apps.
    * Actions: "setAlarm" { hour, minute, label? }, "setTimer" { seconds, label? }, "flashlight" { on },
    * "listApps" → { apps: [{ label, package }] }, "openApp" { packageName }.
+   * Builds with the "phoneData" feature add: "contactsSearch" { query }, "calendarList" { startMs, endMs },
+   * "calendarCreate" { title, start, end, location?, notes? }, "setBrightness" { level } | { restore },
+   * "mediaKey" { key: "pause" | "play" | "next" | "previous" }.
    */
   device?(action: string, payload?: Record<string, unknown>): Promise<Record<string, unknown>>;
   /** Builds with the "update" feature: asks whether a newer build of the app is published. */

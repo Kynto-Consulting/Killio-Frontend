@@ -482,6 +482,12 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext, wo
               ? ctx.tDashboard("appShell.confirmAlarm", { time: detail })
             : kind === "timer"
               ? ctx.tDashboard("appShell.confirmTimer", { duration: detail })
+            : kind === "contacts"
+              ? ctx.tDashboard("appShell.confirmContacts", { query: detail })
+            : kind === "calendarRead"
+              ? ctx.tDashboard("appShell.confirmCalendarRead")
+            : kind === "calendarEvent"
+              ? ctx.tDashboard("appShell.confirmCalendarEvent", { title: detail })
               : detail
                 ? ctx.tDashboard("appShell.confirmScreenshotReason", { reason: detail })
                 : ctx.tDashboard("appShell.confirmScreenshot"),
