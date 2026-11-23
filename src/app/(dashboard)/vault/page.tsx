@@ -51,18 +51,18 @@ export default function VaultPage() {
         <p className="mt-1 text-sm text-muted-foreground">{t("vault.subtitle")}</p>
       </header>
 
-      <div role="tablist" aria-label={t("vault.title")} className="mb-5 flex gap-1 overflow-x-auto border-b border-border">
+      <div role="tablist" aria-label={t("vault.title")} className="mb-5 grid grid-cols-4 border-b border-border sm:flex sm:gap-1">
         {tabs.map(({ key, label, icon: Icon }) => (
           <button
             key={key}
             role="tab"
             aria-selected={tab === key}
             onClick={() => setTab(key)}
-            className={`-mb-px inline-flex shrink-0 items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
+            className={`-mb-px inline-flex min-h-11 min-w-0 flex-col items-center justify-center gap-1 border-b-2 px-1 py-2 text-[11px] font-medium leading-tight transition-colors sm:shrink-0 sm:flex-row sm:gap-2 sm:px-3 sm:text-sm ${
               tab === key ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
-            <Icon className="h-4 w-4" aria-hidden /> {label}
+            <Icon className="h-4 w-4 shrink-0" aria-hidden /> <span className="max-w-full truncate">{label}</span>
           </button>
         ))}
       </div>
@@ -104,10 +104,10 @@ function Diary({ accessToken, teamId, locale }: { accessToken: string; teamId: s
 
   return (
     <section className="space-y-4">
-      <form onSubmit={(e) => { e.preventDefault(); load(query); }} className="flex flex-wrap items-end gap-2">
-        <label className="space-y-1 text-xs text-muted-foreground">
+      <form onSubmit={(e) => { e.preventDefault(); load(query); }} className="grid grid-cols-[1fr_auto] items-end gap-2 sm:flex sm:flex-wrap">
+        <label className="col-span-2 space-y-1 text-xs text-muted-foreground sm:col-span-1">
           {t("vault.diary.day")}
-          <input type="date" value={date} max={today()} onChange={(e) => { setQuery(""); setDate(e.target.value || today()); }} className="block h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground" />
+          <input type="date" value={date} max={today()} onChange={(e) => { setQuery(""); setDate(e.target.value || today()); }} className="block h-10 w-full rounded-md border border-border bg-background px-2 text-sm text-foreground sm:h-9 sm:w-auto" />
         </label>
         <label className="min-w-0 flex-1 space-y-1 text-xs text-muted-foreground">
           {t("vault.diary.search")}

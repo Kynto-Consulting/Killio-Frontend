@@ -20,7 +20,8 @@
     "nomeshsYet": "No Meshs yet",
     "rooms": "Rooms",
     "noRoomsYet": "No rooms yet",
-    "vault": "Vault"
+    "vault": "Vault",
+    "menu": "Menu"
   },
   "metrics": {
     "title": "Workspace Metrics",

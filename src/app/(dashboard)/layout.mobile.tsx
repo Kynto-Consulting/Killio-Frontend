@@ -517,7 +517,7 @@ function LayoutMobileInner({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto bg-background/50">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden bg-background/50">
           {children}
         </main>
 

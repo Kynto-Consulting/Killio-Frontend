@@ -188,14 +188,14 @@ export default function MeshBoardsPage() {
           <p className="text-muted-foreground">{t("mesh.subtitle")}</p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="relative">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-[10rem] flex-1 sm:flex-none">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder={t("mesh.searchPlaceholder")}
-              className="h-9 w-64 rounded-md border border-input bg-card px-3 pl-9 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+              className="h-9 w-full sm:w-64 rounded-md border border-input bg-card px-3 pl-9 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
             />
           </div>
 

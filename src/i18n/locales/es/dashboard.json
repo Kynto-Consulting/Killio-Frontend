@@ -20,7 +20,8 @@
     "nomeshsYet": "Aun no hay Meshs",
     "rooms": "Salas",
     "noRoomsYet": "Aún no hay salas",
-    "vault": "Vault"
+    "vault": "Vault",
+    "menu": "Menú"
   },
   "metrics": {
     "title": "Metricas del espacio",
