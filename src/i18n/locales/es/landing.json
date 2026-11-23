@@ -201,6 +201,13 @@
     "description": "Crea un workspace, acepta los terminos una vez y dale a tu equipo un sistema operativo mas claro desde el primer dia."
   },
   "mobile": {
+    "nav": {
+      "cta": "Empezar"
+    },
+    "menu": {
+      "open": "Abrir menú",
+      "close": "Cerrar menú"
+    },
     "badge": "Beta publica",
     "hero": {
       "titleLine1": "Un workspace movil.",
@@ -415,7 +422,7 @@
       "yearly": "Anual",
       "save": "Ahorra 20%",
       "billedAnnually": "facturado anualmente",
-      "vsMonthly": "vs {price}/mes facturado mensualmente",
+      "vsMonthly": "vs {{price}}/mes facturado mensualmente",
       "included": "Que incluye",
       "enterprise": {
         "title": "Necesitas Enterprise?",
