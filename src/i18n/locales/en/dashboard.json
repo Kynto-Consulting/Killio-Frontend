@@ -252,15 +252,32 @@
       "wakeHint": "While listening is on, a phrase that starts by calling Killio (\"Hey Killio, create a card for…\") is handed to the assistant as an order. Anyone nearby can say it."
     },
     "models": {
-      "intro": "The speech models Vault uses and where they run.",
+      "intro": "The speech models Vault uses and where they run. Telling who is speaking happens on your device; transcription, on the server.",
       "transcription": "Speech transcription",
       "cloud": "On the server",
       "onDevice": "On-device transcription",
-      "speakers": "Who is speaking (diarization and voice identification)",
+      "speakers": "Who is speaking (voice print)",
       "wakeWord": "Wake phrase",
       "notYet": "Not available in Killio App yet",
       "appNote": "On-device models will only exist inside Killio App.",
-      "fromTranscript": "From the transcript"
+      "fromTranscript": "From the transcript",
+      "onThisDevice": "On this device"
+    },
+    "speakers": {
+      "title": "Tell who is speaking",
+      "hint": "Each diary phrase says who said it: \"Person 1\", \"Person 2\"… until you name them. It is worked out on this device: neither the audio nor the voice prints leave it. The first time it downloads a model of about 40 MB. Let the people around you know: a voice print identifies a person.",
+      "person": "Person {{number}}",
+      "heard": "Voices heard",
+      "phrases": "Phrases: {{count}}",
+      "none": "No voice heard yet. Phrases shorter than 2 seconds are not labelled.",
+      "rename": "Name {{name}}",
+      "forget": "Forget {{name}}",
+      "saveName": "Save name",
+      "namePlaceholder": "Name",
+      "nameTaken": "Another voice already has that name.",
+      "clear": "Delete every voice print on this device",
+      "clearConfirm": "Every voice print kept on this device will be deleted. Labels already written to the diary do not change. Continue?",
+      "failed": "The last voice could not be recognised:"
     }
   }
 }

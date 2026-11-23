@@ -59,6 +59,7 @@ export function ActiveListeningHost() {
       accessToken: () => session.current.accessToken,
       teamId: () => session.current.activeTeamId,
       language: () => session.current.locale,
+      unnamedSpeaker: (number) => t("vault.speakers.person", { number }),
     });
   }, [t]);
 

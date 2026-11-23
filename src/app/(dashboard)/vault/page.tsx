@@ -6,6 +6,7 @@ import { BookOpen, Brain, Cpu, Loader2, Mic, Search, Square } from "lucide-react
 import { useSession } from "@/components/providers/session-provider";
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import { AssistantMemorySettings } from "@/components/ui/assistant-memory-settings";
+import { SpeakersSettings } from "@/components/app-shell/speakers-settings";
 import { getVaultEntitlements, searchDiary, type DiaryEntry, type VaultEntitlements } from "@/lib/api/vault";
 import { killioApp } from "@/lib/app-shell";
 import { activeListening, type ListeningState } from "@/lib/app-shell/active-listening";
@@ -131,7 +132,10 @@ function Diary({ accessToken, teamId, locale }: { accessToken: string; teamId: s
           {entries.map((entry) => (
             <li key={`${entry.brickId}-${entry.ts}`} className="flex gap-3 rounded-lg px-2 py-1.5 hover:bg-muted/40">
               <time dateTime={new Date(entry.ts).toISOString()} className="w-14 shrink-0 pt-0.5 text-xs tabular-nums text-muted-foreground">{time(entry.ts)}</time>
-              <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-sm leading-6">{entry.text}</p>
+              <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-sm leading-6">
+                {entry.speaker ? <span className="mr-1.5 rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">{entry.speaker}</span> : null}
+                {entry.speaker && entry.text.startsWith(`${entry.speaker}: `) ? entry.text.slice(entry.speaker.length + 2) : entry.text}
+              </p>
               <Link href={`/d/${entry.documentId}`} className="shrink-0 pt-0.5 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">{t("vault.diary.open")}</Link>
             </li>
           ))}
@@ -203,6 +207,8 @@ function Listening({ accessToken, teamId, inApp }: { accessToken: string; teamId
         </label>
       ) : null}
 
+      {inApp ? <SpeakersSettings /> : null}
+
       <dl className="grid gap-px overflow-hidden rounded-xl border border-border bg-border text-sm sm:grid-cols-2">
         <Fact label={t("vault.listening.plan")} value={plan ? plan.tier : "…"} />
         <Fact
@@ -232,7 +238,7 @@ function Models({ inApp }: { inApp: boolean }) {
   const rows: Array<{ name: string; where: string; ready: boolean }> = [
     { name: t("vault.models.transcription"), where: t("vault.models.cloud"), ready: true },
     { name: t("vault.models.onDevice"), where: t("vault.models.notYet"), ready: false },
-    { name: t("vault.models.speakers"), where: t("vault.models.notYet"), ready: false },
+    { name: t("vault.models.speakers"), where: t("vault.models.onThisDevice"), ready: true },
     { name: t("vault.models.wakeWord"), where: t("vault.models.fromTranscript"), ready: true },
   ];
   return (

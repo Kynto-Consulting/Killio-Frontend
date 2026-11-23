@@ -1,0 +1,12 @@
+Third-party files in this folder
+
+speaker.onnx
+  WeSpeaker ResNet34-LM speaker-embedding model trained on VoxCeleb, in the ONNX export published by
+  the sherpa-onnx project (file wespeaker_en_voxceleb_resnet34_LM.onnx, release "speaker-recongition-models").
+  SHA-256 e9848563da86f263117134dfd7ad63c92355b37de492b55e325400c9d9c39012. Unmodified.
+  License: Creative Commons Attribution 4.0 (CC BY 4.0), as stated by the WeSpeaker project for its
+  VoxCeleb models. https://github.com/wenet-e2e/wespeaker  https://github.com/k2-fsa/sherpa-onnx
+
+ort.wasm.min.mjs, ort-wasm-simd-threaded.mjs, ort-wasm-simd-threaded.wasm
+  ONNX Runtime Web 1.31.1, (c) Microsoft Corporation. MIT License. Unmodified.
+  https://github.com/microsoft/onnxruntime

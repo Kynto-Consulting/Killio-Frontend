@@ -9,6 +9,7 @@
  */
 import { API_BASE_URL } from "@/lib/api/client";
 import { SpeechSegmenter, downsample, encodeWav, type SpeechSegment } from "./speech-segmenter.ts";
+import { speakerId } from "./voice/speaker-id.ts";
 
 export interface ListeningState {
   status: "off" | "starting" | "listening" | "error";
@@ -26,6 +27,8 @@ export interface ListeningDeps {
   teamId: () => string | null;
   /** "es", "en"… a hint for the transcription. */
   language: () => string;
+  /** How to call a voice that has no name yet: (2) => "Person 2". */
+  unnamedSpeaker?: (number: number) => string;
 }
 
 const RATE = 16_000;
@@ -182,6 +185,8 @@ class ActiveListening {
       return "stop";
     }
     try {
+      // Who is speaking is worked out on the device while the server transcribes (voice/speaker-id.ts).
+      const who = speakerId.identify(phrase.samples);
       const form = new FormData();
       const wav = encodeWav(phrase.samples, RATE);
       form.append("file", new Blob([wav.buffer as ArrayBuffer], { type: "audio/wav" }), "phrase.wav");
@@ -200,6 +205,8 @@ class ActiveListening {
       }
       const text = String((await stt.json())?.text ?? "").trim();
       if (!text) return "skipped";
+      const voice = await who;
+      const speaker = voice ? voice.name ?? this.deps?.unnamedSpeaker?.(voice.number ?? 0) ?? `Speaker ${voice.number ?? ""}`.trim() : undefined;
       const ingest = await fetch(`${API_BASE_URL}/vault/diary/ingest`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -207,7 +214,7 @@ class ActiveListening {
           teamId,
           date: localDate(phrase.startedAt),
           deviceId: deviceId(),
-          segments: [{ text, ts: Math.round(phrase.startedAt), clientId: crypto.randomUUID(), source: "killio-app" }],
+          segments: [{ text, ts: Math.round(phrase.startedAt), clientId: crypto.randomUUID(), source: "killio-app", ...(speaker ? { speaker } : {}) }],
         }),
       });
       if (!ingest.ok) {
