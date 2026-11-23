@@ -64,6 +64,8 @@ import enRoles from "@/i18n/locales/en/roles.json";
 import esRoles from "@/i18n/locales/es/roles.json";
 import enOnboarding from "@/i18n/locales/en/onboarding.json";
 import esOnboarding from "@/i18n/locales/es/onboarding.json";
+import enDownload from "@/i18n/locales/en/download.json";
+import esDownload from "@/i18n/locales/es/download.json";
 
 export const SUPPORTED_LOCALES = ["en", "es"] as const;
 
@@ -77,7 +79,7 @@ export const NAMESPACES = [
   "history", "board-detail", "document-detail", "notifications",
   "landing", "legal", "integrations", "pricing", "marketplace", "rooms", "mesh",
   "share-local", "groups", "board-filters", "kql",
-  "file-options", "query-flow", "onboarding", "roles", "bots", "emoji",
+  "file-options", "query-flow", "onboarding", "roles", "bots", "emoji", "download",
 ] as const;
 
 export type Namespace = (typeof NAMESPACES)[number];
@@ -123,6 +125,7 @@ const dictionaries: Record<Locale, LocaleMessages> = {
     roles: enRoles,
     bots: enBots,
     emoji: enEmoji,
+    download: enDownload,
   },
   es: {
     common: esCommon,
@@ -158,6 +161,7 @@ const dictionaries: Record<Locale, LocaleMessages> = {
     roles: esRoles,
     bots: esBots,
     emoji: esEmoji,
+    download: esDownload,
   },
 };
 

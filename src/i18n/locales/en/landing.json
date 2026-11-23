@@ -266,7 +266,8 @@
       "signIn": "Sign in",
       "getStarted": "Get started free",
       "apkTitle": "Download Killio Vault (Android)",
-      "marketplace": "Marketplace"
+      "marketplace": "Marketplace",
+      "download": "Download"
     },
     "vault": {
       "eyebrow": "Killio Vault",
@@ -508,6 +509,7 @@
       "privacy": "Privacy",
       "terms": "Terms",
       "cookies": "Cookies",
+      "download": "Download",
       "credits": "Credits",
       "contact": "Contact",
       "vault": "Killio Vault",

@@ -58,7 +58,8 @@ function useFadeRef() {
 }
 
 // â”€â”€â”€ SVG Icon library â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-function Nav({ t }: { t: T }) {
+// `base` is "/" on pages other than the landing, so the section links lead back to it.
+export function Nav({ t, base = "" }: { t: T; base?: string }) {
   return (
     <nav>
       <div className="nav-inner">
@@ -67,11 +68,12 @@ function Nav({ t }: { t: T }) {
           <span>Killio</span>
         </a>
         <div className="nav-links">
-          <a href="#features">{t("kl.nav.features")}</a>
-          <a href="#ai">{t("kl.nav.ai")}</a>
-          <a href="#integrations">{t("kl.nav.integrations")}</a>
+          <a href={`${base}#features`}>{t("kl.nav.features")}</a>
+          <a href={`${base}#ai`}>{t("kl.nav.ai")}</a>
+          <a href={`${base}#integrations`}>{t("kl.nav.integrations")}</a>
           <a href="/marketplace">{t("kl.nav.marketplace")}</a>
-          <a href="#pricing">{t("kl.nav.pricing")}</a>
+          <a href={`${base}#pricing`}>{t("kl.nav.pricing")}</a>
+          <a href="/download">{t("kl.nav.download")}</a>
         </div>
         <div className="nav-actions">
           <a href="/login" className="btn-ghost">{t("kl.nav.signIn")}</a>
@@ -543,7 +545,7 @@ function CTASection({ t }: { t: T }) {
 }
 
 // â”€â”€â”€ Footer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-function Footer({ t }: { t: T }) {
+export function Footer({ t }: { t: T }) {
   return (
     <footer>
       <div className="footer-inner">
@@ -552,6 +554,7 @@ function Footer({ t }: { t: T }) {
           <span>Killio</span>
         </a>
         <div className="footer-links">
+          <a href="/download">{t("kl.footer.download")}</a>
           <a href="/privacy">{t("kl.footer.privacy")}</a>
           <a href="/terms">{t("kl.footer.terms")}</a>
           <a href="/cookies">{t("kl.footer.cookies")}</a>
