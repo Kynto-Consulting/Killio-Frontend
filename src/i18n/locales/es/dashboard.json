@@ -252,15 +252,32 @@
       "wakeHint": "Mientras la escucha está encendida, una frase que empieza llamando a Killio («Oye Killio, crea una tarjeta para…») se le pasa al asistente como una orden. Cualquiera que esté cerca puede decirla."
     },
     "models": {
-      "intro": "Los modelos de voz que usa Vault y dónde corren.",
+      "intro": "Los modelos de voz que usa Vault y dónde corren. Reconocer quién habla ocurre en tu dispositivo; transcribir, en el servidor.",
       "transcription": "Transcripción de voz",
       "cloud": "En el servidor",
       "onDevice": "Transcripción en el dispositivo",
-      "speakers": "Quién habla (diarización e identificación de voz)",
+      "speakers": "Quién habla (huella de voz)",
       "wakeWord": "Frase de activación",
       "notYet": "Aún no disponible en Killio App",
       "appNote": "Los modelos en el dispositivo solo existirán dentro de Killio App.",
-      "fromTranscript": "A partir de la transcripción"
+      "fromTranscript": "A partir de la transcripción",
+      "onThisDevice": "En este dispositivo"
+    },
+    "speakers": {
+      "title": "Reconocer quién habla",
+      "hint": "Cada frase del diario dice quién la dijo: «Persona 1», «Persona 2»… hasta que les pongas nombre. Se calcula en este dispositivo: ni el audio ni las huellas de voz salen de él. La primera vez descarga un modelo de unos 40 MB. Avisa a quienes te rodean: una huella de voz identifica a una persona.",
+      "person": "Persona {{number}}",
+      "heard": "Voces escuchadas",
+      "phrases": "Frases: {{count}}",
+      "none": "Aún no se ha escuchado ninguna voz. Las frases de menos de 2 segundos no se etiquetan.",
+      "rename": "Poner nombre a {{name}}",
+      "forget": "Olvidar a {{name}}",
+      "saveName": "Guardar nombre",
+      "namePlaceholder": "Nombre",
+      "nameTaken": "Ya hay una voz con ese nombre.",
+      "clear": "Borrar todas las huellas de voz de este dispositivo",
+      "clearConfirm": "Se borrarán todas las huellas de voz guardadas en este dispositivo. Las etiquetas ya escritas en el diario no cambian. ¿Continuar?",
+      "failed": "No se pudo reconocer la última voz:"
     }
   }
 }

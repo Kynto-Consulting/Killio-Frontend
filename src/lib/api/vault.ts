@@ -8,6 +8,8 @@ export interface DiaryEntry {
   /** Capture time, UTC epoch milliseconds. */
   ts: number;
   source: string;
+  /** Who said it, when the device that heard it could tell voices apart. The text starts with "<speaker>: ". */
+  speaker?: string;
 }
 
 /** What the workspace's plan allows for the diary and listening. */
