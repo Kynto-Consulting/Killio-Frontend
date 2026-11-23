@@ -30,6 +30,8 @@ export function MobileNavSheet({
   logout,
   onCreateWorkspace,
   onOpenSettings,
+  onOpenPreferences,
+  onSwitchAccount,
   boardName,
   documentName
 }: {
@@ -45,6 +47,8 @@ export function MobileNavSheet({
   logout: () => void;
   onCreateWorkspace?: () => void;
   onOpenSettings?: () => void;
+  onOpenPreferences?: () => void;
+  onSwitchAccount?: () => void;
   boardName?: string;
   documentName?: string;
 }) {
@@ -440,8 +444,32 @@ export function MobileNavSheet({
                       <span className="text-sm font-medium w-full text-left truncate leading-tight">{user?.displayName || "Account"}</span>
                     </div>
                   </div>
-                  <Settings className="h-4 w-4 text-muted-foreground" />
+                  <UserCircle className="h-4 w-4 text-muted-foreground" />
                 </button>
+                {/* What the desktop account menu offers: on a phone this sheet is the only way to them. */}
+                <div className="mt-1 grid grid-cols-3 gap-1">
+                  <button
+                    className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-[11px] font-medium text-foreground/80 transition-colors hover:bg-accent/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={() => { setIsOpen(false); onOpenPreferences?.(); }}
+                  >
+                    <Settings className="h-4 w-4" />
+                    <span className="w-full truncate text-center">{tDashboard("accountMenu.appPreferences")}</span>
+                  </button>
+                  <button
+                    className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-[11px] font-medium text-foreground/80 transition-colors hover:bg-accent/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={() => { setIsOpen(false); onSwitchAccount?.(); }}
+                  >
+                    <ArrowRightLeft className="h-4 w-4" />
+                    <span className="w-full truncate text-center">{tDashboard("accountMenu.switchAccount")}</span>
+                  </button>
+                  <button
+                    className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={() => { setIsOpen(false); logout(); }}
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span className="w-full truncate text-center">{tDashboard("accountMenu.signOut")}</span>
+                  </button>
+                </div>
             </div>
             </div>
           </div>

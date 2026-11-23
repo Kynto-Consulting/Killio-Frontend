@@ -498,6 +498,8 @@ function LayoutMobileInner({ children }: { children: React.ReactNode }) {
               logout={logout}
               onCreateWorkspace={() => setIsCreateWorkspaceModalOpen(true)}
               onOpenSettings={() => setIsProfileModalOpen(true)}
+              onOpenPreferences={() => setIsPreferencesModalOpen(true)}
+              onSwitchAccount={() => setIsSwitchAccountModalOpen(true)}
             />
             <div id="navbar-usage-slot" className="ml-2 flex items-center min-w-0 overflow-hidden"></div>
           </div>
