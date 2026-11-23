@@ -230,7 +230,7 @@
       "transcriptionCloud": "On the server",
       "audio": "The audio",
       "audioNotKept": "Not kept; only the text",
-      "limits": "Transcription spends the plan's credits. Without a connection phrases are not saved. For now listening stops when the window is closed."
+      "limits": "Transcription spends the plan's credits. Without a connection phrases are not saved. On desktop, closing the window while listening keeps Killio App in the system tray."
     },
     "models": {
       "intro": "The speech models Vault uses and where they run.",

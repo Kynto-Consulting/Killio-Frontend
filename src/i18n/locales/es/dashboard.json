@@ -230,7 +230,7 @@
       "transcriptionCloud": "En el servidor",
       "audio": "El audio",
       "audioNotKept": "No se guarda; solo el texto",
-      "limits": "La transcripción consume créditos del plan. Sin conexión las frases no se guardan. Por ahora la escucha se detiene al cerrar la ventana."
+      "limits": "La transcripción consume créditos del plan. Sin conexión las frases no se guardan. En escritorio, si cierras la ventana con la escucha encendida, Killio App sigue en la bandeja del sistema."
     },
     "models": {
       "intro": "Los modelos de voz que usa Vault y dónde corren.",
