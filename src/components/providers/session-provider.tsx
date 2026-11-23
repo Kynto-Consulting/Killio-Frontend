@@ -1,6 +1,7 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { reportAccountsToApp, takeRequestedAccountId } from "@/lib/app-shell";
 import { useRouter } from "next/navigation";
 import { AuthResponse, refresh } from "@/lib/api/contracts";
 import { normalizeSessionUser, type SessionUser } from "@/lib/workspace-members";
@@ -399,6 +400,24 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       return prev;
     });
   }, []);
+
+  // ── Killio App: accounts across servers ───────────────────────────────────
+  // The app keeps one list of the accounts signed in on every server (profile only, never tokens), so its
+  // account switcher can jump between servers. On the web both effects do nothing.
+  useEffect(() => {
+    if (isLoading) return;
+    reportAccountsToApp(
+      accounts.map((a) => ({ id: a.user.id, name: a.user.displayName ?? "", email: a.user.email ?? "", avatarUrl: a.user.avatarUrl ?? null })),
+    );
+  }, [accounts, isLoading]);
+
+  const appAccountHandledRef = useRef(false);
+  useEffect(() => {
+    if (isLoading || appAccountHandledRef.current) return;
+    appAccountHandledRef.current = true;
+    const requested = takeRequestedAccountId();
+    if (requested && requested !== user?.id && accounts.some((a) => a.user.id === requested)) switchAccount(requested);
+  }, [isLoading, accounts, user, switchAccount]);
 
   const contextValue = useMemo(
     () => ({

@@ -64,7 +64,8 @@
     "active": "Activa",
     "addAnother": "Agregar otra cuenta",
     "switch": "Cambiar cuenta",
-    "switching": "Cambiando..."
+    "switching": "Cambiando...",
+    "otherServer": "Cuenta en otro servidor"
   },
   "confirmDelete": {
     "cancel": "Cancelar",

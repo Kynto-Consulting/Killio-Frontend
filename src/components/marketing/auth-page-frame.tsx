@@ -5,6 +5,7 @@ import { BrandLogo, BrandName } from "@/components/marketing/brand-logo";
 import { PublicFooter } from "@/components/marketing/public-footer";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useTenant } from "@/components/providers/tenant-provider";
+import { killioApp } from "@/lib/app-shell";
 
 /** "account" = signed-in user inside the auth shell (no login/signup switch in the header). */
 type AuthMode = "login" | "signup" | "account";
@@ -40,7 +41,17 @@ export function AuthPageFrame({ mode, children }: AuthPageFrameProps) {
 
       <header className="z-10 border-b border-border/50 bg-background/80 backdrop-blur-md">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6">
-          <Link href="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">
+          <Link
+            href="/"
+            className="flex items-center gap-2 transition-opacity hover:opacity-80"
+            // Inside Killio App the logo opens the server picker (choose or add a server) instead of the landing.
+            onClick={(event) => {
+              const app = killioApp();
+              if (!app) return;
+              event.preventDefault();
+              void app.switchTenant();
+            }}
+          >
             <BrandLogo className="h-7 w-auto" />
             <span className="text-lg font-semibold tracking-tight"><BrandName /></span>
           </Link>

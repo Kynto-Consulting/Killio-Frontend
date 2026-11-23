@@ -36,6 +36,8 @@ type AgentStreamEventBase =
   | { type: 'tool_start'; id?: string; tool: string; input?: Record<string, unknown> }
   | { type: 'tool_done'; id?: string; tool: string; success: boolean; durationMs: number; input?: Record<string, unknown>; output?: Record<string, unknown> }
   | { type: 'tool_approval_request'; id?: string; tool: string; input: Record<string, unknown> }
+  /** The turn is paused until this device runs `tool` and resumes with `clientActionResult` (Killio App only). */
+  | { type: 'client_action'; id?: string; tool: string; input?: Record<string, unknown> }
   | { type: 'tool_result'; id?: string; tool: string; data: Record<string, unknown>; success?: boolean; durationMs?: number }
   | { type: 'delta'; text: string }
   | { 
@@ -240,6 +242,10 @@ export function streamAgentChat(
     message: string;
     approvalDecision?: 'approved' | 'rejected';
     approvalToolCall?: { id?: string; name: string; input: any };
+    /** Device tools this client can run itself (Killio App). Omit on the web. */
+    clientActions?: string[];
+    /** Result of a device tool, sent to resume the turn that a `client_action` event paused. */
+    clientActionResult?: { id?: string; tool: string; success?: boolean; output?: unknown; error?: string; pendingMessageId?: string };
     /** Whitelist of tool names — backend hard-filters to this set. Omit/empty = all tools. */
     enabledToolIds?: string[];
     /** Optional 4-word scratch-folder slug (file-production mode). */

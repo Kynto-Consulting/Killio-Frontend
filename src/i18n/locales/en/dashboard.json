@@ -137,12 +137,20 @@
       "label": "System"
     }
   },
+  "appShell": {
+    "confirmOpenLink": "The assistant wants to open this link in your browser:\n\n{{url}}",
+    "confirmClipboardRead": "The assistant wants to read what you have copied to the clipboard. Allow?",
+    "confirmOpenApp": "The assistant wants to open this app:\n\n{{app}}",
+    "confirmScreenshot": "The assistant wants to capture your screen and upload it to Killio. Allow?",
+    "confirmScreenshotReason": "The assistant wants to capture your screen and upload it to Killio.\n\nReason: {{reason}}\n\nAllow?"
+  },
   "accountMenu": {
     "account": "Account",
     "plan": "Plan",
     "profileSettings": "Profile Settings",
     "appPreferences": "App Preferences",
     "switchAccount": "Switch Account",
+    "switchServer": "Switch server",
     "signOut": "Sign Out"
   },
   "search": {

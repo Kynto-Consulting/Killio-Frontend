@@ -46,8 +46,6 @@ import enMesh from "@/i18n/locales/en/mesh.json";
 import esMesh from "@/i18n/locales/es/mesh.json";
 import enShareLocal from "@/i18n/locales/en/share-local.json";
 import esShareLocal from "@/i18n/locales/es/share-local.json";
-import enVault from "@/i18n/locales/en/vault.json";
-import esVault from "@/i18n/locales/es/vault.json";
 import enGroups from "@/i18n/locales/en/groups.json";
 import esGroups from "@/i18n/locales/es/groups.json";
 import enBoardFilters from "@/i18n/locales/en/board-filters.json";
@@ -78,7 +76,7 @@ export const NAMESPACES = [
   "tags", "boards", "documents", "teams", "accept-invite", "modals",
   "history", "board-detail", "document-detail", "notifications",
   "landing", "legal", "integrations", "pricing", "marketplace", "rooms", "mesh",
-  "share-local", "vault", "groups", "board-filters", "kql",
+  "share-local", "groups", "board-filters", "kql",
   "file-options", "query-flow", "onboarding", "roles", "bots", "emoji",
 ] as const;
 
@@ -116,7 +114,6 @@ const dictionaries: Record<Locale, LocaleMessages> = {
     rooms: enRooms,
     mesh: enMesh,
     "share-local": enShareLocal,
-    vault: enVault,
     groups: enGroups,
     "board-filters": enBoardFilters,
     kql: enKql,
@@ -152,7 +149,6 @@ const dictionaries: Record<Locale, LocaleMessages> = {
     rooms: esRooms,
     mesh: esMesh,
     "share-local": esShareLocal,
-    vault: esVault,
     groups: esGroups,
     "board-filters": esBoardFilters,
     kql: esKql,

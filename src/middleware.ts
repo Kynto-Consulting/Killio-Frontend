@@ -16,8 +16,8 @@ import { NextRequest, NextResponse } from 'next/server';
 // redirects an unauth user to /login here, the service worker precaches the
 // redirect and the entire offline experience breaks (Chrome shows
 // ERR_NAME_NOT_RESOLVED instead of the offline page).
-const PUBLIC_EXACT_PATHS = ['/', '/login', '/login/social', '/login/bloomx', '/signup', '/forgot-password', '/change-password', '/verify-otp', '/accept-invite', '/privacy', '/terms', '/cookies', '/offline', '/vault'];
-const PUBLIC_PREFIX_PATHS = ['/api', '/public-board', '/public-document', '/download'];
+const PUBLIC_EXACT_PATHS = ['/', '/login', '/login/social', '/login/bloomx', '/signup', '/forgot-password', '/change-password', '/verify-otp', '/accept-invite', '/privacy', '/terms', '/cookies', '/offline'];
+const PUBLIC_PREFIX_PATHS = ['/api', '/public-board', '/public-document'];
 
 function isPublic(pathname: string) {
   return PUBLIC_EXACT_PATHS.includes(pathname) || PUBLIC_PREFIX_PATHS.some((p) => pathname.startsWith(p));

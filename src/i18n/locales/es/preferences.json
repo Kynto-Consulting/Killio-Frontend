@@ -20,6 +20,18 @@
       "desc": "Edita los bricks de texto directamente sobre el texto renderizado — desactiva el round-trip a markdown. Puede ser inestable."
     }
   },
+  "aiProvider": {
+    "label": "Proveedor de IA",
+    "modes": { "host": "Host (el de este espacio)" },
+    "hostDesc": "Usa la IA incluida. Consume los créditos de tu plan.",
+    "ownDesc": "Usa tu propia cuenta. No consume créditos: el uso se cobra en tu proveedor.",
+    "url": "URL (opcional)",
+    "apiKey": "API key",
+    "keyStored": "Guardada (termina en {{hint}}). Escribe otra para cambiarla.",
+    "model": "Modelo",
+    "save": "Guardar proveedor",
+    "saved": "Guardado"
+  },
   "personalIntegrations": {
     "label": "Integraciones personales",
     "manage": "Gestiona tus apps conectadas",
