@@ -179,7 +179,13 @@
     },
     "confirmContacts": "The assistant wants to search this phone's contacts for \"{{query}}\". The names and numbers it finds will be sent to the assistant. Allow?",
     "confirmCalendarRead": "The assistant wants to read this phone's calendar events. Allow?",
-    "confirmCalendarEvent": "The assistant wants to open the calendar with a new event: \"{{title}}\". You save it there. Allow?"
+    "confirmCalendarEvent": "The assistant wants to open the calendar with a new event: \"{{title}}\". You save it there. Allow?",
+    "confirmCron": "The assistant wants to save a recurring prompt on this device. When the time comes it will send this message by itself:\n\n{{job}}\n\nAllow?",
+    "pickFile": {
+      "title": "The assistant asks you for a file.",
+      "choose": "Choose file",
+      "cancel": "Cancel"
+    }
   },
   "accountMenu": {
     "account": "Account",

@@ -23,6 +23,8 @@ const EVERYWHERE = [
   "maps_search", "maps_navigate",
   "instagram_open", "twitter_search", "x_open", "telegram_open", "tiktok_search",
   "clipboard_read", "clipboard_write", "get_location", "device_info", "vault_disconnect",
+  // Done by the page itself: a file dialog, and recurring prompts kept in this device's storage.
+  "pick_file", "cron_create", "cron_list", "cron_delete",
 ];
 
 /** Need a phone: a dialer, an SMS app, a share sheet, a battery, a ride app. */

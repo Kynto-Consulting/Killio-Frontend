@@ -482,6 +482,8 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext, wo
               ? ctx.tDashboard("appShell.confirmAlarm", { time: detail })
             : kind === "timer"
               ? ctx.tDashboard("appShell.confirmTimer", { duration: detail })
+            : kind === "cron"
+              ? ctx.tDashboard("appShell.confirmCron", { job: detail })
             : kind === "contacts"
               ? ctx.tDashboard("appShell.confirmContacts", { query: detail })
             : kind === "calendarRead"
@@ -508,6 +510,11 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext, wo
       accessToken: token,
       teamId: ctx.teamId,
       confirm: confirmDeviceAction,
+      labels: {
+        pickFileTitle: ctx.tDashboard("appShell.pickFile.title"),
+        pickFileChoose: ctx.tDashboard("appShell.pickFile.choose"),
+        cancel: ctx.tDashboard("appShell.pickFile.cancel"),
+      },
     }).then((outcome) => {
       // The backend replaces this message with the tool's real result, so its text is not used.
       cancelRef.current = streamAgentChat(

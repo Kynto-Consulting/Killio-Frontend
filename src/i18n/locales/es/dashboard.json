@@ -179,7 +179,13 @@
     },
     "confirmContacts": "El asistente quiere buscar «{{query}}» en los contactos de este teléfono. Los nombres y números que encuentre se enviarán al asistente. ¿Permitir?",
     "confirmCalendarRead": "El asistente quiere leer los eventos del calendario de este teléfono. ¿Permitir?",
-    "confirmCalendarEvent": "El asistente quiere abrir el calendario con un evento nuevo: «{{title}}». Tú lo guardas ahí. ¿Permitir?"
+    "confirmCalendarEvent": "El asistente quiere abrir el calendario con un evento nuevo: «{{title}}». Tú lo guardas ahí. ¿Permitir?",
+    "confirmCron": "El asistente quiere guardar un recordatorio recurrente en este dispositivo. Cuando llegue la hora, enviará este mensaje por su cuenta:\n\n{{job}}\n\n¿Permitir?",
+    "pickFile": {
+      "title": "El asistente te pide un archivo.",
+      "choose": "Elegir archivo",
+      "cancel": "Cancelar"
+    }
   },
   "accountMenu": {
     "account": "Cuenta",
