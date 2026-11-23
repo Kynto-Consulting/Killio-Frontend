@@ -9,6 +9,7 @@ import { Select } from "@/components/ui/select";
 import { useExperimentalEditorMode } from "@/hooks/use-experimental-editor-mode";
 import { PersonalIntegrationsModal } from "@/components/integrations/personal-integrations-modal";
 import { ModeSettings } from "@/components/onboarding/mode-settings";
+import { HelpSettings } from "@/components/onboarding/onboarding-host";
 import { useUiMode } from "@/components/providers/ui-mode-provider";
 import { AiProviderSettings } from "@/components/ui/ai-provider-settings";
 import { AssistantMemorySettings } from "@/components/ui/assistant-memory-settings";
@@ -92,6 +93,10 @@ export function AppPreferencesModal({ isOpen, onClose }: AppPreferencesModalProp
             <ServerSettings onDone={onClose} />
 
             <ModeSettings />
+
+            <div className="h-px w-full bg-border/50" />
+
+            <HelpSettings onDone={onClose} />
 
             {uiMode.mode === "full" ? <><AiProviderSettings />
 

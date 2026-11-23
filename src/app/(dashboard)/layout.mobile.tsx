@@ -18,7 +18,7 @@ import { useSession } from "@/components/providers/session-provider";
 import { LocalWorkspaceProvider } from "@/components/providers/local-workspace-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useTeamPermissions } from "@/hooks/use-team-permissions";
-import { HelpMenuItems, OnboardingHost } from "@/components/onboarding/onboarding-host";
+import { OnboardingHost } from "@/components/onboarding/onboarding-host";
 import { UiModeProvider } from "@/components/providers/ui-mode-provider";
 import { useEffect, useState } from "react";
 import { listTeams, listTeamBoards, createTeam, createInvite, BoardSummary, TeamView, TeamRole } from "@/lib/api/contracts";
@@ -460,7 +460,6 @@ function LayoutMobileInner({ children }: { children: React.ReactNode }) {
 
               <div className="h-px bg-border/50 my-1"></div>
 
-              <HelpMenuItems onDone={() => setIsSettingsOpen(false)} />
 
               <button
                 onClick={() => { setIsSettingsOpen(false); setIsSwitchAccountModalOpen(true); }}

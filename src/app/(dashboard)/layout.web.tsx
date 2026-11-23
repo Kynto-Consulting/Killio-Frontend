@@ -29,7 +29,7 @@ import { useCall } from "@/components/providers/call-provider";
 import { useTeamPermissions } from "@/hooks/use-team-permissions";
 import { UiModeProvider, useUiMode } from "@/components/providers/ui-mode-provider";
 import { isPathVisibleInMode } from "@/lib/ui-mode/ui-mode";
-import { HelpMenuItems, OnboardingHost } from "@/components/onboarding/onboarding-host";
+import { OnboardingHost } from "@/components/onboarding/onboarding-host";
 import { useVersionCheck } from "@/hooks/use-version-check";
 import { useEffect, useState } from "react";
 import { RefreshCw, HardDrive, CloudUpload, Trash2, Mic } from "lucide-react";
@@ -938,7 +938,6 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
 
               <div className="h-px bg-border/50 my-1"></div>
 
-              <HelpMenuItems onDone={() => setIsSettingsOpen(false)} />
 
               <button
                 onClick={() => { setIsSettingsOpen(false); setIsSwitchAccountModalOpen(true); }}
