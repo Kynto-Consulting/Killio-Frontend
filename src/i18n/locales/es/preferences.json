@@ -22,7 +22,10 @@
   },
   "aiProvider": {
     "label": "Proveedor de IA",
-    "modes": { "host": "Host (el de este espacio)" },
+    "modes": {
+      "host": "Host (el de este espacio)",
+      "claude": "Claude (tu Claude Code, solo en este equipo)"
+    },
     "hostDesc": "Usa la IA incluida. Consume los créditos de tu plan.",
     "ownDesc": "Usa tu propia cuenta. No consume créditos: el uso se cobra en tu proveedor.",
     "url": "URL (opcional)",
@@ -30,7 +33,11 @@
     "keyStored": "Guardada (termina en {{hint}}). Escribe otra para cambiarla.",
     "model": "Modelo",
     "save": "Guardar proveedor",
-    "saved": "Guardado"
+    "saved": "Guardado",
+    "claudeDesc": "Usa el Claude Code instalado en este equipo, con tu propia cuenta de Claude. No consume créditos. El asistente trabaja desde este equipo y estas conversaciones no se guardan en el historial.",
+    "claudeMissingClaude": "No se encontró Claude Code en este equipo. Instálalo e inicia sesión en él para usar este modo.",
+    "claudeMissingBun": "Falta Bun en este equipo (bun.sh). Instálalo para usar este modo.",
+    "claudeTerms": "Usas tu cuenta de Claude bajo tu responsabilidad: revisa que las condiciones de tu plan de Anthropic permitan este uso."
   },
   "personalIntegrations": {
     "label": "Integraciones personales",

@@ -142,7 +142,8 @@
     "confirmClipboardRead": "The assistant wants to read what you have copied to the clipboard. Allow?",
     "confirmOpenApp": "The assistant wants to open this app:\n\n{{app}}",
     "confirmScreenshot": "The assistant wants to capture your screen and upload it to Killio. Allow?",
-    "confirmScreenshotReason": "The assistant wants to capture your screen and upload it to Killio.\n\nReason: {{reason}}\n\nAllow?"
+    "confirmScreenshotReason": "The assistant wants to capture your screen and upload it to Killio.\n\nReason: {{reason}}\n\nAllow?",
+    "confirmRunTool": "The assistant wants to run \"{{tool}}\", which changes or deletes information. Allow?"
   },
   "accountMenu": {
     "account": "Account",
